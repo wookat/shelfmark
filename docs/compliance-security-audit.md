@@ -9,7 +9,7 @@
 | 数据版权 | ✅ 合规 | 目录数据全部来自 Wikidata（CC0）SPARQL 导出；仅使用书名/作者/系列/年份等事实性元数据，不含受版权保护的封面、简介文本。/about 页公开注明数据来源与纠错渠道。 |
 | Cookie/追踪 | ✅ 合规 | 全站 0 cookie；阅读进度仅存 localStorage（不上传）；统计仅记录 `day+path` 计数（无 IP、无 UA、无指纹、无标识符），属无须 Cookie 同意横幅的最小化统计。 |
 | 隐私政策 | ✅ 已上线 | /privacy 说明 localStorage、统计、邮箱用途与退订方式（mailto）。 |
-| 邮箱收集 | ✅ 合规 | 单一明确用途（新书提醒），最小化存储（email+source+时间），未接任何第三方营销工具。改进项：正式发信前需加 double opt-in 与退订链接（round 2）。 |
+| 邮箱收集 | ✅ 合规 | 单一明确用途（新书提醒），最小化存储（email+source+时间），未接任何第三方营销工具。Round 2 已实现 double opt-in 流程（emails.token/confirmed + /confirm 端点）；正式发信仍需邮件服务商（Resend/Brevo）API key 与退订链接，目前不发送任何邮件。 |
 | 支付 | N/A | 免费模式，无收款代码路径。 |
 | EU AI Act / 未成年人 | N/A | 无 AI 生成内容、无 UGC、无账号体系。 |
 
@@ -25,6 +25,6 @@
 | 依赖供应链 | ✅ | 运行时仅 hono；构建期 tailwindcss/wrangler/typescript 均为主流成熟版本。 |
 
 ## 遗留项（非阻塞）
-1. 邮件发送上线前补 double opt-in + 退订链接（P1，发信前必须）。
+1. 邮件发送上线前接入邮件服务商并发送确认邮件（double opt-in 流程已就绪），补退订链接（P1，发信前必须）。
 2. /api/* 速率限制（P2）。
 3. Security headers（CSP/Referrer-Policy）可加严（P2）。

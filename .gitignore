@@ -2,3 +2,9 @@ node_modules/
 data/raw_rows.jsonl
 data/fetch.log
 .wrangler/
+data/raw_*.jsonl
+data/raw_author_rows.bak
+data/*.log
+data/author_counts.json
+data/author_qids.txt
+__pycache__/
