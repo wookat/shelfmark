@@ -66,7 +66,13 @@
         body: JSON.stringify({ email: input.value, source: location.pathname }),
       }).then(function (r) {
         btn.textContent = r.ok ? "Subscribed ✓" : "Try again";
-        if (r.ok) input.value = "";
+        if (r.ok) {
+          input.value = "";
+          var note = document.createElement("p");
+          note.className = "text-xs text-amber-accent mt-1 w-full";
+          note.textContent = "Thanks! We\u2019ll email you when tracked series get new releases.";
+          form.appendChild(note);
+        }
       }).catch(function () { btn.textContent = "Try again"; });
     });
   });

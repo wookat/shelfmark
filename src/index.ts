@@ -35,7 +35,7 @@ function seriesCard(s: Series): string {
 // ---------- Home ----------
 app.get("/", async (c) => {
   const { results: popular } = await c.env.DB.prepare(
-    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ORDER BY s.book_count DESC LIMIT 12`
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL ORDER BY s.book_count DESC LIMIT 12`
   ).all<Series>();
   const { results: authors } = await c.env.DB.prepare(
     `SELECT * FROM authors ORDER BY book_count DESC LIMIT 12`
