@@ -151,6 +151,11 @@ for i, (sqid, v) in enumerate(sorted(series.items()), start=1):
     aid = author_ids.get(v["author"]) if v["author"] else None
     s_rows.append((i, uniq_slug(slugify(v["name"]), s_seen), v["name"], aid, genre_of.get(sqid), sqid))
 
+# Drop "books" that are really series entities (sub-series rows from Wikidata P179)
+if os.path.exists("data/subseries_book_qids.json"):
+    for bq in json.load(open("data/subseries_book_qids.json")):
+        books.pop(bq, None)
+
 # Book ids are stable across imports: reuse previous qid->id assignments
 # (data/book_ids.json) so localStorage reading progress keyed by id survives.
 prev_ids = {}
