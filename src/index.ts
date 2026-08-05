@@ -1,0 +1,443 @@
+import { Hono } from "hono";
+import { layout, esc } from "./html";
+
+type Env = {
+  DB: D1Database;
+  CACHE: KVNamespace;
+  ASSETS: Fetcher;
+  SITE_URL: string;
+};
+
+type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number };
+type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; author_name?: string; author_slug?: string };
+type Book = { id: number; series_id: number; author_id: number | null; title: string; year: number | null; position: number | null };
+
+const app = new Hono<{ Bindings: Env }>();
+
+const PAGE_SIZE = 60;
+
+function bookNoun(n: number) {
+  return `${n} book${n === 1 ? "" : "s"}`;
+}
+function yearsSpan(s: Series) {
+  if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${s.first_year}–${s.last_year}`;
+  return s.first_year ? String(s.first_year) : "";
+}
+
+function seriesCard(s: Series): string {
+  return `<a href="/series/${s.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent hover:shadow-sm transition">
+    <p class="font-display font-semibold text-ink-900">${esc(s.name)}</p>
+    <p class="text-sm text-ink-700/80 mt-1">${s.author_name ? esc(s.author_name) + " · " : ""}${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</p>
+    <div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-amber-accent rounded-full" style="width:0%" data-progress-bar="${s.slug}"></div></div>
+  </a>`;
+}
+
+// ---------- Home ----------
+app.get("/", async (c) => {
+  const { results: popular } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL ORDER BY s.book_count DESC LIMIT 12`
+  ).all<Series>();
+  const { results: authors } = await c.env.DB.prepare(
+    `SELECT * FROM authors ORDER BY book_count DESC LIMIT 12`
+  ).all<Author>();
+  const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
+  const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books`).all()).results as any[]);
+  const body = `
+<section class="text-center py-10">
+  <h1 class="font-display font-bold text-4xl sm:text-5xl text-ink-900 leading-tight">Read every series<br>in the <span class="text-amber-accent">right order</span>.</h1>
+  <p class="mt-4 text-lg text-ink-700 max-w-xl mx-auto">Publication order for ${Number(nb).toLocaleString()} books across ${Number(ns).toLocaleString()} series — with a private reading tracker built in. No account needed.</p>
+  <form action="/search" method="get" class="mt-6 max-w-lg mx-auto flex gap-2">
+    <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
+    <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
+  </form>
+</section>
+<section class="mt-8">
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><a href="/series" class="text-sm text-amber-accent font-medium">All series →</a></div>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
+</section>
+<section class="mt-12">
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Prolific authors</h2><a href="/authors" class="text-sm text-amber-accent font-medium">All authors →</a></div>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+    ${authors.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}
+  </div>
+</section>
+<section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10">
+  <h2 class="font-display font-semibold text-2xl">Your shelf lives in your browser.</h2>
+  <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place and share a reading card.</p>
+</section>`;
+  return c.html(
+    layout({
+      title: "Shelfmark — Book Series in Order + Free Reading Tracker",
+      description: `Find the correct reading order for ${Number(ns).toLocaleString()} book series and track your progress privately. No signup required.`,
+      path: "/",
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "Shelfmark",
+          url: c.env.SITE_URL,
+          potentialAction: {
+            "@type": "SearchAction",
+            target: { "@type": "EntryPoint", urlTemplate: c.env.SITE_URL + "/search?q={search_term_string}" },
+            "query-input": "required name=search_term_string",
+          },
+        },
+      ],
+      body,
+    })
+  );
+});
+
+// ---------- Series index ----------
+app.get("/series", async (c) => {
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
+  ).bind(PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
+  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series`).all()).results as any[]);
+  const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  const body = `
+<h1 class="font-display font-bold text-3xl text-ink-900">All book series</h1>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series, sorted by size. Page ${page} of ${pages}.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+${pagination("/series", page, pages)}`;
+  return c.html(
+    layout({
+      title: `All Book Series in Order — Page ${page} | Shelfmark`,
+      description: `Browse ${Number(n).toLocaleString()} book series with complete reading orders and a free progress tracker.`,
+      path: page > 1 ? `/series?page=${page}` : "/series",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+function pagination(base: string, page: number, pages: number): string {
+  if (pages <= 1) return "";
+  const link = (p: number, label: string) =>
+    `<a href="${base}?page=${p}" class="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm hover:border-amber-accent">${label}</a>`;
+  return `<div class="flex gap-2 justify-center mt-8">
+    ${page > 1 ? link(page - 1, "← Previous") : ""}
+    ${page < pages ? link(page + 1, "Next →") : ""}
+  </div>`;
+}
+
+// ---------- Authors index ----------
+app.get("/authors", async (c) => {
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM authors ORDER BY book_count DESC LIMIT ? OFFSET ?`
+  ).bind(PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Author>();
+  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM authors`).all()).results as any[]);
+  const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  const body = `
+<h1 class="font-display font-bold text-3xl text-ink-900">All authors</h1>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} authors with series reading orders. Page ${page} of ${pages}.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+${results.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}
+</div>
+${pagination("/authors", page, pages)}`;
+  return c.html(
+    layout({
+      title: `Authors A–Z: Books in Order — Page ${page} | Shelfmark`,
+      description: `Browse ${Number(n).toLocaleString()} authors and find every book series in the correct reading order.`,
+      path: page > 1 ? `/authors?page=${page}` : "/authors",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Author page ----------
+app.get("/authors/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const author = await c.env.DB.prepare(`SELECT * FROM authors WHERE slug=?`).bind(slug).first<Author>();
+  if (!author) return notFound(c);
+  const { results: series } = await c.env.DB.prepare(
+    `SELECT * FROM series WHERE author_id=? ORDER BY book_count DESC`
+  ).bind(author.id).all<Series>();
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT * FROM books WHERE author_id=? ORDER BY series_id, position, year`
+  ).bind(author.id).all<Book>();
+  const bySeries = new Map<number, Book[]>();
+  for (const b of books) {
+    if (!bySeries.has(b.series_id)) bySeries.set(b.series_id, []);
+    bySeries.get(b.series_id)!.push(b);
+  }
+  const body = `
+${crumbs([["Authors", "/authors"], [author.name, ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
+<p class="mt-3 text-ink-700 max-w-2xl">${esc(author.bio ?? `${author.name} has written ${bookNoun(author.book_count)} across ${author.series_count} series. Below is every series in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
+${series.map((s) => {
+  const bs = bySeries.get(s.id) ?? [];
+  return `<section class="mt-10" id="${s.slug}">
+  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <h2 class="font-display font-semibold text-2xl text-ink-900"><a href="/series/${s.slug}" class="hover:text-amber-accent">${esc(s.name)}</a></h2>
+    <span class="text-sm text-ink-700/70">${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</span>
+    <span class="text-sm font-medium text-amber-accent" data-progress-label="${s.slug}"></span>
+  </div>
+  ${bookList(bs, s)}
+</section>`;
+}).join("")}`;
+  return c.html(
+    layout({
+      title: `${author.name} Books in Order (Complete Series List) | Shelfmark`,
+      description: `Complete list of ${author.name} books in order: ${series.slice(0, 3).map((s) => s.name).join(", ")}${series.length > 3 ? " and more" : ""}. Reading order + free progress tracker.`,
+      path: `/authors/${slug}`,
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        { "@context": "https://schema.org", "@type": "Person", name: author.name, url: `${c.env.SITE_URL}/authors/${slug}` },
+        breadcrumbLd(c.env.SITE_URL, [["Authors", "/authors"], [author.name, `/authors/${slug}`]]),
+      ],
+      body,
+    })
+  );
+});
+
+// ---------- Series page ----------
+app.get("/series/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const series = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=?`
+  ).bind(slug).first<Series>();
+  if (!series) return notFound(c);
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT * FROM books WHERE series_id=? ORDER BY position, year, id`
+  ).bind(series.id).all<Book>();
+  const { results: related } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.author_id=? AND s.id<>? ORDER BY s.book_count DESC LIMIT 6`
+  ).bind(series.author_id ?? -1, series.id).all<Series>();
+  const first = books[0];
+  const body = `
+${crumbs([["Series", "/series"], [series.name, ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
+<p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the publication order — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
+<div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
+  ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
+  <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  <span class="font-medium text-amber-accent" data-progress-label="${series.slug}"></span>
+</div>
+<div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
+${bookList(books, series)}
+<p class="mt-4 text-sm text-ink-700/70">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
+${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}`;
+  return c.html(
+    layout({
+      title: `${series.name} Books in Order (${series.book_count} Books)${series.author_name ? " — " + series.author_name : ""} | Shelfmark`,
+      description: `${series.name} reading order: all ${bookNoun(series.book_count)}${series.author_name ? ` by ${series.author_name}` : ""} listed in publication order${first ? `, starting with ${first.title}` : ""}. Track your progress free.`,
+      path: `/series/${slug}`,
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        {
+          "@context": "https://schema.org",
+          "@type": "BookSeries",
+          name: series.name,
+          url: `${c.env.SITE_URL}/series/${slug}`,
+          ...(series.author_name ? { author: { "@type": "Person", name: series.author_name } } : {}),
+          numberOfItems: series.book_count,
+        },
+        breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
+      ],
+      body,
+    })
+  );
+});
+
+function bookList(books: Book[], s: Series): string {
+  if (!books.length) return `<p class="mt-4 text-ink-700/70 text-sm">No books recorded for this series yet.</p>`;
+  return `<ol class="mt-5 space-y-2" data-series="${s.slug}" data-series-name="${esc(s.name)}">
+${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
+  <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
+    <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}</span>
+  </label>
+</li>`).join("\n")}
+</ol>`;
+}
+
+function crumbs(items: [string, string][]): string {
+  return `<nav class="text-sm text-ink-700/70 mb-4"><a href="/" class="hover:text-amber-accent">Home</a>${items
+    .map(([label, href]) => ` / ${href ? `<a href="${href}" class="hover:text-amber-accent">${esc(label)}</a>` : `<span class="text-ink-900">${esc(label)}</span>`}`)
+    .join("")}</nav>`;
+}
+
+function breadcrumbLd(siteUrl: string, items: [string, string][]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [["Home", "/"], ...items].map(([name, path], i) => ({
+      "@type": "ListItem",
+      position: i + 1,
+      name,
+      item: siteUrl + path,
+    })),
+  };
+}
+
+// ---------- Search ----------
+app.get("/search", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 100);
+  let body: string;
+  if (!q) {
+    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Search</h1><p class="mt-2 text-ink-700">Type a series or author name above.</p>`;
+  } else {
+    const like = `%${q.replace(/[%_]/g, " ")}%`;
+    const { results: series } = await c.env.DB.prepare(
+      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? ORDER BY s.book_count DESC LIMIT 30`
+    ).bind(like).all<Series>();
+    const { results: authors } = await c.env.DB.prepare(
+      `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
+    ).bind(like).all<Author>();
+    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
+${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}</div>` : ""}
+${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
+${!series.length && !authors.length ? `<p class="mt-6 text-ink-700">Nothing found. Try a different spelling, or <a href="/authors" class="text-amber-accent underline">browse all authors</a>.</p>` : ""}`;
+  }
+  return c.html(
+    layout({
+      title: q ? `“${q}” — Search | Shelfmark` : "Search | Shelfmark",
+      description: "Search book series and authors on Shelfmark.",
+      path: "/search",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Shelf (client-rendered) ----------
+app.get("/shelf", (c) => {
+  const body = `
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">My Shelf</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Everything you've ticked off, in one place. Stored privately in this browser — nothing leaves your device.</p>
+<div id="shelf-root" class="mt-8"><p class="text-ink-700/70">Loading your shelf…</p></div>
+<div class="mt-10 flex flex-wrap gap-3">
+  <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
+  <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
+</div>
+<canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
+  return c.html(
+    layout({
+      title: "My Shelf — Private Reading Tracker | Shelfmark",
+      description: "Your private, no-signup reading progress across every series you follow on Shelfmark.",
+      path: "/shelf",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Static-ish pages ----------
+app.get("/about", (c) =>
+  c.html(
+    layout({
+      title: "About & Methodology | Shelfmark",
+      description: "How Shelfmark builds its reading-order database from Wikidata and Open Library, and how the private tracker works.",
+      path: "/about",
+      siteUrl: c.env.SITE_URL,
+      body: `<h1 class="font-display font-bold text-3xl text-ink-900">About Shelfmark</h1>
+<div class="prose mt-6 max-w-2xl text-ink-700 space-y-4">
+<p>Shelfmark answers one question well: <strong>“In what order should I read this series?”</strong> — and then lets you tick books off as you go, without creating an account.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Methodology</h2>
+<p>Our series and reading-order data is built from <a class="text-amber-accent underline" href="https://www.wikidata.org">Wikidata</a> (CC0) series relationships and ordinals, cross-checked with <a class="text-amber-accent underline" href="https://openlibrary.org">Open Library</a> records. We list <em>publication order</em> by default — the order most authors intend. Spotted an error? Email <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a> and we'll fix it.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Privacy-first tracking</h2>
+<p>Your reading progress is stored in your browser's localStorage only. We run no ad trackers and set no cookies; our analytics is a first-party, cookie-less page counter.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Part of the Zalize family</h2>
+<p>Shelfmark is built by the team behind <a class="text-amber-accent underline" href="https://watchdeck.zalize.com">WatchDeck</a> (TV tracking), <a class="text-amber-accent underline" href="https://mealloop.zalize.com">MealLoop</a>, <a class="text-amber-accent underline" href="https://subsleuth.zalize.com">SubSleuth</a>, <a class="text-amber-accent underline" href="https://cv.zalize.com">HonestCV</a> and <a class="text-amber-accent underline" href="https://astrosage.zalize.com">AstroSage</a>.</p>
+</div>`,
+    })
+  )
+);
+
+app.get("/privacy", (c) =>
+  c.html(
+    layout({
+      title: "Privacy Policy | Shelfmark",
+      description: "Shelfmark privacy policy: no cookies, no ad trackers, localStorage-only reading progress.",
+      path: "/privacy",
+      siteUrl: c.env.SITE_URL,
+      body: `<h1 class="font-display font-bold text-3xl text-ink-900">Privacy Policy</h1>
+<div class="mt-6 max-w-2xl text-ink-700 space-y-4">
+<p><strong>Reading progress</strong> is stored only in your browser's localStorage. It is never transmitted to our servers.</p>
+<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). No IP addresses, fingerprints, or identifiers are stored.</p>
+<p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. One-click unsubscribe by replying or emailing <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
+<p><strong>Cookies</strong>: none.</p>
+<p>Contact: contact@zalize.com · Operated by Zalize.</p>
+</div>`,
+    })
+  )
+);
+
+// ---------- APIs ----------
+app.post("/api/subscribe", async (c) => {
+  const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);
+  if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
+    return c.json({ ok: false, error: "Invalid email" }, 400);
+  }
+  await c.env.DB.prepare(`INSERT OR IGNORE INTO emails (email, source) VALUES (?, ?)`)
+    .bind(email.toLowerCase(), (source ?? "footer").slice(0, 100)).run();
+  return c.json({ ok: true });
+});
+
+app.post("/api/hit", async (c) => {
+  const path = (await c.req.text()).slice(0, 200);
+  if (!path.startsWith("/")) return c.body(null, 204);
+  const day = new Date().toISOString().slice(0, 10);
+  await c.env.DB.prepare(
+    `INSERT INTO hits (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1`
+  ).bind(day, path).run();
+  return c.body(null, 204);
+});
+
+// ---------- SEO plumbing ----------
+app.get("/robots.txt", (c) =>
+  c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
+);
+
+const SM_CHUNK = 5000;
+app.get("/sitemap.xml", async (c) => {
+  const [{ na }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
+  const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
+  const parts = Math.ceil(Number(na) / SM_CHUNK) + Math.ceil(Number(ns) / SM_CHUNK);
+  const items = Array.from({ length: parts }, (_, i) => `<sitemap><loc>${c.env.SITE_URL}/sitemaps/${i + 1}.xml</loc></sitemap>`).join("");
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`, 200, { "content-type": "application/xml" });
+});
+
+app.get("/sitemaps/:file", async (c) => {
+  const m = /^([0-9]+)\.xml$/.exec(c.req.param("file"));
+  if (!m) return notFound(c);
+  const n = parseInt(m[1]);
+  const [{ na }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
+  const authorParts = Math.ceil(Number(na) / SM_CHUNK);
+  let urls: string[];
+  if (n <= authorParts) {
+    const { results } = await c.env.DB.prepare(`SELECT slug FROM authors ORDER BY id LIMIT ? OFFSET ?`)
+      .bind(SM_CHUNK, (n - 1) * SM_CHUNK).all<{ slug: string }>();
+    urls = results.map((r) => `/authors/${r.slug}`);
+  } else {
+    const m = n - authorParts;
+    const { results } = await c.env.DB.prepare(`SELECT slug FROM series ORDER BY id LIMIT ? OFFSET ?`)
+      .bind(SM_CHUNK, (m - 1) * SM_CHUNK).all<{ slug: string }>();
+    urls = results.map((r) => `/series/${r.slug}`);
+  }
+  if (n === 1) urls.unshift("/", "/series", "/authors", "/shelf", "/about");
+  const body = urls.map((u) => `<url><loc>${c.env.SITE_URL}${u}</loc></url>`).join("");
+  return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
+});
+
+function notFound(c: any) {
+  return c.html(
+    layout({
+      title: "Not Found | Shelfmark",
+      description: "Page not found.",
+      path: c.req.path,
+      siteUrl: c.env.SITE_URL,
+      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-4xl text-ink-900">Page not found</h1><p class="mt-3 text-ink-700">Try <a href="/search" class="text-amber-accent underline">searching</a> for a series or author.</p></div>`,
+    }),
+    404
+  );
+}
+
+app.notFound(notFound);
+
+export default app;

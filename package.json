@@ -1,0 +1,35 @@
+{
+  "name": "shelfmark",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "css": "tailwindcss -i src/styles.css -o public/styles.css --minify",
+    "deploy": "npm run css && wrangler deploy",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wookat/shelfmark.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/wookat/shelfmark/issues"
+  },
+  "homepage": "https://github.com/wookat/shelfmark#readme",
+  "dependencies": {
+    "hono": "^4.13.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260804.1",
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.119.0"
+  }
+}
