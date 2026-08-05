@@ -57,7 +57,7 @@ ${ld}
     <nav class="ml-auto flex items-center gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
-      <a href="/genres" class="hidden sm:inline hover:text-amber-accent">Genres</a>
+      <a href="/genres" class="hover:text-amber-accent">Genres</a>
       <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3.5 py-1.5 hover:bg-ink-700">My Shelf</a>
     </nav>
   </div>
