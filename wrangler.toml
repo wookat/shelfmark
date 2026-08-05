@@ -1,0 +1,24 @@
+name = "shelfmark"
+main = "src/index.ts"
+account_id = "ddff52d24ee44e21a021c15eaffcc86d"
+compatibility_date = "2026-07-01"
+
+routes = [
+  { pattern = "shelfmark.zalize.com", custom_domain = true }
+]
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shelfmark"
+database_id = "199bce20-bde4-4875-b8e1-fbc339b020b5"
+
+[[kv_namespaces]]
+binding = "CACHE"
+id = "03101c6f44d2479296611bff30ebcb43"
+
+[vars]
+SITE_URL = "https://shelfmark.zalize.com"
