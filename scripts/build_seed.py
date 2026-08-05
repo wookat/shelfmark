@@ -151,11 +151,22 @@ for i, (sqid, v) in enumerate(sorted(series.items()), start=1):
     aid = author_ids.get(v["author"]) if v["author"] else None
     s_rows.append((i, uniq_slug(slugify(v["name"]), s_seen), v["name"], aid, genre_of.get(sqid), sqid))
 
+# Book ids are stable across imports: reuse previous qid->id assignments
+# (data/book_ids.json) so localStorage reading progress keyed by id survives.
+prev_ids = {}
+if os.path.exists("data/book_ids.json"):
+    prev_ids = json.load(open("data/book_ids.json"))
+next_id = max(prev_ids.values(), default=0) + 1
 b_rows = []
-for i, (bq, v) in enumerate(sorted(books.items()), start=1):
+for bq, v in sorted(books.items()):
+    bid = prev_ids.get(bq)
+    if bid is None:
+        bid = next_id; next_id += 1
+        prev_ids[bq] = bid
     sid = series_ids.get(v.get("series"))
     aid = author_ids.get(v.get("author"))
-    b_rows.append([i, sid, aid, v["title"][:200], v["year"], v["ordinal"], cover_of.get(bq), bq])
+    b_rows.append([bid, sid, aid, v["title"][:200], v["year"], v["ordinal"], cover_of.get(bq), bq])
+json.dump(prev_ids, open("data/book_ids.json", "w"))
 
 # fill missing positions by year within series
 by_series = defaultdict(list)

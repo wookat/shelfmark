@@ -215,7 +215,7 @@ app.get("/series/:slug", async (c) => {
   ).bind(slug).first<Series>();
   if (!series) return notFound(c);
   const { results: books } = await c.env.DB.prepare(
-    `SELECT * FROM books WHERE series_id=? ORDER BY position, year, id`
+    `SELECT * FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
   ).bind(series.id).all<Book>();
   const { results: related } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.author_id=? AND s.id<>? ORDER BY s.book_count DESC LIMIT 6`
@@ -268,6 +268,7 @@ function bookList(books: Book[], s: TrackList): string {
   if (!books.length) return `<p class="mt-4 text-ink-700/70 text-sm">No books recorded for this series yet.</p>`;
   const positions = books.map((b) => b.position).filter((p): p is number => p != null);
   const dupPositions = new Set(positions).size !== positions.length;
+  if (dupPositions) books = [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0));
   return `<ol class="mt-5 space-y-2" data-series="${s.slug}" data-series-name="${esc(s.name)}">
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
@@ -452,6 +453,22 @@ app.post("/api/subscribe", async (c) => {
   await c.env.DB.prepare(`INSERT OR IGNORE INTO emails (email, source, token) VALUES (?, ?, ?)`)
     .bind(email.toLowerCase(), (source ?? "footer").slice(0, 100), token).run();
   return c.json({ ok: true });
+});
+
+app.post("/api/migrate-ids", async (c) => {
+  const { ids } = await c.req.json<{ ids?: unknown }>().catch(() => ({}) as { ids?: unknown });
+  if (!Array.isArray(ids) || !ids.length) return c.json({});
+  const nums = ids.map((x) => parseInt(String(x), 10)).filter((n) => Number.isFinite(n)).slice(0, 2000);
+  if (!nums.length) return c.json({});
+  const map: Record<string, number> = {};
+  for (let i = 0; i < nums.length; i += 100) {
+    const chunk = nums.slice(i, i + 100);
+    const { results } = await c.env.DB.prepare(
+      `SELECT old_id, new_id FROM id_migrations WHERE old_id IN (${chunk.map(() => "?").join(",")})`
+    ).bind(...chunk).all<{ old_id: number; new_id: number }>();
+    for (const r of results) map[String(r.old_id)] = r.new_id;
+  }
+  return c.json(map);
 });
 
 app.post("/api/hit", async (c) => {
