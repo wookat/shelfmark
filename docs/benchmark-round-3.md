@@ -11,7 +11,9 @@ Scope per approval: cover coverage lift, sub-series hierarchy / duplicate-ordina
 | Series descriptions | ~0 curated | 2,270 series with Wikidata descriptions | live series pages |
 | Sub-series hierarchy | none | `series.parent_id` from Wikidata P527/P361; 54 linked (e.g. Warriors arcs, The Lost Fleet → The Lost Stars, Uplift Storm trilogy); parent page shows "Sub-series within…", child shows "Part of…" chip | `/series/warriors` etc. |
 | Duplicate ordinals | Discworld showed three "1." | render-time fallback: when a series has duplicate positions, display sequential numbering | `/series/discworld` now 1..N |
-| Covers | 5,626 (ISBN-only) | Open Library search-API matching by exact normalized title + author (~57% hit rate); batch import ongoing, prioritized by popular genre series | `data/ol_covers*.jsonl`, D1 `cover_url` |
+| Covers | 5,043 (ISBN-only, live) | 7,020+ and growing: Open Library search-API matching by exact normalized title + author (~57% hit rate); backfill continues over a 16.7K queue prioritized by popular genre series | `data/ol_covers*.jsonl`, D1 `cover_url` |
+| Progress durability | re-imports orphaned localStorage ticks (QA P1) | `id_migrations` (24,115 old→new, 100% mapped) + `POST /api/migrate-ids` + one-time client migration; `build_seed.py` reuses `data/book_ids.json` so ids stay stable forever | QA round 3b: seeded old id 15080 auto-restored as 134080 |
+| Sub-series rows polluting lists | Discworld/Warriors showed tickable "subseries" rows | Wikidata P31→Q277759 audit over 24.3K book QIDs; 1,034 series-entity rows deleted, `book_count` recomputed (pills now match) | Discworld 55/55, Warriors 35/35 live |
 
 ## Fresh competitor pass
 
@@ -45,6 +47,11 @@ Objective per-item comparison against the reading-order category leader (BSIO):
 | Release alerts | newsletter | pending Resend key | ❌ gap (external dependency) |
 
 Conclusion: with Round 3 shipped, Shelfmark meets or exceeds the same-period reading-order competitors on every criterion except (a) chronological-order variants and (b) email release alerts (blocked on provider key). Recommending 达标验收 with these two documented exceptions.
+
+## QA (four gates, round 3)
+- QA + UX: two live passes (test-report-round3.md, test-report-round3b.md, recordings) — P1 progress-orphaning found and fixed+verified; sub-series/count P2s fixed and verified live.
+- Cross-test: migration exercised with hand-seeded legacy localStorage; fresh-tick and mobile regressions green.
+- Compliance/security: no change to data collection (still cookie-free, localStorage only); `/api/migrate-ids` accepts only numeric ids, capped at 2,000, parameterized queries.
 
 ## Round 4 backlog
 1. Chronological/in-universe order where it differs (P2).
