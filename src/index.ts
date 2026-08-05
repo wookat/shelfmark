@@ -9,8 +9,8 @@ type Env = {
 };
 
 type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number };
-type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; author_name?: string; author_slug?: string };
-type Book = { id: number; series_id: number | null; author_id: number | null; title: string; year: number | null; position: number | null; cover_url: string | null };
+type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; author_name?: string; author_slug?: string; parent_id?: number | null };
+type Book = { id: number; series_id: number | null; author_id: number | null; title: string; year: number | null; position: number | null; cover_url: string | null; description: string | null };
 type TrackList = { slug: string; name: string };
 
 const app = new Hono<{ Bindings: Env }>();
@@ -172,7 +172,7 @@ app.get("/authors/:slug", async (c) => {
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
-<p class="mt-3 text-ink-700 max-w-2xl">${esc(author.bio ?? `${author.name} has written ${bookNoun(author.book_count)} across ${author.series_count} series. Below is every series in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
+<p class="mt-3 text-ink-700 max-w-2xl">${author.bio ? `${esc(author.name)} is ${/^[aeiou]/i.test(author.bio) ? "an" : "a"} ${esc(author.bio)}. ` : ""}${esc(`${author.name} has written ${bookNoun(author.book_count)}${author.series_count ? ` across ${author.series_count} series` : ""}. Below is every book in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
 ${series.map((s) => {
   const bs = bySeries.get(s.id) ?? [];
   return `<section class="mt-10" id="${s.slug}">
@@ -220,6 +220,12 @@ app.get("/series/:slug", async (c) => {
   const { results: related } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.author_id=? AND s.id<>? ORDER BY s.book_count DESC LIMIT 6`
   ).bind(series.author_id ?? -1, series.id).all<Series>();
+  const { results: children } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.parent_id=? ORDER BY s.first_year, s.book_count DESC`
+  ).bind(series.id).all<Series>();
+  const parent = series.parent_id
+    ? await c.env.DB.prepare(`SELECT slug, name FROM series WHERE id=?`).bind(series.parent_id).first<{ slug: string; name: string }>()
+    : null;
   const first = books[0];
   const body = `
 ${crumbs([["Series", "/series"], [series.name, ""]])}
@@ -227,11 +233,13 @@ ${crumbs([["Series", "/series"], [series.name, ""]])}
 <p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the publication order — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
 <div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
+  ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
   <span class="font-medium text-amber-accent" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
 ${bookList(books, series)}
+${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <p class="mt-4 text-sm text-ink-700/70">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
 ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}`;
   return c.html(
@@ -258,12 +266,14 @@ ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold
 
 function bookList(books: Book[], s: TrackList): string {
   if (!books.length) return `<p class="mt-4 text-ink-700/70 text-sm">No books recorded for this series yet.</p>`;
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const dupPositions = new Set(positions).size !== positions.length;
   return `<ol class="mt-5 space-y-2" data-series="${s.slug}" data-series-name="${esc(s.name)}">
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100" onerror="this.remove()">` : ""}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/60 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
 </ol>`;
