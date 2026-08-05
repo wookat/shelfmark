@@ -10,7 +10,8 @@ type Env = {
 
 type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number };
 type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; author_name?: string; author_slug?: string };
-type Book = { id: number; series_id: number; author_id: number | null; title: string; year: number | null; position: number | null };
+type Book = { id: number; series_id: number | null; author_id: number | null; title: string; year: number | null; position: number | null; cover_url: string | null };
+type TrackList = { slug: string; name: string };
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -161,10 +162,13 @@ app.get("/authors/:slug", async (c) => {
     `SELECT * FROM books WHERE author_id=? ORDER BY series_id, position, year`
   ).bind(author.id).all<Book>();
   const bySeries = new Map<number, Book[]>();
+  const standalone: Book[] = [];
   for (const b of books) {
+    if (b.series_id == null) { standalone.push(b); continue; }
     if (!bySeries.has(b.series_id)) bySeries.set(b.series_id, []);
     bySeries.get(b.series_id)!.push(b);
   }
+  standalone.sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999));
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
@@ -179,7 +183,15 @@ ${series.map((s) => {
   </div>
   ${bookList(bs, s)}
 </section>`;
-}).join("")}`;
+}).join("")}
+${standalone.length ? `<section class="mt-10" id="standalone">
+  <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+    <h2 class="font-display font-semibold text-2xl text-ink-900">Standalone books</h2>
+    <span class="text-sm text-ink-700/70">${bookNoun(standalone.length)}</span>
+    <span class="text-sm font-medium text-amber-accent" data-progress-label="standalone-${slug}"></span>
+  </div>
+  ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
+</section>` : ""}`;
   return c.html(
     layout({
       title: `${author.name} Books in Order (Complete Series List) | Shelfmark`,
@@ -244,12 +256,13 @@ ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold
   );
 });
 
-function bookList(books: Book[], s: Series): string {
+function bookList(books: Book[], s: TrackList): string {
   if (!books.length) return `<p class="mt-4 text-ink-700/70 text-sm">No books recorded for this series yet.</p>`;
   return `<ol class="mt-5 space-y-2" data-series="${s.slug}" data-series-name="${esc(s.name)}">
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
+    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100" onerror="this.remove()">` : ""}
     <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
@@ -274,6 +287,57 @@ function breadcrumbLd(siteUrl: string, items: [string, string][]) {
     })),
   };
 }
+
+// ---------- Genres ----------
+const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+app.get("/genres", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3 ORDER BY n DESC`
+  ).all<{ genre: string; n: number }>();
+  const body = `
+<h1 class="font-display font-bold text-3xl text-ink-900">Browse series by genre</h1>
+<p class="mt-2 text-ink-700">Every genre with reading orders on Shelfmark.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
+${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(g.genre)}</p><p class="text-sm text-ink-700/80 mt-1">${g.n} series</p></a>`).join("")}
+</div>`;
+  return c.html(
+    layout({
+      title: "Book Series by Genre | Shelfmark",
+      description: "Browse book series reading orders by genre: fantasy, crime, science fiction, romance and more.",
+      path: "/genres",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+app.get("/genres/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const { results: genres } = await c.env.DB.prepare(
+    `SELECT DISTINCT genre FROM series WHERE genre IS NOT NULL`
+  ).all<{ genre: string }>();
+  const genre = genres.find((g) => gslug(g.genre) === slug)?.genre;
+  if (!genre) return notFound(c);
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? ORDER BY s.book_count DESC LIMIT 200`
+  ).bind(genre).all<Series>();
+  const body = `
+${crumbs([["Genres", "/genres"], [genre, ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order</h1>
+<p class="mt-2 text-ink-700">${results.length} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
+  return c.html(
+    layout({
+      title: `${genre} Book Series in Order (${results.length} Series) | Shelfmark`,
+      description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
+      path: `/genres/${slug}`,
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]])],
+      body,
+    })
+  );
+});
 
 // ---------- Search ----------
 app.get("/search", async (c) => {
@@ -374,8 +438,9 @@ app.post("/api/subscribe", async (c) => {
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
     return c.json({ ok: false, error: "Invalid email" }, 400);
   }
-  await c.env.DB.prepare(`INSERT OR IGNORE INTO emails (email, source) VALUES (?, ?)`)
-    .bind(email.toLowerCase(), (source ?? "footer").slice(0, 100)).run();
+  const token = crypto.randomUUID().replace(/-/g, "");
+  await c.env.DB.prepare(`INSERT OR IGNORE INTO emails (email, source, token) VALUES (?, ?, ?)`)
+    .bind(email.toLowerCase(), (source ?? "footer").slice(0, 100), token).run();
   return c.json({ ok: true });
 });
 
@@ -387,6 +452,25 @@ app.post("/api/hit", async (c) => {
     `INSERT INTO hits (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1`
   ).bind(day, path).run();
   return c.body(null, 204);
+});
+
+app.get("/confirm", async (c) => {
+  const token = (c.req.query("t") ?? "").slice(0, 64);
+  let ok = false;
+  if (/^[a-f0-9]{32}$/.test(token)) {
+    const r = await c.env.DB.prepare(`UPDATE emails SET confirmed=1 WHERE token=?`).bind(token).run();
+    ok = (r.meta.changes ?? 0) > 0;
+  }
+  return c.html(
+    layout({
+      title: "Email confirmation | Shelfmark",
+      description: "Confirm your Shelfmark email subscription.",
+      path: "/confirm",
+      siteUrl: c.env.SITE_URL,
+      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-3xl text-ink-900">${ok ? "You’re confirmed!" : "Link invalid or already used"}</h1><p class="mt-3 text-ink-700">${ok ? "We’ll email you when series you track get new releases." : "Try subscribing again from the footer of any page."}</p></div>`,
+    }),
+    ok ? 200 : 400
+  );
 });
 
 // ---------- SEO plumbing ----------
@@ -420,7 +504,13 @@ app.get("/sitemaps/:file", async (c) => {
       .bind(SM_CHUNK, (m - 1) * SM_CHUNK).all<{ slug: string }>();
     urls = results.map((r) => `/series/${r.slug}`);
   }
-  if (n === 1) urls.unshift("/", "/series", "/authors", "/shelf", "/about");
+  if (n === 1) {
+    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about");
+    const { results: genres } = await c.env.DB.prepare(
+      `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
+    ).all<{ genre: string }>();
+    urls.push(...genres.map((g) => `/genres/${gslug(g.genre)}`));
+  }
   const body = urls.map((u) => `<url><loc>${c.env.SITE_URL}${u}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
 });
