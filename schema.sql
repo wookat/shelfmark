@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS series (
   wikidata_id TEXT,
   book_count INTEGER DEFAULT 0,
   first_year INTEGER,
-  last_year INTEGER
+  last_year INTEGER,
+  parent_id INTEGER REFERENCES series(id)
 );
 CREATE TABLE IF NOT EXISTS books (
   id INTEGER PRIMARY KEY,
@@ -28,7 +29,8 @@ CREATE TABLE IF NOT EXISTS books (
   position REAL,
   wikidata_id TEXT,
   isbn TEXT,
-  cover_url TEXT
+  cover_url TEXT,
+  description TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_series_author ON series(author_id);
 CREATE INDEX IF NOT EXISTS idx_books_series ON books(series_id);
