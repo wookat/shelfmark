@@ -15,6 +15,34 @@
     else fetch("/api/hit", { method: "POST", body: p, keepalive: true });
   } catch (e) {}
 
+  // ---- one-time id migration (catalog re-imports can renumber book ids) ----
+  var MIG = "shelfmark_mig_v2";
+  try {
+    if (!localStorage.getItem(MIG)) {
+      var oldIds = Object.keys(load());
+      if (!oldIds.length) {
+        localStorage.setItem(MIG, "1");
+      } else {
+        fetch("/api/migrate-ids", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ ids: oldIds }),
+        }).then(function (r) { return r.ok ? r.json() : null; }).then(function (map) {
+          if (!map) return;
+          var d = load();
+          var changed = false;
+          Object.keys(map).forEach(function (oldId) {
+            var newId = String(map[oldId]);
+            if (d[oldId] && !d[newId]) { d[newId] = d[oldId]; delete d[oldId]; changed = true; }
+          });
+          if (changed) save(d);
+          localStorage.setItem(MIG, "1");
+          if (changed) location.reload();
+        }).catch(function () {});
+      }
+    }
+  } catch (e) {}
+
   // ---- series checkboxes ----
   var data = load();
 
