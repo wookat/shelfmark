@@ -39,6 +39,9 @@ To render the /shelf goal card headlessly (e.g. for axe), seed BOTH `shelfmark_r
 ## Card progress bars on listing pages
 Series-card `data-progress-bar` fills ONLY when the same page contains that series' `ol[data-series]` checkbox list. 0% bars on homepage//genres//series card grids are by design, not failures.
 
+## Static asset caching applies to app.js too
+css/js are cached 1h — after a deploy, hard reload (Ctrl+Shift+R) before judging client-rendered features (pace chart, saved list, progress bars), or the browser may run the pre-deploy app.js.
+
 ## Dark mode & /random testing
 No OS dark toggle on this box — use DevTools "Emulate CSS prefers-color-scheme: dark" for the visible browser, and a Playwright context with `color_scheme="dark"` for headless axe. `/random` responses are `no-store` 302s; curl the workers.dev origin for header proof.
 
