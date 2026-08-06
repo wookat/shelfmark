@@ -17,6 +17,19 @@
   color: #e8b05f;
 }
 
+.year-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  background: #f0e6d6;
+  color: #6d4708;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .up-next-badge {
   display: inline-block;
   margin-left: 0.5rem;
@@ -31,7 +44,7 @@
 }
 
 @media print {
-  header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge {
+  header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge, .year-chip {
     display: none !important;
   }
   body {
