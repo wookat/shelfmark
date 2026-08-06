@@ -752,3 +752,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上解析 /genres 的 ld+json：BreadcrumbList + ItemList numberOfItems=59；typecheck 通过；部署 17223d0b。
+
+## Round 60 — 2026-08-06
+
+**发现（五驱动·分发/竞品）**
+- P2：/new 已有流派过滤视图，但 RSS 只有全量 feed；读者想只订阅某一流派的新书（feed 阅读器是无账号分发的主要通道）。
+
+**修复**
+- /new.rss 支持 ?genre= 过滤（标题/链接/self URL/描述随流派变化，未知流派回退全量）；/new 过滤视图中的 RSS 链接自动携带当前流派参数并标注「RSS feed (fantasy)」。
+
+**证据**
+- 线上实测：?genre=fantasy 标题「New & Upcoming Fantasy Series Books」1 条、全量 33 条、未知流派回退 33 条、XML 均可解析；/new?genre=fantasy 页面 RSS 链接为流派版；typecheck 通过；部署 34bdbde6。

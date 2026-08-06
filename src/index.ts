@@ -680,7 +680,7 @@ app.get("/new", async (c) => {
   const body = `
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
-<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss">RSS feed</a></p>
+<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}">RSS feed${activeGenre ? ` (${esc(activeGenre.toLowerCase())})` : ""}</a></p>
 ${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-wrap gap-1.5 text-sm print:hidden">
   <a href="/new" class="rounded-full px-3 py-1.5 border ${!activeGenre ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
   ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(g)} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
@@ -704,19 +704,23 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
 
 app.get("/new.rss", async (c) => {
   const year = new Date().getFullYear();
+  const genreParam = (c.req.query("genre") ?? "").trim().toLowerCase().slice(0, 40);
   const { results: items } = await c.env.DB.prepare(
-    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
-  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; author_name: string | null }>();
+    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, s.genre AS genre, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
+  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; genre: string; author_name: string | null }>();
+  const activeGenre = genreParam ? items.find((b) => b.genre.toLowerCase() === genreParam)?.genre ?? null : null;
+  const filtered = activeGenre ? items.filter((b) => b.genre === activeGenre) : items;
   const site = c.env.SITE_URL;
+  const selfUrl = `${site}/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
-<title>Shelfmark — New &amp; Upcoming Series Books</title>
-<link>${site}/new</link>
-<atom:link href="${site}/new.rss" rel="self" type="application/rss+xml"/>
-<description>New and upcoming series installments for ${year}–${year + 1}, linked to full reading orders.</description>
+<title>Shelfmark — New &amp; Upcoming${activeGenre ? ` ${esc(activeGenre[0].toUpperCase() + activeGenre.slice(1))}` : ""} Series Books</title>
+<link>${site}/new${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}</link>
+<atom:link href="${selfUrl}" rel="self" type="application/rss+xml"/>
+<description>New and upcoming${activeGenre ? ` ${esc(activeGenre.toLowerCase())}` : ""} series installments for ${year}–${year + 1}, linked to full reading orders.</description>
 <language>en</language>
-${items.map((b) => `<item>
+${filtered.map((b) => `<item>
 <title>${esc(b.title)} (${b.series_name ? esc(b.series_name) : ""}${b.author_name ? ` by ${esc(b.author_name)}` : ""}, ${b.year})</title>
 <link>${site}/series/${b.series_slug}</link>
 <guid isPermaLink="false">${site}/series/${b.series_slug}#${esc(b.title)}-${b.year}</guid>
