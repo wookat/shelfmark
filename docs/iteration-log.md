@@ -1107,3 +1107,6 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。
+
+### R86 补充 — QA 修复
+- QA 深色模式 axe 抓到 1 个 serious 对比度违规：反色区 My Shelf 链接 #9a6414 on #f2efe6 = 4.34:1 < AA。已改 #8f5d12（4.88:1），部署 99ce72c3，复检 axe 深色模式 0 违规。

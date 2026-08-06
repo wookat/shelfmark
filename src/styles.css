@@ -57,7 +57,7 @@
   }
   /* bg-ink-900 sections/buttons invert to light in dark mode; use the dark amber there. */
   .bg-ink-900 .text-amber-accent {
-    color: #9a6414;
+    color: #8f5d12;
   }
   .year-chip {
     background: #3b301c;
