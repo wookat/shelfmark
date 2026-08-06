@@ -741,3 +741,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /authors/brandon-sanderson 显示「More fantasy authors」：Terry Pratchett、Piers Anthony、Mercedes Lackey 等 6 位 + fantasy 流派入口；typecheck 通过；部署 409ea791。
+
+## Round 59 — 2026-08-06
+
+**发现（五驱动·SEO 一致性）**
+- P2：/genres 索引页是全站唯一没有结构化数据的列表页（系列/作者/流派详情页均有 BreadcrumbList/ItemList），59 个流派入口未向搜索引擎声明。
+
+**修复**
+- /genres 页补 BreadcrumbList + ItemList JSON-LD（59 个流派，含规范 URL）。
+
+**证据**
+- 线上解析 /genres 的 ld+json：BreadcrumbList + ItemList numberOfItems=59；typecheck 通过；部署 17223d0b。

@@ -478,6 +478,21 @@ ${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2
       description: "Browse book series reading orders by genre: fantasy, crime, science fiction, romance and more.",
       path: "/genres",
       siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Book series genres on Shelfmark",
+          numberOfItems: results.length,
+          itemListElement: results.map((g, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: g.genre,
+            url: `${c.env.SITE_URL}/genres/${gslug(g.genre)}`,
+          })),
+        },
+      ],
       body,
     })
   );
