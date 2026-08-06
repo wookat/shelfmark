@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS authors (
   bio TEXT,
   wikidata_id TEXT,
   series_count INTEGER DEFAULT 0,
-  book_count INTEGER DEFAULT 0
+  book_count INTEGER DEFAULT 0,
+  photo_url TEXT
 );
 CREATE TABLE IF NOT EXISTS series (
   id INTEGER PRIMARY KEY,

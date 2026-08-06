@@ -843,3 +843,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 “Science Fiction Book Series in Order (290 Series)”、“Fantasy …(385)”、“Children's Literature …(73)”；typecheck 通过；部署 d7e03599。
+
+## Round 67 — 2026-08-06
+
+**发现（五驱动·竞品/视觉）**
+- P1：竞品（BSIO 等）作者页普遍有作者照片，我们的 1,120 个有系列作者页纯文字，视觉信任感与分享预览都吃亏。
+
+**修复**
+- 新增 scripts/fetch_author_photos.py：按 50/批走 Wikidata wbgetentities 拉 P18 头像，669/1,075 位有系列作者命中。
+- D1 authors 表新增 photo_url（schema.sql 同步），批量回填 669 条 Commons Special:FilePath URL（width=256）。
+- 作者页头部渲染圆角头像（float-right，lazy，无照片不渲染）；Person JSON-LD 加 image；og:image 优先作者照片（width=512）→ 无照片回退书封 → 品牌卡；CSP img-src 放行 commons.wikimedia.org 与 upload.wikimedia.org（跳转目标）。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 头像与 og:image 均为 Commons 照片、图片 URL 200 image/jpeg；typecheck 通过；部署 40fbdf7a。

@@ -8,7 +8,7 @@ type Env = {
   SITE_URL: string;
 };
 
-type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number };
+type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number; photo_url: string | null };
 type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; author_name?: string; author_slug?: string; parent_id?: number | null };
 type Book = { id: number; series_id: number | null; author_id: number | null; title: string; year: number | null; position: number | null; cover_url: string | null; description: string | null };
 type TrackList = { slug: string; name: string };
@@ -26,7 +26,7 @@ app.use("*", async (c, next) => {
   if ((h.get("content-type") ?? "").includes("text/html")) {
     h.set(
       "Content-Security-Policy",
-      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org https://commons.wikimedia.org https://upload.wikimedia.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     );
   }
 });
@@ -256,6 +256,7 @@ app.get("/authors/:slug", async (c) => {
     : { results: [] as { name: string; slug: string }[] };
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
+${author.photo_url ? `<img src="${esc(author.photo_url)}" alt="${esc(author.name)}" width="112" height="112" loading="lazy" class="float-right ml-4 mb-2 w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border border-ink-200 shadow-sm bg-ink-100">` : ""}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">${author.bio ? `${esc(author.name)} is ${/^[aeiou]/i.test(author.bio) ? "an" : "a"} ${esc(author.bio)}. ` : ""}${esc(`${author.name} has written ${bookNoun(author.book_count)}${author.series_count ? ` across ${author.series_count} series` : ""}. Below is every book in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
 <div class="mt-4 flex flex-wrap items-center gap-3 text-sm print:hidden">
@@ -296,7 +297,7 @@ ${similar.length ? `<section class="mt-12 print:hidden">
       path: `/authors/${slug}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [
-        { "@context": "https://schema.org", "@type": "Person", name: author.name, url: `${c.env.SITE_URL}/authors/${slug}` },
+        { "@context": "https://schema.org", "@type": "Person", name: author.name, url: `${c.env.SITE_URL}/authors/${slug}`, ...(author.photo_url ? { image: author.photo_url } : {}) },
         breadcrumbLd(c.env.SITE_URL, [["Authors", "/authors"], [author.name, `/authors/${slug}`]]),
         ...(series.length ? [{
           "@context": "https://schema.org",
@@ -311,7 +312,7 @@ ${similar.length ? `<section class="mt-12 print:hidden">
           })),
         }] : []),
       ],
-      image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
+      image: author.photo_url?.replace("width=256", "width=512") ?? books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
     })
   );
