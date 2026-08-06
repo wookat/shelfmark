@@ -856,3 +856,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /authors/brandon-sanderson 头像与 og:image 均为 Commons 照片、图片 URL 200 image/jpeg；typecheck 通过；部署 40fbdf7a。
+
+## Round 68 — 2026-08-06
+
+**发现（五驱动·视觉/UX）**
+- P2：R67 拿到 669 位作者照片后，首页「Prolific authors」与 /authors 索引卡片仍是纯文字，视觉密度低且没利用新数据。
+
+**修复**
+- 抽出 authorCard() 组件：48px 圆形头像（Commons width=96，lazy），无照片显示首字母占位圆（与书封占位一致的风格），应用于首页与 /authors 全部列表页。
+
+**证据**
+- 线上实测首页出现 R.L. Stine/Asimov/Nora Roberts 等头像 URL、/authors?letter=B 渲染头像卡；width=96 URL 200 image/jpeg；typecheck+css 通过；部署 0bc899c3。

@@ -57,6 +57,10 @@ function seriesCard(s: Series): string {
   </a>`;
 }
 
+function authorCard(a: Author): string {
+  return `<a href="/authors/${a.slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${a.photo_url ? `<img src="${esc(a.photo_url.replace("width=256", "width=96"))}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-12 h-12 rounded-full bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((a.name[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-0.5">${a.series_count} series · ${bookNoun(a.book_count)}</p></span></a>`;
+}
+
 // ---------- Home ----------
 app.get("/", async (c) => {
   const { results: popular } = await c.env.DB.prepare(
@@ -98,7 +102,7 @@ ${fresh.length ? `<section class="mt-12">
 <section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Prolific authors</h2><a href="/authors" class="text-sm text-amber-accent font-medium">All authors →</a></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
-    ${authors.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}
+    ${authors.map(authorCard).join("")}
   </div>
 </section>
 <section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10">
@@ -203,7 +207,7 @@ app.get("/authors", async (c) => {
   ${letters.map((l) => `<a href="/authors?letter=${l}" class="rounded-full px-3 py-1.5 border ${letter === l ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${l}</a>`).join("")}
 </nav>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-${results.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}
+${results.map(authorCard).join("")}
 </div>
 ${!results.length ? `<p class="mt-6 text-ink-700">No authors under this letter yet.</p>` : ""}
 ${paginationQ(base, page, pages)}`;
