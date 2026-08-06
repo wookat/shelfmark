@@ -256,7 +256,12 @@ app.get("/series/:slug", async (c) => {
   const { results: sameName } = await c.env.DB.prepare(
     `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
   ).bind(series.name, series.id).all<{ slug: string; name: string; author_name: string | null }>();
-  const first = books[0];
+  const seriesPositions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const orderedBooks =
+    new Set(seriesPositions).size !== seriesPositions.length
+      ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+      : books;
+  const first = orderedBooks[0];
   const latest = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
   const faqs: [string, string][] = [];
   if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. Publication order is the order most readers should follow.`]);
