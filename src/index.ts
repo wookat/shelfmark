@@ -460,16 +460,29 @@ app.get("/search", async (c) => {
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Search</h1><p class="mt-2 text-ink-700">Type a series or author name above.</p>`;
   } else {
     const like = `%${q.replace(/[%_]/g, " ")}%`;
-    const { results: series } = await c.env.DB.prepare(
+    let { results: series } = await c.env.DB.prepare(
       `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? ORDER BY s.book_count DESC LIMIT 30`
     ).bind(like).all<Series>();
-    const { results: authors } = await c.env.DB.prepare(
+    let { results: authors } = await c.env.DB.prepare(
       `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
     ).bind(like).all<Author>();
     const { results: bookHits } = await c.env.DB.prepare(
       `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
     ).bind(like).all<{ title: string; year: number | null; series_slug: string; series_name: string; author_name: string | null }>();
+    let closeMatches = false;
+    const tokens = q.replace(/[%_]/g, " ").split(/\s+/).filter((t) => t.length > 2);
+    if (!series.length && !authors.length && !bookHits.length && tokens.length > 1) {
+      closeMatches = true;
+      const binds = tokens.map((t) => `%${t}%`);
+      ({ results: series } = await c.env.DB.prepare(
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${tokens.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 12`
+      ).bind(...binds).all<Series>());
+      ({ results: authors } = await c.env.DB.prepare(
+        `SELECT * FROM authors WHERE ${tokens.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 12`
+      ).bind(...binds).all<Author>());
+    }
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
+${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
 ${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/series/${b.series_slug}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></li>`).join("")}</ul>` : ""}
