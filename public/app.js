@@ -136,12 +136,19 @@
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
 
   // ---- search typeahead ----
+  var typeaheadSeq = 0;
   document.querySelectorAll('form[action="/search"]').forEach(function (form) {
     var input = form.querySelector('input[name="q"]');
     if (!input) return;
     form.style.position = "relative";
+    var boxId = "suggest-box-" + (++typeaheadSeq);
     input.setAttribute("autocomplete", "off");
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-expanded", "false");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", boxId);
     var box = document.createElement("div");
+    box.id = boxId;
     box.className = "absolute left-0 right-0 top-full mt-1 rounded-2xl bg-white border border-ink-200 shadow-lg overflow-hidden hidden z-50 text-left";
     box.setAttribute("role", "listbox");
     form.appendChild(box);
@@ -149,25 +156,40 @@
     var active = -1;
     var timer = null;
     var lastQ = "";
-    function close() { box.classList.add("hidden"); box.innerHTML = ""; items = []; active = -1; }
+    function close() {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      items = [];
+      active = -1;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+    }
     function render(results) {
       if (!results.length) { close(); return; }
       box.innerHTML = "";
-      items = results.map(function (r) {
+      items = results.map(function (r, i) {
         var a = document.createElement("a");
         a.href = r.href;
+        a.id = boxId + "-opt-" + i;
         a.className = "block px-4 py-2 text-sm hover:bg-ink-100";
         a.setAttribute("role", "option");
+        a.setAttribute("aria-selected", "false");
         a.innerHTML = '<span class="font-medium text-ink-900">' + escapeHtml(r.label) + '</span> <span class="text-ink-700/75 text-xs">' + r.kind + "</span>";
         box.appendChild(a);
         return a;
       });
       active = -1;
       box.classList.remove("hidden");
+      input.setAttribute("aria-expanded", "true");
     }
     function highlight(i) {
-      items.forEach(function (el, j) { el.classList.toggle("bg-ink-100", j === i); });
+      items.forEach(function (el, j) {
+        el.classList.toggle("bg-ink-100", j === i);
+        el.setAttribute("aria-selected", j === i ? "true" : "false");
+      });
       active = i;
+      if (i >= 0 && items[i]) input.setAttribute("aria-activedescendant", items[i].id);
+      else input.removeAttribute("aria-activedescendant");
     }
     input.addEventListener("input", function () {
       var q = input.value.trim();

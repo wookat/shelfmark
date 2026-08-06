@@ -369,3 +369,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy 735de9c8): button renders on /series/discworld; print behavior regression-verified in the R23 run (print page shows clean list). Browser check in next QA round.
+
+## Round 28 — 2026-08-06
+
+**Findings (by driver)**
+- Visual/a11y: the R25 typeahead used bare `role=listbox/option` without full combobox semantics — screen readers get no expansion state or highlighted-option announcements (WAI-ARIA combobox pattern). [P2]
+- UX (mobile walkthrough): the "New" nav link was `hidden sm:inline` — mobile users had no path to /new from the header. [P2]
+
+**Fixes shipped**
+- Typeahead upgraded to full ARIA combobox: input gets `role=combobox`, `aria-expanded`, `aria-autocomplete=list`, `aria-controls`; options get unique ids + `aria-selected`; keyboard highlight syncs `aria-activedescendant`.
+- "New" now visible in the header nav at all breakpoints.
+
+**Evidence**
+- Live (deploy 01918a89): served app.js contains the aria wiring; `/` header shows the un-hidden New link. Browser regression in next QA round.
