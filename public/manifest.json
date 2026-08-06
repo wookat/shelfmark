@@ -8,5 +8,10 @@
   "theme_color": "#f7f6f3",
   "icons": [
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "My Shelf", "url": "/shelf", "description": "Your reading progress and stats" },
+    { "name": "New & upcoming", "url": "/new", "description": "Recent and upcoming series installments" },
+    { "name": "Surprise me", "url": "/random", "description": "Jump to a random series" }
   ]
 }

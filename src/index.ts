@@ -64,6 +64,16 @@ function authorCard(a: Author): string {
   return `<a href="/authors/${a.slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${a.photo_url ? `<img src="${esc(a.photo_url.replace("width=256", "width=96"))}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-12 h-12 rounded-full bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((a.name[0] ?? "?").toUpperCase())}</span>`}<div class="min-w-0"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-0.5">${a.series_count} series · ${bookNoun(a.book_count)}</p></div></a>`;
 }
 
+// ---------- Random series discovery ----------
+app.get("/random", async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT slug FROM series WHERE book_count BETWEEN 2 AND 80 AND author_id IS NOT NULL AND genre IS NOT NULL AND genre NOT LIKE '%dictionary%' AND genre NOT LIKE '%encyclopedia%' AND genre NOT LIKE '%reference%' ORDER BY RANDOM() LIMIT 1`
+  ).first<{ slug: string }>();
+  c.header("Cache-Control", "no-store");
+  c.header("X-Robots-Tag", "noindex");
+  return c.redirect(row ? `/series/${row.slug}` : "/series", 302);
+});
+
 // ---------- Home ----------
 app.get("/", async (c) => {
   const { results: popular } = await c.env.DB.prepare(
@@ -89,6 +99,7 @@ app.get("/", async (c) => {
     <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
+  <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>
 </section>
 <div id="continue-reading"></div>
 <section class="mt-8">
@@ -396,6 +407,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
   ${books.length ? `<button type="button" data-copylist="${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
+  <button type="button" data-save-series="${series.slug}" data-save-name="${esc(series.name)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">☆ Save for later</button>
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
@@ -668,6 +680,7 @@ app.get("/shelf", (c) => {
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">My Shelf</h1>
 <p class="mt-2 text-ink-700 max-w-2xl">Everything you've ticked off, in one place. Stored privately in this browser — nothing leaves your device.</p>
 <div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
+<div id="saved-root" class="mt-10"></div>
 <div class="mt-10 flex flex-wrap gap-3">
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
@@ -998,7 +1011,7 @@ app.get("/confirm", async (c) => {
 
 // ---------- SEO plumbing ----------
 app.get("/robots.txt", (c) =>
-  c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
+  c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /random\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
 );
 
 app.get("/llms.txt", (c) => {

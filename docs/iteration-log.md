@@ -1052,3 +1052,58 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 见上方响应码清单；scripts/indexnow.sh 输出 4×200。
+
+## Round 86 — 2026-08-06
+
+**发现（五驱动·视觉/无障碍）**
+- P1：站点无深色模式；系统 prefers-color-scheme: dark 的用户（移动端占比高）夜间阅读体验刺眼，竞品（StoryGraph/Hardcover）均支持。
+
+**修复**
+- Tailwind v4 调色板变量在 @media (prefers-color-scheme: dark) 下整体重映射（ink-50→#16140f 页底、white→#1e1c16 卡面、amber→#e8b05f 保证 ≥4.5:1），year-chip/up-next-badge/反色区单独修正，封面图 brightness(.92)；<meta name="color-scheme"> + 双 theme-color。
+
+**证据**
+- 线上 styles.css 含 prefers-color-scheme 块；首页 color-scheme meta ×3；部署 1c6013ca。
+
+## Round 87 — 2026-08-06
+
+**发现（五驱动·UX/竞品）**
+- P2：无「随便看看」式发现入口；新访客除搜索/浏览外缺少低门槛探索路径。
+
+**修复**
+- 新增 GET /random：从有作者+有流派、2–80 本的真实系列中随机 302 至系列页（no-store + X-Robots-Tag noindex，robots.txt Disallow）；首页搜索框下加「surprise me with a series」入口。
+
+**证据**
+- 线上 /random 连续两次 302 至不同系列（freyaverse、aquasilva-trilogy），头部齐全；部署 31fc8944。
+
+## Round 88 — 2026-08-06
+
+**发现（五驱动·UX/视觉）**
+- P2：PWA manifest 无 shortcuts（长按图标菜单为空）；键盘用户无快捷聚焦搜索方式。
+
+**修复**
+- manifest.json 增加 My Shelf / New & upcoming / Surprise me 三个 shortcuts；全站「/」键聚焦头部搜索框（输入框内不劫持）。
+
+**证据**
+- 线上 manifest shortcuts=['/shelf','/new','/random']；app.js 含快捷键处理；部署 7e65f71c。
+
+## Round 89 — 2026-08-06
+
+**发现（五驱动·竞品/UX）**
+- P1：追踪器只有「已读」，无 TBR/「想读」能力——Goodreads/StoryGraph 的核心用法之一，Shelfmark 完全缺失。
+
+**修复**
+- 系列页新增「☆ Save for later」切换按钮（aria-pressed，localStorage shelfmark_saved_v1，纯浏览器本地）；/shelf 新增「Saved for later」区（按保存时间排序、可 Remove、空则不渲染）。
+
+**证据**
+- 线上系列页含 data-save-series 按钮、/shelf 含 saved-root、app.js 含 shelfmark_saved_v1；部署 4b729b6c。
+
+## Round 90 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R86–89 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 14 个核心端点全通过（/random 正确 302，其余 200）；IndexNow 全量重提交 25,637 URL（4×200：8000/8000/8000/1637）。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。
