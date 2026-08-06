@@ -809,3 +809,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证（workers.dev 直连绕边缘缓存）：styles.css/app.js Cache-Control: public, max-age=3600，favicon.svg 86400；部署 283902e9。
+
+## Round 65 — 2026-08-06
+
+**发现（五驱动·分发/竞品）**
+- P1（分发）：全部竞品（BSIO/readingorderlist 等）都没有开放数据接口；提供免 key 的 JSON API 可吸引开发者引用与反链（天然分发），且我们数据本就来自 CC0 的 Wikidata。
+
+**修复**
+- 新增公开 API `GET /api/series/{slug}.json`：series 名称/作者/流派/出版顺序书目（与页面渲染顺序一致，含重复序号回退逻辑），CORS `*`、Cache-Control 1h、slug 白名单正则防注入；未知 slug/非法文件名 404。
+- /about 新增「Open data API」板块（示例链接 + CC0 出处说明）。
+
+**证据**
+- 线上实测 /api/series/mistborn.json 返回 7 本正确顺序 JSON、ACAO:*、max-age=3600；does-not-exist.json 与路径穿越样例均 404；typecheck+css 通过；部署 01936eba。

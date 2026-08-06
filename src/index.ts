@@ -783,6 +783,8 @@ app.get("/about", (c) =>
 <li>Add Shelfmark to your browser's address-bar search engines (we ship an <a class="text-amber-accent underline" href="/opensearch.xml">OpenSearch description</a> with live suggestions).</li>
 <li>On mobile, use your browser's <em>Add to Home Screen</em> to install Shelfmark as an app.</li>
 </ul>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Open data API</h2>
+<p>Every reading order is available as JSON: <code class="text-sm bg-ink-100 px-1.5 py-0.5 rounded">/api/series/&lt;slug&gt;.json</code> — e.g. <a class="text-amber-accent underline" href="/api/series/mistborn.json">/api/series/mistborn.json</a>. CORS-enabled, no key required. Underlying data is from Wikidata (CC0) and Open Library; a link back is appreciated.</p>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Part of the Zalize family</h2>
 <p>Shelfmark is built by the team behind <a class="text-amber-accent underline" href="https://watchdeck.zalize.com">WatchDeck</a> (TV tracking), <a class="text-amber-accent underline" href="https://mealloop.zalize.com">MealLoop</a>, <a class="text-amber-accent underline" href="https://subsleuth.zalize.com">SubSleuth</a>, <a class="text-amber-accent underline" href="https://cv.zalize.com">HonestCV</a> and <a class="text-amber-accent underline" href="https://astrosage.zalize.com">AstroSage</a>.</p>
 </div>`,
@@ -847,6 +849,34 @@ app.get("/api/series-books/:slug", async (c) => {
     : books;
   c.header("Cache-Control", "public, max-age=3600");
   return c.json({ books: ordered.map((b) => ({ id: b.id, title: b.title })) });
+});
+
+app.get("/api/series/:file", async (c) => {
+  const m = /^([a-z0-9-]+)\.json$/.exec(c.req.param("file"));
+  if (!m) return c.json({ error: "Not found" }, 404);
+  const slug = m[1];
+  const series = await c.env.DB.prepare(
+    `SELECT s.id, s.name, s.slug, s.genre, s.book_count, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=?`
+  ).bind(slug).first<{ id: number; name: string; slug: string; genre: string | null; book_count: number; author_name: string | null }>();
+  if (!series) return c.json({ error: "Series not found" }, 404);
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+  ).bind(series.id).all<{ title: string; position: number | null; year: number | null }>();
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const ordered = new Set(positions).size !== positions.length
+    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+    : books;
+  c.header("Cache-Control", "public, max-age=3600");
+  c.header("Access-Control-Allow-Origin", "*");
+  return c.json({
+    name: series.name,
+    author: series.author_name,
+    genre: series.genre,
+    url: `${c.env.SITE_URL}/series/${series.slug}`,
+    order: "publication",
+    books: ordered.map((b, i) => ({ order: i + 1, title: b.title, year: b.year })),
+    license: "Data from Wikidata (CC0) and Open Library; attribution appreciated.",
+  });
 });
 
 app.post("/api/subscribe", async (c) => {
