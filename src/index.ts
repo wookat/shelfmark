@@ -21,6 +21,8 @@ app.use("*", async (c, next) => {
   h.set("X-Content-Type-Options", "nosniff");
   h.set("Referrer-Policy", "strict-origin-when-cross-origin");
   h.set("X-Frame-Options", "DENY");
+  h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   if ((h.get("content-type") ?? "").includes("text/html")) {
     h.set(
       "Content-Security-Policy",

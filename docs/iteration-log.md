@@ -568,3 +568,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/genres/science-fiction 显示 "New & upcoming in science fiction (4)" → /new 过滤视图；/genres/fantasy 无新作故无链接（正确）。
 - 部署 89adff10；typecheck 通过。
+
+## Round 44 — 2026-08-05
+
+**发现（五驱动）**
+- 安全审计复检：全站响应头缺 Strict-Transport-Security 与 Permissions-Policy（CSP/XCTO/Referrer/XFO 均在位）。
+
+**修复（P1）**
+- 安全头中间件补 HSTS（max-age=31536000; includeSubDomains）与 Permissions-Policy（禁 camera/microphone/geolocation/payment）。
+
+**证据**
+- 线上验证：响应头含两项新头；其余安全头不变。
+- 部署 3852c8c5；typecheck 通过。
