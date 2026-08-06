@@ -103,7 +103,7 @@ app.get("/", async (c) => {
 </section>
 <div id="continue-reading"></div>
 <section class="mt-8">
-  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><a href="/series" class="text-sm text-amber-accent font-medium">All series →</a></div>
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
 </section>
 ${fresh.length ? `<section class="mt-12">
@@ -182,6 +182,43 @@ ${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}`;
       path: letter ? `/series?letter=${letter}${page > 1 ? `&page=${page}` : ""}` : page > 1 ? `/series?page=${page}` : "/series",
       siteUrl: c.env.SITE_URL,
       body,
+    })
+  );
+});
+
+// ---------- Popular series ----------
+app.get("/popular", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 80 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC, s.name LIMIT 100`
+  ).all<Series>();
+  const body = `
+<nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Popular</span></nav>
+<h1 class="font-display font-bold text-3xl text-ink-900">The 100 most popular book series</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">The biggest, best-documented series in the Shelfmark catalog — every one with a complete reading order and a free, no-signup progress tracker.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
+  return c.html(
+    layout({
+      title: "100 Most Popular Book Series in Order | Shelfmark",
+      description: "The 100 biggest book series with complete reading orders — track your progress for free, no account needed.",
+      path: "/popular",
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Popular", "/popular"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Most popular book series on Shelfmark",
+          numberOfItems: results.length,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
     })
   );
 });
@@ -687,9 +724,10 @@ app.get("/shelf", (c) => {
   <button id="export-csv-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export CSV</button>
   <button id="import-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Import JSON</button>
   <input id="import-file" type="file" accept="application/json,.json" class="hidden" aria-label="Import shelf backup file">
+  <button id="clear-data-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:border-red-400">Clear all data</button>
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
-<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices.</p>
+<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
@@ -843,7 +881,7 @@ app.get("/privacy", (c) =>
       body: `<h1 class="font-display font-bold text-3xl text-ink-900">Privacy Policy</h1>
 <div class="mt-6 max-w-2xl text-ink-700 space-y-4">
 <p><strong>Reading progress</strong> is stored only in your browser's localStorage. It is never transmitted to our servers.</p>
-<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). No IP addresses, fingerprints, or identifiers are stored.</p>
+<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). When you arrive from another website we also count the referring site's hostname (e.g. "google.com" — never the full URL, page, or search query). No IP addresses, user agents, fingerprints, or identifiers are stored.</p>
 <p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. One-click unsubscribe by replying or emailing <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
 <p><strong>Cookies</strong>: none.</p>
 <p>Contact: contact@zalize.com · Operated by Zalize.</p>
@@ -981,12 +1019,19 @@ app.post("/api/migrate-ids", async (c) => {
 
 app.post("/api/hit", async (c) => {
   if (await rateLimited(c, "hit", 60)) return c.body(null, 429);
-  const path = (await c.req.text()).slice(0, 200);
+  const raw = (await c.req.text()).slice(0, 500);
+  const [path, refHost = ""] = raw.split("\n");
   if (!path.startsWith("/")) return c.body(null, 204);
   const day = new Date().toISOString().slice(0, 10);
   await c.env.DB.prepare(
     `INSERT INTO hits (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1`
-  ).bind(day, path).run();
+  ).bind(day, path.slice(0, 200)).run();
+  const host = refHost.trim().toLowerCase().slice(0, 100);
+  if (/^[a-z0-9.-]+\.[a-z]{2,}$/.test(host)) {
+    await c.env.DB.prepare(
+      `INSERT INTO referrers (day, host, count) VALUES (?, ?, 1) ON CONFLICT(day, host) DO UPDATE SET count = count + 1`
+    ).bind(day, host).run();
+  }
   return c.body(null, 204);
 });
 
@@ -1023,6 +1068,7 @@ app.get("/llms.txt", (c) => {
 ## Key pages
 
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
+- [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
@@ -1064,7 +1110,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls = results.map((r) => `/series/${r.slug}`);
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/about", "/new");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`

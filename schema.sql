@@ -54,3 +54,10 @@ CREATE TABLE IF NOT EXISTS hits (
   count INTEGER DEFAULT 0,
   PRIMARY KEY (day, path)
 );
+
+CREATE TABLE IF NOT EXISTS referrers (
+  day TEXT NOT NULL,
+  host TEXT NOT NULL,
+  count INTEGER DEFAULT 0,
+  PRIMARY KEY (day, host)
+);

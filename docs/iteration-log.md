@@ -1110,3 +1110,117 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ### R86 补充 — QA 修复
 - QA 深色模式 axe 抓到 1 个 serious 对比度违规：反色区 My Shelf 链接 #9a6414 on #f2efe6 = 4.34:1 < AA。已改 #8f5d12（4.88:1），部署 99ce72c3，复检 axe 深色模式 0 违规。
+
+## Round 91 — 2026-08-06
+
+**发现（五驱动·UX/测试）**
+- P2：R89 的 Save for later 清单不随 JSON 备份走，换设备会丢想读清单。
+
+**修复**
+- 导出 JSON 增加保留键 _saved（slug→{name,t}，仅非空时写入）；导入合并 _saved 且书目循环跳过该键。旧版导入器读新文件时 _saved 因无 title 被自然跳过，格式向后兼容。
+
+**证据**
+- 线上 app.js 含 _saved 逻辑；部署 55613339。
+
+## Round 92 — 2026-08-06
+
+**发现（五驱动·竞品/视觉）**
+- P2：/shelf 统计只有 4 个数字卡，无阅读节奏可视化（StoryGraph 核心卖点之一）。
+
+**修复**
+- /shelf 新增「Reading pace — last 12 months」12 根月度条形图（纯 DOM/Tailwind div，无库，仅统计有日期的条目，无日期数据不渲染；role=img+aria-label）。
+
+**证据**
+- 线上 app.js 含 Reading pace 渲染；部署 15e151cc。
+
+## Round 93 — 2026-08-06
+
+**发现（五驱动·pSEO/竞品）**
+- P1：站点缺跨流派的「最热系列」落地页；BSIO 类站点该类页承接大量导航型搜索。
+
+**修复**
+- 新增 /popular：目录中 100 个规模最大、文档最全的系列（同质量过滤），面包屑+ItemList JSON-LD；首页「Top 100 →」入口、页脚 Explore 链接、sitemap 收录。
+
+**证据**
+- 线上 /popular 200、含 100 张系列卡；sitemaps/1.xml 含 /popular；部署 7ca82432。
+
+## Round 94 — 2026-08-06
+
+**发现（五驱动·数据）**
+- P1：第一方统计只有 day/path 计数，无法区分自然流量与自测——「站点是否有真实访客」始终无法回答。
+
+**修复**
+- 无 Cookie 引荐来源统计：前端 beacon 追加外部 referrer 主机名（仅 hostname，不含路径/查询，站内跳转不计）；新增 referrers(day,host,count) 表（生产 D1 已建），/api/hit 校验主机名格式后聚合。隐私模型不变：无 Cookie、无 UA、无 IP 存储。
+
+**证据**
+- 线上实测 POST /api/hit 带 google.com referrer → referrers 表 +1；schema.sql 已更新；部署 187823eb。
+
+## Round 95 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R91–94 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 13 个核心端点全通过（含新 /popular，/random 正确 302）；IndexNow 全量重提交 25,638 URL（4×200：8000/8000/8000/1638）。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。
+
+## Round 96 — 2026-08-06
+
+**发现（五驱动·pSEO/视觉）**
+- P2：/popular 分享预览仍是通用品牌卡（流派页 R83 起已用封面大图）；/llms.txt 关键页清单缺 /popular。
+
+**修复**
+- /popular og:image 改用列表中首个有封面系列的 -L 大图；/llms.txt Key pages 增补 /popular。
+
+**证据**
+- 线上 /popular og:image 为 covers.openlibrary.org/...-L.jpg；/llms.txt 含 /popular；部署 ce428952。
+
+## Round 97 — 2026-08-06
+
+**发现（五驱动·UX/数据）**
+- P2：只保存了想读清单（未勾选任何书）的访客回访首页时无个性化入口，Continue reading 条不渲染。
+
+**修复**
+- 首页 Continue reading 无阅读进度时回退渲染「From your saved list」（最多 4 个最近保存的系列，仍纯 localStorage 客户端渲染，数据不出浏览器）。
+
+**证据**
+- app.js 含 saved 回退分支；部署 ce428952。
+
+## Round 98 — 2026-08-06
+
+**发现（五驱动·合规/UX）**
+- P1：隐私优先产品缺「一键清除本地数据」控制（用户在共享设备上无法方便地抹除进度/清单/目标）。
+
+**修复**
+- /shelf 新增「Clear all data」按钮：confirm 确认后删除全部 shelfmark* localStorage 键并刷新；说明文案提示先导出备份。
+
+**证据**
+- 线上 /shelf 含 clear-data-btn；部署 ce428952。
+
+## Round 99 — 2026-08-06
+
+**发现（五驱动·合规）**
+- P1：R94 引荐来源统计上线后 /privacy 的 Analytics 条目未同步披露（透明度缺口）。
+
+**修复**
+- /privacy Analytics 条目明确披露：仅记录来源站 hostname（如 google.com），绝不含完整 URL/页面/搜索词；无 IP/UA/指纹存储。
+
+**证据**
+- 线上 /privacy 已含新披露文案；部署 ce428952。
+
+## Round 100 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行 + 100 轮收官：R96–99 上线后核心路由健康检查 + IndexNow 全量重提交。QA 在 R97 抓到 P1（var 提升导致 loadSaved 早于 SAVED_KEY 初始化，saved 回退区不渲染），已修复（eb03008）并复检通过。
+
+**修复/动作**
+- 14 个核心端点全通过（/random 正确 302，其余 13 个 200）；IndexNow 全量重提交 25,638 URL（4×200：8000/8000/8000/1638）；部署 ca9e334c。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200；QA 报告 test-report-iter99.md。
+
+---
+
+**100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
