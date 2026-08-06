@@ -100,6 +100,37 @@
       });
     });
     updateSeriesUI(slug);
+
+    var boxes = list.querySelectorAll("input[data-book]");
+    if (boxes.length > 1) {
+      var controls = document.createElement("div");
+      controls.className = "mt-3 flex gap-2 text-xs print:hidden";
+      function bulkBtn(label, checked) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        b.className = "rounded-full bg-white border border-ink-200 px-3 py-1.5 hover:border-amber-accent cursor-pointer";
+        b.addEventListener("click", function () {
+          var d = load();
+          boxes.forEach(function (box) {
+            var id = box.getAttribute("data-book");
+            box.checked = checked;
+            if (checked) {
+              if (!d[id]) d[id] = { t: Date.now(), title: box.getAttribute("data-title"), series: seriesName, slug: slug };
+            } else {
+              delete d[id];
+            }
+          });
+          save(d);
+          data = d;
+          updateSeriesUI(slug);
+        });
+        return b;
+      }
+      controls.appendChild(bulkBtn("Mark all read", true));
+      controls.appendChild(bulkBtn("Clear progress", false));
+      list.insertAdjacentElement("afterend", controls);
+    }
   });
 
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
