@@ -953,3 +953,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 workers.dev 首页 Popular series 12 卡全部带缩略图，/genres/fantasy 卡片含 covers.openlibrary.org 图；typecheck+CSS 构建通过；部署 719dbcdb。
+
+## Round 77 — 2026-08-06
+
+**发现（五驱动·数据/分发）**
+- P2：/new.rss 条目纯文本，无封面 enclosure——feed 阅读器（Feedly/NetNewsWire 等）里没有视觉卡片，分发吸引力弱于带图 feed。
+
+**修复**
+- /new.rss（含分流派变体）为有封面的条目输出 <enclosure url="…-L.jpg" type="image/jpeg">，无封面条目保持不变。
+
+**证据**
+- 线上 /new.rss 含 5 个 enclosure（如 Platform Decay/The Murderbot Diaries → covers.openlibrary.org 15154430-L.jpg），XML 校验通过；部署 a515e1dd。

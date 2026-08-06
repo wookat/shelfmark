@@ -732,8 +732,8 @@ app.get("/new.rss", async (c) => {
   const year = new Date().getFullYear();
   const genreParam = (c.req.query("genre") ?? "").trim().toLowerCase().slice(0, 40);
   const { results: items } = await c.env.DB.prepare(
-    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, s.genre AS genre, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
-  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; genre: string; author_name: string | null }>();
+    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, s.genre AS genre, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
+  ).bind(year, year + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; genre: string; author_name: string | null }>();
   const activeGenre = genreParam ? items.find((b) => b.genre.toLowerCase() === genreParam)?.genre ?? null : null;
   const filtered = activeGenre ? items.filter((b) => b.genre === activeGenre) : items;
   const site = c.env.SITE_URL;
@@ -750,7 +750,7 @@ ${filtered.map((b) => `<item>
 <title>${esc(b.title)} (${b.series_name ? esc(b.series_name) : ""}${b.author_name ? ` by ${esc(b.author_name)}` : ""}, ${b.year})</title>
 <link>${site}/series/${b.series_slug}</link>
 <guid isPermaLink="false">${site}/series/${b.series_slug}#${esc(b.title)}-${b.year}</guid>
-<description>${esc(b.title)} — a ${b.year} installment in ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}. See the full reading order on Shelfmark.</description>
+<description>${esc(b.title)} — a ${b.year} installment in ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}. See the full reading order on Shelfmark.</description>${b.cover_url ? `\n<enclosure url="${esc(b.cover_url.replace("-M.jpg", "-L.jpg"))}" type="image/jpeg" length="0"/>` : ""}
 </item>`).join("\n")}
 </channel>
 </rss>`;
