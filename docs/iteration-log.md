@@ -661,3 +661,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：/series/discworld 含预填主题的 mailto 链接（部署 f09dee2c）；typecheck 通过。
+
+## Round 52 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析：2,590 个有书系列中 1,516 个缺 genre（其中 709 个有作者），被排除在 /genres 浏览、/new 净化查询与流派内链之外。
+
+**修复（P1，数据扩容）**
+- 新增 scripts/backfill_genres.py（系列实体 P136 回填，仅命中 2）与 scripts/backfill_genres_books.py（按系列各书 P136 多数投票回填，≥2 本一致或 2 本系列 1 本即采纳）。
+- 扫描 7,124 本书的 Wikidata 声明，370 个系列新增 genre（74 个不同流派），fantasy 272→379、science fiction→287。
+
+**证据**
+- 线上验证：/genres/fantasy 显示 379 series；新入流派样本 Fitz and the Fool（Robin Hobb）归入 fantasy 正确。
+- 未伪造数据：全部取自 Wikidata P136；无多数一致者保持 NULL（余 1,145 个）。
