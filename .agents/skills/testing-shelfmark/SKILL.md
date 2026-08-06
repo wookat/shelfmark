@@ -26,3 +26,6 @@ description: How to test the Shelfmark live site (shelfmark.zalize.com) — key 
 
 ## Devin Secrets Needed
 - None for live-site testing. `CLOUDFLARE_WORKERS_API_TOKEN` / `CLOUDFLARE_ADMIN_API_TOKEN` only if deploying or querying D1 directly.
+
+## Edge cache gotcha
+When verifying response headers or newly deployed routes, the zalize.com edge may serve stale cached headers/HTML. Verify against the direct origin `https://shelfmark.wookat520.workers.dev` with a cache-bust query param (e.g. `?cb=$RANDOM`).
