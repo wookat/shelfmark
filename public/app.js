@@ -176,7 +176,19 @@
     }
   }
 
-  // progress bars on card grids (series cards elsewhere) — computed only for lists present.
+  // ---- fill series-card progress bars from localStorage on listing pages ----
+  var readsBySlug = {};
+  Object.keys(data).forEach(function (id) {
+    var e = data[id];
+    if (e && e.slug) readsBySlug[e.slug] = (readsBySlug[e.slug] || 0) + 1;
+  });
+  document.querySelectorAll("[data-progress-bar][data-total]").forEach(function (el) {
+    var slug = el.getAttribute("data-progress-bar");
+    if (document.querySelector('ol[data-series="' + slug + '"]')) return; // handled by updateSeriesUI
+    var total = parseInt(el.getAttribute("data-total"), 10);
+    var read = readsBySlug[slug] || 0;
+    if (total > 0 && read > 0) el.style.width = Math.min(100, Math.round((read / total) * 100)) + "%";
+  });
 
   // ---- search typeahead ----
   var typeaheadSeq = 0;
@@ -410,6 +422,24 @@
       a.click();
     });
 
+    var exportCsvBtn = document.getElementById("export-csv-btn");
+    if (exportCsvBtn) exportCsvBtn.addEventListener("click", function () {
+      function q(v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
+      var d = load();
+      var rows = ["Title,Series,Date Read"];
+      Object.keys(d).forEach(function (id) {
+        var e = d[id];
+        if (!e) return;
+        var date = e.t > 1e12 ? new Date(e.t).toISOString().slice(0, 10) : "";
+        rows.push([q(e.title), q(e.series), q(date)].join(","));
+      });
+      var blob = new Blob([rows.join("\r\n")], { type: "text/csv" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "shelfmark-export.csv";
+      a.click();
+    });
+
     var importBtn = document.getElementById("import-btn");
     var importFile = document.getElementById("import-file");
     var importStatus = document.getElementById("import-status");
@@ -493,6 +523,79 @@
     a.download = "shelfmark-reading-card.png";
     a.click();
   }
+
+  // ---- browser-local "Save for later" list ----
+  var SAVED_KEY = "shelfmark_saved_v1";
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function storeSaved(m) { localStorage.setItem(SAVED_KEY, JSON.stringify(m)); }
+  var saveBtn = document.querySelector("[data-save-series]");
+  if (saveBtn) {
+    var savedSlug = saveBtn.getAttribute("data-save-series");
+    function paintSaveBtn() {
+      var on = !!loadSaved()[savedSlug];
+      saveBtn.textContent = on ? "★ Saved for later" : "☆ Save for later";
+      saveBtn.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    paintSaveBtn();
+    saveBtn.addEventListener("click", function () {
+      var m = loadSaved();
+      if (m[savedSlug]) delete m[savedSlug];
+      else m[savedSlug] = { name: saveBtn.getAttribute("data-save-name") || savedSlug, t: Date.now() };
+      storeSaved(m);
+      paintSaveBtn();
+    });
+  }
+  var savedRoot = document.getElementById("saved-root");
+  if (savedRoot) {
+    var savedMap = loadSaved();
+    var savedSlugs = Object.keys(savedMap).sort(function (a, b) { return savedMap[b].t - savedMap[a].t; });
+    if (savedSlugs.length) {
+      var sh2 = document.createElement("h2");
+      sh2.className = "font-display font-semibold text-2xl text-ink-900";
+      sh2.textContent = "Saved for later";
+      savedRoot.appendChild(sh2);
+      var sgrid = document.createElement("div");
+      sgrid.className = "grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4";
+      savedSlugs.forEach(function (slug) {
+        var wrap = document.createElement("div");
+        wrap.className = "flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4";
+        var a = document.createElement("a");
+        a.href = "/series/" + encodeURIComponent(slug);
+        a.className = "font-display font-semibold text-ink-900 hover:text-amber-accent min-w-0 flex-1 truncate";
+        a.textContent = savedMap[slug].name || slug;
+        var rm = document.createElement("button");
+        rm.type = "button";
+        rm.className = "text-sm text-ink-700/75 hover:text-amber-accent shrink-0";
+        rm.textContent = "Remove";
+        rm.setAttribute("aria-label", "Remove " + (savedMap[slug].name || slug) + " from saved list");
+        rm.addEventListener("click", function () {
+          var m = loadSaved();
+          delete m[slug];
+          storeSaved(m);
+          wrap.remove();
+          if (!sgrid.children.length) savedRoot.replaceChildren();
+        });
+        wrap.appendChild(a);
+        wrap.appendChild(rm);
+        sgrid.appendChild(wrap);
+      });
+      savedRoot.appendChild(sgrid);
+    }
+  }
+
+  // "/" focuses the header search box (unless typing in a field)
+  document.addEventListener("keydown", function (e) {
+    if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+    var box = document.querySelector('header input[name="q"]');
+    if (box) {
+      e.preventDefault();
+      box.focus();
+    }
+  });
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {

@@ -48,7 +48,9 @@ export function layout(o: PageOpts): string {
 <meta name="twitter:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
-<meta name="theme-color" content="#f7f6f3">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f7f6f3">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16140f">
 <link rel="search" type="application/opensearchdescription+xml" title="Shelfmark" href="/opensearch.xml">
 <link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + (o.rss ?? "/new.rss"))}">
 <link rel="preconnect" href="https://fonts.googleapis.com">

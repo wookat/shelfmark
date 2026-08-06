@@ -986,3 +986,127 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 首页含 #continue-reading 挂载点（线上已验证），app.js node --check 通过；完整交互回归排入批尾 QA；部署 f99f976c。
+
+## Round 80 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R76–79 上线后核心路由健康检查 + IndexNow 全量重提交（本批新增 /api/authors API 与首页/卡片结构变化）。
+
+**修复/动作**
+- 10 个核心端点（含新 /api/authors/brandon-sanderson.json）线上全 200；IndexNow 全量重提交 25,637 URL（4 批均 200：8000/8000/8000/1637）。
+
+**证据**
+- 见上方响应码清单；提交脚本 scripts/indexnow.sh 输出 4×200。
+
+## Round 81 — 2026-08-06
+
+**发现（五驱动·QA/UX）**
+- P1：批尾 QA 指出（v1 起既有行为）：首页/流派/索引等列表页的系列卡进度条永远 0%——只有同页存在勾选列表时才填充，已有进度的用户在列表页看不到自己的进度。
+
+**修复**
+- seriesCard 进度条增加 data-total（册数）；app.js 按 localStorage 中各 slug 的已读计数填充列表页卡片进度条（min 100%，系列页勾选列表仍由 updateSeriesUI 接管避免双写）。
+
+**证据**
+- /genres/fantasy 线上含 data-total 属性；node --check + typecheck 通过；交互回归排入批尾 QA；部署 19a7891b。
+
+## Round 82 — 2026-08-06
+
+**发现（五驱动·竞品/UX）**
+- P2：/shelf 只有 JSON 备份；Goodreads/StoryGraph 用户习惯 CSV（可导入表格/其他工具），迁出通道缺失影响信任感。
+
+**修复**
+- /shelf 新增「Export CSV」按钮：Title,Series,Date Read 三列（RFC4180 引号转义，无效时间戳日期留空），纯客户端生成下载，数据不出浏览器。
+
+**证据**
+- 线上 /shelf 含 export-csv-btn；node --check + typecheck 通过；交互回归排入批尾 QA；部署 570d26d4。
+
+## Round 83 — 2026-08-06
+
+**发现（五驱动·视觉/分发）**
+- P2：流派页（59+ 页）og:image 仍是通用品牌卡，分享预览不如带封面的作者/系列页。
+
+**修复**
+- 流派页 og:image 改用该页第一个有封面系列的 -L.jpg 大图（无封面回退 /og.png）。
+
+**证据**
+- 线上 /genres/fantasy og:image=covers.openlibrary.org/b/id/14648805-L.jpg；部署 3b56dfe2。
+
+## Round 84 — 2026-08-06
+
+**发现（五驱动·竞品/分发）**
+- P2：AI 助手/答案引擎日益成为「reading order」问句的入口；站点无 llms.txt，结构与 API 对 LLM 爬取不友好，竞品也均未提供（差异化窗口）。
+
+**修复**
+- 新增 GET /llms.txt（llmstxt.org 格式）：站点定位、关键入口（/series /authors /genres /new /about）、两个开放 API 的用法与引用规范，24h 缓存。
+
+**证据**
+- 线上 https://shelfmark.zalize.com/llms.txt 返回完整文档；typecheck 通过；部署 3b56dfe2。
+
+## Round 85 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R81–84 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 8 个核心端点（含新 /llms.txt）线上全 200；IndexNow 全量重提交 25,637 URL（4×200：8000/8000/8000/1637）。
+
+**证据**
+- 见上方响应码清单；scripts/indexnow.sh 输出 4×200。
+
+## Round 86 — 2026-08-06
+
+**发现（五驱动·视觉/无障碍）**
+- P1：站点无深色模式；系统 prefers-color-scheme: dark 的用户（移动端占比高）夜间阅读体验刺眼，竞品（StoryGraph/Hardcover）均支持。
+
+**修复**
+- Tailwind v4 调色板变量在 @media (prefers-color-scheme: dark) 下整体重映射（ink-50→#16140f 页底、white→#1e1c16 卡面、amber→#e8b05f 保证 ≥4.5:1），year-chip/up-next-badge/反色区单独修正，封面图 brightness(.92)；<meta name="color-scheme"> + 双 theme-color。
+
+**证据**
+- 线上 styles.css 含 prefers-color-scheme 块；首页 color-scheme meta ×3；部署 1c6013ca。
+
+## Round 87 — 2026-08-06
+
+**发现（五驱动·UX/竞品）**
+- P2：无「随便看看」式发现入口；新访客除搜索/浏览外缺少低门槛探索路径。
+
+**修复**
+- 新增 GET /random：从有作者+有流派、2–80 本的真实系列中随机 302 至系列页（no-store + X-Robots-Tag noindex，robots.txt Disallow）；首页搜索框下加「surprise me with a series」入口。
+
+**证据**
+- 线上 /random 连续两次 302 至不同系列（freyaverse、aquasilva-trilogy），头部齐全；部署 31fc8944。
+
+## Round 88 — 2026-08-06
+
+**发现（五驱动·UX/视觉）**
+- P2：PWA manifest 无 shortcuts（长按图标菜单为空）；键盘用户无快捷聚焦搜索方式。
+
+**修复**
+- manifest.json 增加 My Shelf / New & upcoming / Surprise me 三个 shortcuts；全站「/」键聚焦头部搜索框（输入框内不劫持）。
+
+**证据**
+- 线上 manifest shortcuts=['/shelf','/new','/random']；app.js 含快捷键处理；部署 7e65f71c。
+
+## Round 89 — 2026-08-06
+
+**发现（五驱动·竞品/UX）**
+- P1：追踪器只有「已读」，无 TBR/「想读」能力——Goodreads/StoryGraph 的核心用法之一，Shelfmark 完全缺失。
+
+**修复**
+- 系列页新增「☆ Save for later」切换按钮（aria-pressed，localStorage shelfmark_saved_v1，纯浏览器本地）；/shelf 新增「Saved for later」区（按保存时间排序、可 Remove、空则不渲染）。
+
+**证据**
+- 线上系列页含 data-save-series 按钮、/shelf 含 saved-root、app.js 含 shelfmark_saved_v1；部署 4b729b6c。
+
+## Round 90 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R86–89 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 14 个核心端点全通过（/random 正确 302，其余 200）；IndexNow 全量重提交 25,637 URL（4×200：8000/8000/8000/1637）。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。
+
+### R86 补充 — QA 修复
+- QA 深色模式 axe 抓到 1 个 serious 对比度违规：反色区 My Shelf 链接 #9a6414 on #f2efe6 = 4.34:1 < AA。已改 #8f5d12（4.88:1），部署 99ce72c3，复检 axe 深色模式 0 违规。

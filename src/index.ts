@@ -55,7 +55,7 @@ function seriesCard(s: Series): string {
     <div class="min-w-0 flex-1">
     <p class="font-display font-semibold text-ink-900">${esc(s.name)}</p>
     <p class="text-sm text-ink-700/80 mt-1">${s.author_name ? esc(s.author_name) + " · " : ""}${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</p>
-    <div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-amber-accent rounded-full" style="width:0%" data-progress-bar="${s.slug}"></div></div>
+    <div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-amber-accent rounded-full" style="width:0%" data-progress-bar="${s.slug}" data-total="${s.book_count}"></div></div>
     </div>
   </a>`;
 }
@@ -63,6 +63,16 @@ function seriesCard(s: Series): string {
 function authorCard(a: Author): string {
   return `<a href="/authors/${a.slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${a.photo_url ? `<img src="${esc(a.photo_url.replace("width=256", "width=96"))}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-12 h-12 rounded-full bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((a.name[0] ?? "?").toUpperCase())}</span>`}<div class="min-w-0"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-0.5">${a.series_count} series · ${bookNoun(a.book_count)}</p></div></a>`;
 }
+
+// ---------- Random series discovery ----------
+app.get("/random", async (c) => {
+  const row = await c.env.DB.prepare(
+    `SELECT slug FROM series WHERE book_count BETWEEN 2 AND 80 AND author_id IS NOT NULL AND genre IS NOT NULL AND genre NOT LIKE '%dictionary%' AND genre NOT LIKE '%encyclopedia%' AND genre NOT LIKE '%reference%' ORDER BY RANDOM() LIMIT 1`
+  ).first<{ slug: string }>();
+  c.header("Cache-Control", "no-store");
+  c.header("X-Robots-Tag", "noindex");
+  return c.redirect(row ? `/series/${row.slug}` : "/series", 302);
+});
 
 // ---------- Home ----------
 app.get("/", async (c) => {
@@ -89,6 +99,7 @@ app.get("/", async (c) => {
     <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
+  <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>
 </section>
 <div id="continue-reading"></div>
 <section class="mt-8">
@@ -396,6 +407,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
   ${books.length ? `<button type="button" data-copylist="${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
+  <button type="button" data-save-series="${series.slug}" data-save-name="${esc(series.name)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">☆ Save for later</button>
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
@@ -586,6 +598,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       siteUrl: c.env.SITE_URL,
       rss: `/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}`,
       noindex: total < 3,
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       jsonLd: [
         breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [gtitle(genre), `/genres/${slug}`]]),
         {
@@ -667,9 +680,11 @@ app.get("/shelf", (c) => {
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">My Shelf</h1>
 <p class="mt-2 text-ink-700 max-w-2xl">Everything you've ticked off, in one place. Stored privately in this browser — nothing leaves your device.</p>
 <div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
+<div id="saved-root" class="mt-10"></div>
 <div class="mt-10 flex flex-wrap gap-3">
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
+  <button id="export-csv-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export CSV</button>
   <button id="import-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Import JSON</button>
   <input id="import-file" type="file" accept="application/json,.json" class="hidden" aria-label="Import shelf backup file">
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
@@ -996,8 +1011,31 @@ app.get("/confirm", async (c) => {
 
 // ---------- SEO plumbing ----------
 app.get("/robots.txt", (c) =>
-  c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
+  c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nDisallow: /random\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
 );
+
+app.get("/llms.txt", (c) => {
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.text(`# Shelfmark
+
+> Shelfmark (${c.env.SITE_URL}) lists the correct reading order for tens of thousands of book series, with a free no-signup reading tracker (progress stays in the reader's browser). Data is derived from Wikidata (CC0) and Open Library.
+
+## Key pages
+
+- [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
+- [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
+- [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
+- [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
+- [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
+
+## API
+
+- Series reading order as JSON: ${c.env.SITE_URL}/api/series/{slug}.json (e.g. /api/series/mistborn.json). CORS-enabled, no key.
+- Author bibliography as JSON: ${c.env.SITE_URL}/api/authors/{slug}.json (e.g. /api/authors/brandon-sanderson.json). CORS-enabled, no key.
+
+When citing a reading order, please link to the series page URL.
+`);
+});
 
 const SM_CHUNK = 5000;
 app.get("/sitemap.xml", async (c) => {

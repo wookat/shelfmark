@@ -43,6 +43,34 @@
   white-space: nowrap;
 }
 
+/* Dark mode: remap the palette variables (Tailwind v4 utilities resolve via CSS vars). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-ink-50: #16140f;
+    --color-ink-100: #24211b;
+    --color-ink-200: #3b372e;
+    --color-ink-700: #c8c3b4;
+    --color-ink-800: #ddd8c9;
+    --color-ink-900: #f2efe6;
+    --color-white: #1e1c16;
+    --color-amber-accent: #e8b05f;
+  }
+  /* bg-ink-900 sections/buttons invert to light in dark mode; use the dark amber there. */
+  .bg-ink-900 .text-amber-accent {
+    color: #8f5d12;
+  }
+  .year-chip {
+    background: #3b301c;
+    color: #e8c186;
+  }
+  .up-next-badge {
+    color: #16140f;
+  }
+  img {
+    filter: brightness(0.92);
+  }
+}
+
 @media print {
   header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge, .year-chip {
     display: none !important;
