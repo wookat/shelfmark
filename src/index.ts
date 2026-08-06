@@ -332,6 +332,8 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
+  <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
+  ${books.length ? `<button type="button" data-copylist="${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
@@ -355,6 +357,16 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
           url: `${c.env.SITE_URL}/series/${slug}`,
           ...(series.author_name ? { author: { "@type": "Person", name: series.author_name } } : {}),
           numberOfItems: series.book_count,
+          ...(orderedBooks.length ? {
+            hasPart: orderedBooks.slice(0, 50).map((b, i) => ({
+              "@type": "Book",
+              name: b.title,
+              position: i + 1,
+              ...(b.year ? { datePublished: String(b.year) } : {}),
+              ...(b.cover_url ? { image: b.cover_url } : {}),
+              ...(series.author_name ? { author: { "@type": "Person", name: series.author_name } } : {}),
+            })),
+          } : {}),
         },
         breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
         ...(faqs.length
@@ -415,7 +427,7 @@ const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace
 
 app.get("/genres", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3 ORDER BY n DESC`
+    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3 ORDER BY n DESC`
   ).all<{ genre: string; n: number }>();
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">Browse series by genre</h1>
@@ -555,7 +567,7 @@ app.get("/new", async (c) => {
   const body = `
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
-<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order.</p>
+<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss">RSS feed</a></p>
 ${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
 ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
   return c.html(
@@ -565,9 +577,37 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
       path: "/new",
       siteUrl: c.env.SITE_URL,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["New releases", "/new"]])],
+      rss: "/new.rss",
       body,
     })
   );
+});
+
+app.get("/new.rss", async (c) => {
+  const year = new Date().getFullYear();
+  const { results: items } = await c.env.DB.prepare(
+    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
+  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; author_name: string | null }>();
+  const site = c.env.SITE_URL;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+<channel>
+<title>Shelfmark — New &amp; Upcoming Series Books</title>
+<link>${site}/new</link>
+<atom:link href="${site}/new.rss" rel="self" type="application/rss+xml"/>
+<description>New and upcoming series installments for ${year}–${year + 1}, linked to full reading orders.</description>
+<language>en</language>
+${items.map((b) => `<item>
+<title>${esc(b.title)} (${b.series_name ? esc(b.series_name) : ""}${b.author_name ? ` by ${esc(b.author_name)}` : ""}, ${b.year})</title>
+<link>${site}/series/${b.series_slug}</link>
+<guid isPermaLink="false">${site}/series/${b.series_slug}#${esc(b.title)}-${b.year}</guid>
+<description>${esc(b.title)} — a ${b.year} installment in ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}. See the full reading order on Shelfmark.</description>
+</item>`).join("\n")}
+</channel>
+</rss>`;
+  c.header("Content-Type", "application/rss+xml; charset=utf-8");
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(xml);
 });
 
 // ---------- Static-ish pages ----------
@@ -612,6 +652,40 @@ app.get("/privacy", (c) =>
 );
 
 // ---------- APIs ----------
+app.get("/api/suggest", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 60);
+  if (q.length < 2) return c.json({ results: [] });
+  const like = `${q.replace(/[%_]/g, " ")}%`;
+  const { results: series } = await c.env.DB.prepare(
+    `SELECT name, slug FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+  ).bind(like).all<{ name: string; slug: string }>();
+  const { results: authors } = await c.env.DB.prepare(
+    `SELECT name, slug FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 3`
+  ).bind(like).all<{ name: string; slug: string }>();
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json({
+    results: [
+      ...series.map((s) => ({ label: s.name, href: `/series/${s.slug}`, kind: "series" })),
+      ...authors.map((a) => ({ label: a.name, href: `/authors/${a.slug}`, kind: "author" })),
+    ],
+  });
+});
+
+app.get("/api/series-books/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const series = await c.env.DB.prepare(`SELECT id FROM series WHERE slug=?`).bind(slug).first<{ id: number }>();
+  if (!series) return c.json({ books: [] }, 404);
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT id, title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+  ).bind(series.id).all<{ id: number; title: string; position: number | null; year: number | null }>();
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const ordered = new Set(positions).size !== positions.length
+    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+    : books;
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json({ books: ordered.map((b) => ({ id: b.id, title: b.title })) });
+});
+
 app.post("/api/subscribe", async (c) => {
   if (await rateLimited(c, "sub", 5)) return c.json({ ok: false, error: "Too many requests" }, 429);
   const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);

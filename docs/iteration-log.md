@@ -320,3 +320,103 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy 018cc8ac): app.js serves the controls; live browser regression in test-report-iter23.md.
+
+## Round 24 — 2026-08-06
+
+**Findings (by driver)**
+- UX/competitor: My Shelf lists what you've read but never answers "what should I read next?" — the core question account-based competitors (StoryGraph/Goodreads "want to read") solve. All the data needed is already on the device + catalog. [P1]
+
+**Fixes shipped**
+- New cached API `GET /api/series-books/:slug` (ordered id/title list, same dup-position ordering as the series page, `Cache-Control: max-age=3600`).
+- My Shelf now shows "· Up next: <first unread book>" (linked) next to each followed series heading, or "· Series complete 🎉" when all books are read; standalone-author groups skipped; capped at 20 series per page load.
+
+**Evidence**
+- Live (deploy 16f476c9): `curl /api/series-books/mistborn` returns ordered JSON; unknown slug → 404 JSON. Live browser regression in test-report-iter24.md.
+
+## Round 25 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor/UX: Goodreads/StoryGraph offer instant search suggestions; Shelfmark required a full form submit + results page for every lookup — highest-friction step of the golden path (header search is on every page). [P1]
+
+**Fixes shipped**
+- `GET /api/suggest?q=` — prefix match, top 5 series (book_count>0) + 3 authors by size, `Cache-Control: max-age=3600`, min 2 chars.
+- Typeahead dropdown on all three search forms (header desktop, header mobile, homepage hero): 200 ms debounce, stale-response guard, ArrowUp/Down + Enter + Escape keyboard support, `role=listbox/option`, click-outside close. Plain Enter still submits to /search.
+
+**Evidence**
+- Live (deploy 291c2160): `curl /api/suggest?q=disc` → Discworld first; 1-char query returns empty. Live browser regression in test-report-iter25.md.
+
+## Round 26 — 2026-08-06
+
+**Findings (by driver)**
+- QA/data consistency: /genres index counted 0-book container series (fantasy said 279 while /genres/fantasy says 272; 50 zero-book rows across genres) — missed by the Round 16 sweep. [P2]
+- SEO ops: /, /shelf, /genres content changed across R23–25 (bulk buttons, Up next, typeahead, counts) — core URLs due an IndexNow ping.
+
+**Fixes shipped**
+- `/genres` genre counts now filter `book_count > 0`, matching genre pages and homepage pills.
+- IndexNow resubmitted 5 core URLs (/, /genres, /shelf, /series, /authors) — HTTP 200.
+
+**Evidence**
+- Live (deploy f009c4ad): /genres fantasy card shows 272 (was 279), matching /genres/fantasy. IndexNow `200 5`.
+
+## Round 27 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor (BSIO re-check, Jack Reacher page): BSIO prominently offers "Want To Print This Book List?" — a top reader use-case (taking a list to the library/bookstore). Shelfmark has had print CSS since R3 but no visible affordance; users would never discover Ctrl+P renders a clean list. [P2]
+- BSIO also lists chronological order variants; still blocked for us (Wikidata lacks narrative-order data — unchanged since R3 benchmark).
+
+**Fixes shipped**
+- "Print list" button in the series-page pill row (`data-print` → `window.print()`, print-hidden itself); reuses the existing print stylesheet (hides nav/forms/checkboxes/badges, clean numbered list).
+
+**Evidence**
+- Live (deploy 735de9c8): button renders on /series/discworld; print behavior regression-verified in the R23 run (print page shows clean list). Browser check in next QA round.
+
+## Round 28 — 2026-08-06
+
+**Findings (by driver)**
+- Visual/a11y: the R25 typeahead used bare `role=listbox/option` without full combobox semantics — screen readers get no expansion state or highlighted-option announcements (WAI-ARIA combobox pattern). [P2]
+- UX (mobile walkthrough): the "New" nav link was `hidden sm:inline` — mobile users had no path to /new from the header. [P2]
+
+**Fixes shipped**
+- Typeahead upgraded to full ARIA combobox: input gets `role=combobox`, `aria-expanded`, `aria-autocomplete=list`, `aria-controls`; options get unique ids + `aria-selected`; keyboard highlight syncs `aria-activedescendant`.
+- "New" now visible in the header nav at all breakpoints.
+
+**Evidence**
+- Live (deploy 01918a89): served app.js contains the aria wiring; `/` header shows the un-hidden New link. Browser regression in next QA round.
+
+## Round 29 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor/distribution: BSIO and most reading-order sites offer no machine-readable feed of new releases; RSS is a zero-login "natural distribution" channel (feed readers, aggregators, IFTTT/Zapier) that fits the no-account philosophy. [P1]
+- Data: first-party stats still self-test dominated (search terms all internal); 3 email intents, 0 confirmed — RSS gives users a subscribe path that doesn't wait on the Resend key. [P2]
+
+**Fixes shipped**
+- `GET /new.rss`: RSS 2.0 feed of new/upcoming series installments (same cleaned query as /new, 100-item cap, 1h cache, items link to series reading-order pages).
+- `/new` page: visible "RSS feed" link + `<link rel="alternate" type="application/rss+xml">` autodiscovery in head (layout gains optional `rss` opt).
+
+**Evidence**
+- Live (deploy 706643b0): `curl https://shelfmark.zalize.com/new.rss` → 200 `application/rss+xml`, valid XML with 31 items; /new head contains the alternate link and body shows the RSS link.
+
+## Round 30 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor/distribution: no reading-order site offers one-click list export for sharing (Reddit/Discord/notes); a plain-text "Copy list" with a link back is a natural share loop. [P1]
+- QA (from R29 verification): the new /new "RSS feed" link failed axe `link-in-text-block` (2.27:1 vs surrounding text, hover-only underline) — broke the R21 zero baseline. [P1]
+
+**Fixes shipped**
+- "Copy list" button in the series-page pill row: copies "<name> — reading order" + numbered titles in rendered order + "via <series URL>" to the clipboard, with 2s "Copied ✓" feedback; print-hidden.
+- RSS link gets a persistent `underline` class, restoring axe zero violations on /new.
+
+**Evidence**
+- Live QA (deploys df0aef7a → 2e850f87): clipboard content verified exactly (Discworld, 55 numbered titles + via URL); "Copied ✓" feedback; RSS/regression/typeahead/shelf all green; axe 0 violations on /new and /series/discworld after fix. See test-report-iter30.md and PR #8 comments.
+
+## Round 31 — 2026-08-06
+
+**Findings (by driver)**
+- SEO/competitor: series-page `BookSeries` JSON-LD carried only name/author/count — no per-book composition, leaving rich-result potential (and machine readability of the reading order itself) on the table. No competitor exposes per-book structured data either. [P1]
+- QA (self-caught pre-ship): first cut used the raw query order for `hasPart`, which diverges from the rendered order on duplicate-position series (Discworld would have led with Mort); switched to the same year-sorted `orderedBooks` used for display. [P1]
+
+**Fixes shipped**
+- `BookSeries` JSON-LD now includes `hasPart`: up to 50 `Book` items (name, sequential position matching the rendered list, datePublished, cover image, author).
+
+**Evidence**
+- Live (deploy b7ef1d86): /series/discworld LD `hasPart` = 50 items starting "1. The Light Fantastic (1986), 2. Mort (1987), 3. Equal Rites (1987)" — identical to the rendered/copy-list order; /series/mistborn = 8 items in publication order.

@@ -135,6 +135,86 @@
 
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
 
+  // ---- search typeahead ----
+  var typeaheadSeq = 0;
+  document.querySelectorAll('form[action="/search"]').forEach(function (form) {
+    var input = form.querySelector('input[name="q"]');
+    if (!input) return;
+    form.style.position = "relative";
+    var boxId = "suggest-box-" + (++typeaheadSeq);
+    input.setAttribute("autocomplete", "off");
+    input.setAttribute("role", "combobox");
+    input.setAttribute("aria-expanded", "false");
+    input.setAttribute("aria-autocomplete", "list");
+    input.setAttribute("aria-controls", boxId);
+    var box = document.createElement("div");
+    box.id = boxId;
+    box.className = "absolute left-0 right-0 top-full mt-1 rounded-2xl bg-white border border-ink-200 shadow-lg overflow-hidden hidden z-50 text-left";
+    box.setAttribute("role", "listbox");
+    form.appendChild(box);
+    var items = [];
+    var active = -1;
+    var timer = null;
+    var lastQ = "";
+    function close() {
+      box.classList.add("hidden");
+      box.innerHTML = "";
+      items = [];
+      active = -1;
+      input.setAttribute("aria-expanded", "false");
+      input.removeAttribute("aria-activedescendant");
+    }
+    function render(results) {
+      if (!results.length) { close(); return; }
+      box.innerHTML = "";
+      items = results.map(function (r, i) {
+        var a = document.createElement("a");
+        a.href = r.href;
+        a.id = boxId + "-opt-" + i;
+        a.className = "block px-4 py-2 text-sm hover:bg-ink-100";
+        a.setAttribute("role", "option");
+        a.setAttribute("aria-selected", "false");
+        a.innerHTML = '<span class="font-medium text-ink-900">' + escapeHtml(r.label) + '</span> <span class="text-ink-700/75 text-xs">' + r.kind + "</span>";
+        box.appendChild(a);
+        return a;
+      });
+      active = -1;
+      box.classList.remove("hidden");
+      input.setAttribute("aria-expanded", "true");
+    }
+    function highlight(i) {
+      items.forEach(function (el, j) {
+        el.classList.toggle("bg-ink-100", j === i);
+        el.setAttribute("aria-selected", j === i ? "true" : "false");
+      });
+      active = i;
+      if (i >= 0 && items[i]) input.setAttribute("aria-activedescendant", items[i].id);
+      else input.removeAttribute("aria-activedescendant");
+    }
+    input.addEventListener("input", function () {
+      var q = input.value.trim();
+      if (timer) clearTimeout(timer);
+      if (q.length < 2) { close(); return; }
+      timer = setTimeout(function () {
+        lastQ = q;
+        fetch("/api/suggest?q=" + encodeURIComponent(q)).then(function (r) { return r.ok ? r.json() : null; }).then(function (res) {
+          if (!res || input.value.trim() !== lastQ) return;
+          render(res.results || []);
+        }).catch(function () {});
+      }, 200);
+    });
+    input.addEventListener("keydown", function (ev) {
+      if (box.classList.contains("hidden")) return;
+      if (ev.key === "ArrowDown") { ev.preventDefault(); highlight(Math.min(active + 1, items.length - 1)); }
+      else if (ev.key === "ArrowUp") { ev.preventDefault(); highlight(Math.max(active - 1, 0)); }
+      else if (ev.key === "Enter" && active >= 0) { ev.preventDefault(); location.href = items[active].href; }
+      else if (ev.key === "Escape") { close(); }
+    });
+    document.addEventListener("click", function (ev) {
+      if (!form.contains(ev.target)) close();
+    });
+  });
+
   // ---- share button ----
   document.querySelectorAll("[data-share]").forEach(function (btn) {
     btn.addEventListener("click", function () {
@@ -148,6 +228,31 @@
           setTimeout(function () { btn.textContent = old; }, 2000);
         }).catch(function () {});
       }
+    });
+  });
+
+  // ---- print button ----
+  document.querySelectorAll("[data-print]").forEach(function (btn) {
+    btn.addEventListener("click", function () { window.print(); });
+  });
+
+  // ---- copy list button ----
+  document.querySelectorAll("[data-copylist]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var slug = btn.getAttribute("data-copylist");
+      var list = document.querySelector('ol[data-series="' + slug + '"]');
+      if (!list || !navigator.clipboard) return;
+      var name = list.getAttribute("data-series-name") || document.title;
+      var lines = [name + " — reading order", ""];
+      list.querySelectorAll("input[data-book]").forEach(function (box, i) {
+        lines.push((i + 1) + ". " + box.getAttribute("data-title"));
+      });
+      lines.push("", "via " + location.origin + "/series/" + slug);
+      navigator.clipboard.writeText(lines.join("\n")).then(function () {
+        var old = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(function () { btn.textContent = old; }, 2000);
+      }).catch(function () {});
     });
   });
 
@@ -206,12 +311,31 @@
         g.items.sort(function (a, b) { return b.t - a.t; });
         html += '<section class="mb-6"><h2 class="font-display font-semibold text-xl text-ink-900">' +
           (g.slug ? '<a class="hover:text-amber-accent" href="' + (g.slug.indexOf("standalone-") === 0 ? "/authors/" + g.slug.slice(11) : "/series/" + g.slug) + '">' : "") + escapeHtml(g.name) + (g.slug ? "</a>" : "") +
-          ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + " read</span></h2><ul class=\"mt-2 space-y-1\">" +
+          ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + ' read</span>' +
+          (g.slug && g.slug.indexOf("standalone-") !== 0 ? ' <span class="block sm:inline text-sm font-sans font-normal" data-upnext="' + escapeHtml(g.slug) + '"></span>' : '') +
+          '</h2><ul class="mt-2 space-y-1">' +
           g.items.map(function (e) {
             return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
           }).join("") + "</ul></section>";
       });
       root.innerHTML = html;
+
+      var slots = Array.prototype.slice.call(root.querySelectorAll("[data-upnext]")).slice(0, 20);
+      slots.forEach(function (slot) {
+        var slug = slot.getAttribute("data-upnext");
+        fetch("/api/series-books/" + encodeURIComponent(slug)).then(function (r) { return r.ok ? r.json() : null; }).then(function (res) {
+          if (!res || !res.books) return;
+          var next = null;
+          for (var i = 0; i < res.books.length; i++) {
+            if (!data[String(res.books[i].id)]) { next = res.books[i]; break; }
+          }
+          if (next) {
+            slot.innerHTML = '\u00b7 Up next: <a class="text-amber-accent hover:underline" href="/series/' + escapeHtml(slug) + '">' + escapeHtml(next.title) + "</a>";
+          } else if (res.books.length) {
+            slot.innerHTML = '<span class="text-ink-700/75">\u00b7 Series complete \ud83c\udf89</span>';
+          }
+        }).catch(function () {});
+      });
     }
 
     var exportBtn = document.getElementById("export-btn");
