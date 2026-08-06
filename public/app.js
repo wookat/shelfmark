@@ -209,6 +209,11 @@
     });
   });
 
+  // ---- print button ----
+  document.querySelectorAll("[data-print]").forEach(function (btn) {
+    btn.addEventListener("click", function () { window.print(); });
+  });
+
   // ---- email capture ----
   document.querySelectorAll("form[data-subscribe]").forEach(function (form) {
     form.addEventListener("submit", function (ev) {
