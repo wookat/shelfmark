@@ -934,3 +934,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - app.js 语法校验通过、线上 app.js 已含 cardGoal 逻辑（etag 更新）；部署 419a600b；画布渲染回归排入批尾 QA。
+
+## Round 75 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾巡检：R71–74 改动作者页（FAQ）、搜索结果（头像卡）、/shelf 与分享卡（年度目标），需全站回归+搜索引擎重提交。
+
+**修复/动作**
+- 8 个核心端点健康检查全 200；IndexNow 全量重提交 25,637 URL（4×200）；完整浏览器回归交由 QA（含录屏），结果见 PR #12 评论。
