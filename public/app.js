@@ -141,6 +141,12 @@
     }
   });
 
+  var SAVED_KEY = "shelfmark_saved_v1";
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || {}; } catch (e) { return {}; }
+  }
+  function storeSaved(m) { localStorage.setItem(SAVED_KEY, JSON.stringify(m)); }
+
   // ---- homepage "Continue reading" strip (localStorage only) ----
   var contEl = document.getElementById("continue-reading");
   if (contEl) {
@@ -592,11 +598,6 @@
   }
 
   // ---- browser-local "Save for later" list ----
-  var SAVED_KEY = "shelfmark_saved_v1";
-  function loadSaved() {
-    try { return JSON.parse(localStorage.getItem(SAVED_KEY)) || {}; } catch (e) { return {}; }
-  }
-  function storeSaved(m) { localStorage.setItem(SAVED_KEY, JSON.stringify(m)); }
   var saveBtn = document.querySelector("[data-save-series]");
   if (saveBtn) {
     var savedSlug = saveBtn.getAttribute("data-save-series");
