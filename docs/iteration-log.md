@@ -674,3 +674,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/genres/fantasy 显示 379 series；新入流派样本 Fitz and the Fool（Robin Hobb）归入 fantasy 正确。
 - 未伪造数据：全部取自 Wikidata P136；无多数一致者保持 NULL（余 1,145 个）。
+
+## Round 53 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析（R52 后审计）：genre 词表碎片化——crime literature/crime fiction、children's fiction/children's literature、romance/romance novel 等同义分裂，稀释流派聚合页；另有 7 个非流派的错误 P136 值（如作者名 Gunilla Bergström、timeline）。
+
+**修复（P1，数据治理）**
+- 新增 scripts/normalize_genres.py：23 组保守同义合并 + 7 个错误值清空，共 96 行修正。fantasy 379→385、crime fiction 16→38、children's literature 51→73。
+
+**证据**
+- 线上验证：/genres/fantasy 385、/genres/crime-fiction 38、旧 /genres/crime-literature 正确 404。
