@@ -629,6 +629,33 @@ ${items.map((b) => `<item>
   return c.body(xml);
 });
 
+app.get("/opensearch.xml", (c) => {
+  const site = c.env.SITE_URL;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+<ShortName>Shelfmark</ShortName>
+<Description>Search book series and authors on Shelfmark — reading orders and a free tracker.</Description>
+<InputEncoding>UTF-8</InputEncoding>
+<Image width="16" height="16" type="image/svg+xml">${site}/favicon.svg</Image>
+<Url type="text/html" method="get" template="${site}/search?q={searchTerms}"/>
+<Url type="application/x-suggestions+json" method="get" template="${site}/api/opensearch-suggest?q={searchTerms}"/>
+</OpenSearchDescription>`;
+  c.header("Content-Type", "application/opensearchdescription+xml; charset=utf-8");
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(xml);
+});
+
+app.get("/api/opensearch-suggest", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 60);
+  if (q.length < 2) return c.json([q, []]);
+  const like = `${q.replace(/[%_]/g, " ")}%`;
+  const { results } = await c.env.DB.prepare(
+    `SELECT name FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+  ).bind(like).all<{ name: string }>();
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json([q, results.map((s) => s.name)]);
+});
+
 // ---------- Static-ish pages ----------
 app.get("/about", (c) =>
   c.html(
