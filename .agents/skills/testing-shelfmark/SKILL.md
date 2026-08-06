@@ -35,3 +35,9 @@ styles.css is cached max-age=3600, so right after a deploy the browser may rende
 
 ## Shelf goal card in headless contexts
 To render the /shelf goal card headlessly (e.g. for axe), seed BOTH `shelfmark_read_v1` (`{"<bookId>":{"t":<ms>,"title":...,"series":...,"slug":...}}`) and `shelfmark:goal:<year>` in localStorage before navigating — the goal card only renders when tracked books exist. Reading-card PNG content must be verified from the downloaded file, not the DOM.
+
+## Card progress bars on listing pages
+Series-card `data-progress-bar` fills ONLY when the same page contains that series' `ol[data-series]` checkbox list. 0% bars on homepage//genres//series card grids are by design, not failures.
+
+## Goal-met card variant (non-destructive)
+Test the reading-card "✓ goal met" branch in incognito: seed `shelfmark_read_v1` with current-year timestamps and set a goal ≤ that count via the UI prompt.
