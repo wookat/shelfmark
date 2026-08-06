@@ -249,6 +249,10 @@ app.get("/authors/:slug", async (c) => {
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">${author.bio ? `${esc(author.name)} is ${/^[aeiou]/i.test(author.bio) ? "an" : "a"} ${esc(author.bio)}. ` : ""}${esc(`${author.name} has written ${bookNoun(author.book_count)}${author.series_count ? ` across ${author.series_count} series` : ""}. Below is every book in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
+<div class="mt-4 flex flex-wrap items-center gap-3 text-sm print:hidden">
+  <button type="button" data-share data-share-title="${esc(author.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Share</button>
+  <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Print list</button>
+</div>
 ${series.map((s) => {
   const bs = bySeries.get(s.id) ?? [];
   return `<section class="mt-10" id="${s.slug}">
@@ -473,7 +477,21 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
-      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]])],
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `${genre} book series in order`,
+          numberOfItems: total,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: (page - 1) * PAGE_SIZE + i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
       body,
     })
   );
