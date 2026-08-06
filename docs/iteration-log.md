@@ -615,3 +615,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：app.js 已含 Popular starts（部署 7d0cf7d3）；node --check 语法通过。
+
+## Round 48 — 2026-08-05
+
+**发现（五驱动）**
+- UX 走查：搜索零结果页只有一行提示，访客到此即流失（数据驱动亦显示 /search 有零结果访问）。
+
+**修复（P2）**
+- 零结果状态补充：增加 genres 浏览链接，并渲染 6 个「Popular series」卡片（与首页同口径的净化查询），把死胡同变成继续探索的入口。
+
+**证据**
+- 线上验证：/search?q=zzzzqqqq 显示 Popular series 卡片区；/search?q=discworld（有结果）不显示。
+- 部署 77944115；typecheck 通过。
