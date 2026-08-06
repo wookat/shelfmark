@@ -1041,3 +1041,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上 https://shelfmark.zalize.com/llms.txt 返回完整文档；typecheck 通过；部署 3b56dfe2。
+
+## Round 85 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R81–84 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 8 个核心端点（含新 /llms.txt）线上全 200；IndexNow 全量重提交 25,637 URL（4×200：8000/8000/8000/1637）。
+
+**证据**
+- 见上方响应码清单；scripts/indexnow.sh 输出 4×200。
