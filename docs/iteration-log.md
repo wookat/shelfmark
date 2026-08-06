@@ -942,3 +942,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **修复/动作**
 - 8 个核心端点健康检查全 200；IndexNow 全量重提交 25,637 URL（4×200）；完整浏览器回归交由 QA（含录屏），结果见 PR #12 评论。
+
+## Round 76 — 2026-08-06
+
+**发现（五驱动·视觉/竞品）**
+- P1：系列卡（首页 Popular/流派页/搜索/相关推荐/A–Z）纯文字无封面，视觉密度低于 BSIO/OrderOfBooks 的图文卡；而目录里 1,198 个有书系列已有首本封面可用。
+
+**修复**
+- series 表新增 cover_url 列（D1 已迁移+schema.sql 同步），一次性 SQL 回填 = 各系列第一本有封面书的封面（1,198/2,590）；seriesCard 统一渲染 40×56 封面缩略图（lazy、无封面显示首字母占位），全站 8 处系列网格生效；修正卡内 span>p 非法嵌套为 div。
+
+**证据**
+- 线上实测 workers.dev 首页 Popular series 12 卡全部带缩略图，/genres/fantasy 卡片含 covers.openlibrary.org 图；typecheck+CSS 构建通过；部署 719dbcdb。

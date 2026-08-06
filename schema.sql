@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS series (
   book_count INTEGER DEFAULT 0,
   first_year INTEGER,
   last_year INTEGER,
+  cover_url TEXT,
   parent_id INTEGER REFERENCES series(id)
 );
 CREATE TABLE IF NOT EXISTS books (
