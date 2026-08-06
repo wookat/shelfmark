@@ -650,3 +650,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 健康检查与 IndexNow 输出记录于会话；无回归。
+
+## Round 51 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品调研（BSIO 复访）：BSIO 靠「suggestion box + email us」形成用户纠错/补录闭环；Shelfmark 仅 /about 深处有一处报错邮箱，系列页无就地反馈入口。BSIO 另有 Book Release Calendar（月度粒度）——我方数据只有年份粒度，为不伪造数据暂不做日历视图。
+
+**修复（P2）**
+- 系列页追踪说明行新增「Spotted a wrong or missing book? Report it」mailto 链接，主题自动带系列名（Shelfmark data issue: {series}），建立数据纠错闭环。
+
+**证据**
+- 线上验证：/series/discworld 含预填主题的 mailto 链接（部署 f09dee2c）；typecheck 通过。
