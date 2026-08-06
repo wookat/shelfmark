@@ -612,6 +612,25 @@ app.get("/privacy", (c) =>
 );
 
 // ---------- APIs ----------
+app.get("/api/suggest", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 60);
+  if (q.length < 2) return c.json({ results: [] });
+  const like = `${q.replace(/[%_]/g, " ")}%`;
+  const { results: series } = await c.env.DB.prepare(
+    `SELECT name, slug FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+  ).bind(like).all<{ name: string; slug: string }>();
+  const { results: authors } = await c.env.DB.prepare(
+    `SELECT name, slug FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 3`
+  ).bind(like).all<{ name: string; slug: string }>();
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json({
+    results: [
+      ...series.map((s) => ({ label: s.name, href: `/series/${s.slug}`, kind: "series" })),
+      ...authors.map((a) => ({ label: a.name, href: `/authors/${a.slug}`, kind: "author" })),
+    ],
+  });
+});
+
 app.get("/api/series-books/:slug", async (c) => {
   const slug = c.req.param("slug");
   const series = await c.env.DB.prepare(`SELECT id FROM series WHERE slug=?`).bind(slug).first<{ id: number }>();

@@ -135,6 +135,64 @@
 
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
 
+  // ---- search typeahead ----
+  document.querySelectorAll('form[action="/search"]').forEach(function (form) {
+    var input = form.querySelector('input[name="q"]');
+    if (!input) return;
+    form.style.position = "relative";
+    input.setAttribute("autocomplete", "off");
+    var box = document.createElement("div");
+    box.className = "absolute left-0 right-0 top-full mt-1 rounded-2xl bg-white border border-ink-200 shadow-lg overflow-hidden hidden z-50 text-left";
+    box.setAttribute("role", "listbox");
+    form.appendChild(box);
+    var items = [];
+    var active = -1;
+    var timer = null;
+    var lastQ = "";
+    function close() { box.classList.add("hidden"); box.innerHTML = ""; items = []; active = -1; }
+    function render(results) {
+      if (!results.length) { close(); return; }
+      box.innerHTML = "";
+      items = results.map(function (r) {
+        var a = document.createElement("a");
+        a.href = r.href;
+        a.className = "block px-4 py-2 text-sm hover:bg-ink-100";
+        a.setAttribute("role", "option");
+        a.innerHTML = '<span class="font-medium text-ink-900">' + escapeHtml(r.label) + '</span> <span class="text-ink-700/75 text-xs">' + r.kind + "</span>";
+        box.appendChild(a);
+        return a;
+      });
+      active = -1;
+      box.classList.remove("hidden");
+    }
+    function highlight(i) {
+      items.forEach(function (el, j) { el.classList.toggle("bg-ink-100", j === i); });
+      active = i;
+    }
+    input.addEventListener("input", function () {
+      var q = input.value.trim();
+      if (timer) clearTimeout(timer);
+      if (q.length < 2) { close(); return; }
+      timer = setTimeout(function () {
+        lastQ = q;
+        fetch("/api/suggest?q=" + encodeURIComponent(q)).then(function (r) { return r.ok ? r.json() : null; }).then(function (res) {
+          if (!res || input.value.trim() !== lastQ) return;
+          render(res.results || []);
+        }).catch(function () {});
+      }, 200);
+    });
+    input.addEventListener("keydown", function (ev) {
+      if (box.classList.contains("hidden")) return;
+      if (ev.key === "ArrowDown") { ev.preventDefault(); highlight(Math.min(active + 1, items.length - 1)); }
+      else if (ev.key === "ArrowUp") { ev.preventDefault(); highlight(Math.max(active - 1, 0)); }
+      else if (ev.key === "Enter" && active >= 0) { ev.preventDefault(); location.href = items[active].href; }
+      else if (ev.key === "Escape") { close(); }
+    });
+    document.addEventListener("click", function (ev) {
+      if (!form.contains(ev.target)) close();
+    });
+  });
+
   // ---- share button ----
   document.querySelectorAll("[data-share]").forEach(function (btn) {
     btn.addEventListener("click", function () {
