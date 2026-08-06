@@ -763,3 +763,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测：?genre=fantasy 标题「New & Upcoming Fantasy Series Books」1 条、全量 33 条、未知流派回退 33 条、XML 均可解析；/new?genre=fantasy 页面 RSS 链接为流派版；typecheck 通过；部署 34bdbde6。
+
+## Round 61 — 2026-08-06
+
+**发现（五驱动·分发）**
+- P2：RSS 自动发现 `<link rel="alternate">` 只在 /new 页输出；feed 阅读器订阅首页或系列页时无法自动发现订阅源。
+- P1（数据，进行中）：核心系列书目封面覆盖率仅 41%（4,263/10,418）；已启动 Open Library 封面匹配后台任务（6,155 本待匹配，API 限速下跨轮运行，结果将在后续轮次回填 D1）。
+
+**修复**
+- layout 默认对全站每页输出 RSS 自动发现链接（默认 /new.rss，/new 页保持原逻辑）。
+
+**证据**
+- 线上实测首页、/series/discworld、/genres 均含 application/rss+xml link；typecheck 通过；部署 90b0b331。

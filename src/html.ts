@@ -49,8 +49,8 @@ export function layout(o: PageOpts): string {
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="theme-color" content="#f7f6f3">
-<link rel="search" type="application/opensearchdescription+xml" title="Shelfmark" href="/opensearch.xml">${o.rss ? `
-<link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + o.rss)}">` : ""}
+<link rel="search" type="application/opensearchdescription+xml" title="Shelfmark" href="/opensearch.xml">
+<link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + (o.rss ?? "/new.rss"))}">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
