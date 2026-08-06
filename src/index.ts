@@ -432,19 +432,24 @@ app.get("/genres/:slug", async (c) => {
   ).all<{ genre: string }>();
   const genre = genres.find((g) => gslug(g.genre) === slug)?.genre;
   if (!genre) return notFound(c);
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
+  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series WHERE genre=?`).bind(genre).all()).results as any[]);
+  const total = Number(n);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const { results } = await c.env.DB.prepare(
-    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? ORDER BY s.book_count DESC LIMIT 200`
-  ).bind(genre).all<Series>();
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
+  ).bind(genre, PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
   const body = `
 ${crumbs([["Genres", "/genres"], [genre, ""]])}
-<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order</h1>
-<p class="mt-2 text-ink-700">${results.length} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
-<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
+<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
+<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
     layout({
-      title: `${genre} Book Series in Order (${results.length} Series) | Shelfmark`,
+      title: `${genre} Book Series in Order (${total} Series) | Shelfmark`,
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
-      path: `/genres/${slug}`,
+      path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]])],
       body,
