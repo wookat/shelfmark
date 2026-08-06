@@ -712,6 +712,13 @@ app.get("/about", (c) =>
 <p>Our series and reading-order data is built from <a class="text-amber-accent underline" href="https://www.wikidata.org">Wikidata</a> (CC0) series relationships and ordinals, cross-checked with <a class="text-amber-accent underline" href="https://openlibrary.org">Open Library</a> records. We list <em>publication order</em> by default — the order most authors intend. Spotted an error? Email <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a> and we'll fix it.</p>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Privacy-first tracking</h2>
 <p>Your reading progress is stored in your browser's localStorage only. We run no ad trackers and set no cookies; our analytics is a first-party, cookie-less page counter.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Ways to follow new releases</h2>
+<ul class="list-disc pl-5 space-y-1.5">
+<li>Browse the <a class="text-amber-accent underline" href="/new">New &amp; upcoming</a> page — filter it by genre with the chips at the top.</li>
+<li>Subscribe to the <a class="text-amber-accent underline" href="/new.rss">RSS feed</a> in any feed reader — no account or email needed.</li>
+<li>Add Shelfmark to your browser's address-bar search engines (we ship an <a class="text-amber-accent underline" href="/opensearch.xml">OpenSearch description</a> with live suggestions).</li>
+<li>On mobile, use your browser's <em>Add to Home Screen</em> to install Shelfmark as an app.</li>
+</ul>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Part of the Zalize family</h2>
 <p>Shelfmark is built by the team behind <a class="text-amber-accent underline" href="https://watchdeck.zalize.com">WatchDeck</a> (TV tracking), <a class="text-amber-accent underline" href="https://mealloop.zalize.com">MealLoop</a>, <a class="text-amber-accent underline" href="https://subsleuth.zalize.com">SubSleuth</a>, <a class="text-amber-accent underline" href="https://cv.zalize.com">HonestCV</a> and <a class="text-amber-accent underline" href="https://astrosage.zalize.com">AstroSage</a>.</p>
 </div>`,

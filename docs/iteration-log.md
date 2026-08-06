@@ -627,3 +627,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/search?q=zzzzqqqq 显示 Popular series 卡片区；/search?q=discworld（有结果）不显示。
 - 部署 77944115；typecheck 通过。
+
+## Round 49 — 2026-08-05
+
+**发现（五驱动）**
+- UX/分发：R29 RSS、R39 OpenSearch、R40 可安装 PWA 等分发通道对用户不可见，/about 未提及任何跟进新书的方式。
+
+**修复（P2）**
+- /about 新增「Ways to follow new releases」板块：/new + 流派过滤、RSS 订阅、浏览器地址栏搜索引擎（OpenSearch）、移动端 Add to Home Screen 四条路径。
+
+**证据**
+- 线上验证：/about 显示新板块（部署 5b4bb009）；typecheck 通过。
