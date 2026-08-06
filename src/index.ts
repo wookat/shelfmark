@@ -257,6 +257,12 @@ app.get("/series/:slug", async (c) => {
     `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
   ).bind(series.name, series.id).all<{ slug: string; name: string; author_name: string | null }>();
   const first = books[0];
+  const latest = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
+  const faqs: [string, string][] = [];
+  if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. Publication order is the order most readers should follow.`]);
+  faqs.push([`How many books are in the ${series.name} series?`, `There are ${bookNoun(series.book_count)} in ${series.name}${yearsSpan(series) ? `, published ${yearsSpan(series)}` : ""}.`]);
+  if (latest && latest !== first) faqs.push([`What is the most recent ${series.name} book?`, `The most recent installment on record is “${latest.title}”${latest.year ? ` (${latest.year})` : ""}.`]);
+  if (series.author_name) faqs.push([`Who writes the ${series.name} series?`, `${series.name} is written by ${series.author_name}.`]);
   const body = `
 ${crumbs([["Series", "/series"], [series.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
@@ -274,7 +280,8 @@ ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <p class="mt-4 text-sm text-ink-700/70 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
 ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
-${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div></section>` : ""}`;
+${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div></section>` : ""}
+${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
       title: `${series.name} Books in Order (${series.book_count} Books)${series.author_name ? " — " + series.author_name : ""} | Shelfmark`,
@@ -291,6 +298,17 @@ ${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibol
           numberOfItems: series.book_count,
         },
         breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
+        ...(faqs.length
+          ? [{
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: faqs.map(([q2, a2]) => ({
+                "@type": "Question",
+                name: q2,
+                acceptedAnswer: { "@type": "Answer", text: a2 },
+              })),
+            }]
+          : []),
       ],
       image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
