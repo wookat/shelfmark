@@ -797,3 +797,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 文档入库本轮 commit；无线上代码变更（无需部署）。
+
+## Round 64 — 2026-08-06
+
+**发现（五驱动·性能）**
+- P2：静态资源（styles.css/app.js/favicon.svg/og.png/manifest.json）以 max-age=0, must-revalidate 提供，每次页面浏览都要 ETag 往返，移动端重复访问白白多付 RTT。
+
+**修复**
+- 新增 public/_headers（Workers Assets 支持）：css/js max-age=3600，图标/og 图/manifest max-age=86400；ETag 到期后仍可协商复用。
+- 附带：scripts/fetch_ol_covers.py 超时 30→90s、间隔 0.6→1.0s（OL 搜索 API 慢查询在 30s 超时下大面积失败）；封面回填后台任务持续运行中。
+
+**证据**
+- 线上验证（workers.dev 直连绕边缘缓存）：styles.css/app.js Cache-Control: public, max-age=3600，favicon.svg 86400；部署 283902e9。

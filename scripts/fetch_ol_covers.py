@@ -29,7 +29,7 @@ def main():
         url = "https://openlibrary.org/search.json?" + urllib.parse.urlencode(params)
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=30) as resp:
+            with urllib.request.urlopen(req, timeout=90) as resp:
                 docs = json.load(resp).get("docs", [])
         except Exception as e:
             print("err", r["id"], e, file=sys.stderr)
@@ -44,7 +44,7 @@ def main():
                 break
         if n % 200 == 0:
             print(n, "checked", hits, "matched", file=sys.stderr)
-        time.sleep(0.6)
+        time.sleep(1.0)
     print("done", n, hits, file=sys.stderr)
 
 if __name__ == "__main__":
