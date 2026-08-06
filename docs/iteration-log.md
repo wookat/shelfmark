@@ -258,3 +258,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy 730f2e8d): homepage shows 12 genre pills (fantasy 272 … thriller); each links to its genre page.
+
+## Round 19 — 2026-08-06
+
+**Findings (by driver)**
+- A11y audit (axe-core 4.10.2 on 7 live pages, Round 18 QA): serious `color-contrast` on all pages (~205 nodes) — amber `#c8842c` on `#f7f6f3` = 2.86:1 and low-opacity ink text (`/50`–`/60`) on small fonts; moderate `landmark-unique` on 4 pages (header nav vs breadcrumb nav unnamed). Zero critical; no keyboard traps. [P1]
+
+**Fixes shipped**
+- Accent darkened `#c8842c` → `#9a6414` (≥4.5:1 on both page and card backgrounds; brand hue retained; og.png/favicon untouched).
+- Low-opacity text bumped: `text-ink-700/50` → `/70`, `/60` → `/75` across templates.
+- `aria-label="Primary"` on header nav, `aria-label="Breadcrumb"` on breadcrumbs.
+
+**Evidence**
+- Live (deploy 1ab57995): re-audit in Round 19 QA (test-report-iter19.md).

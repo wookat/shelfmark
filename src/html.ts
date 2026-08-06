@@ -58,7 +58,7 @@ ${ld}
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
       <input name="q" type="search" placeholder="Search a series or author…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
-    <nav class="ml-auto flex items-center gap-4 text-sm font-medium">
+    <nav aria-label="Primary" class="ml-auto flex items-center gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
       <a href="/genres" class="hover:text-amber-accent">Genres</a>
