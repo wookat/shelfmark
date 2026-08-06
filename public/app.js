@@ -422,6 +422,24 @@
       a.click();
     });
 
+    var exportCsvBtn = document.getElementById("export-csv-btn");
+    if (exportCsvBtn) exportCsvBtn.addEventListener("click", function () {
+      function q(v) { return '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"'; }
+      var d = load();
+      var rows = ["Title,Series,Date Read"];
+      Object.keys(d).forEach(function (id) {
+        var e = d[id];
+        if (!e) return;
+        var date = e.t > 1e12 ? new Date(e.t).toISOString().slice(0, 10) : "";
+        rows.push([q(e.title), q(e.series), q(date)].join(","));
+      });
+      var blob = new Blob([rows.join("\r\n")], { type: "text/csv" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = "shelfmark-export.csv";
+      a.click();
+    });
+
     var importBtn = document.getElementById("import-btn");
     var importFile = document.getElementById("import-file");
     var importStatus = document.getElementById("import-status");

@@ -1008,3 +1008,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - /genres/fantasy 线上含 data-total 属性；node --check + typecheck 通过；交互回归排入批尾 QA；部署 19a7891b。
+
+## Round 82 — 2026-08-06
+
+**发现（五驱动·竞品/UX）**
+- P2：/shelf 只有 JSON 备份；Goodreads/StoryGraph 用户习惯 CSV（可导入表格/其他工具），迁出通道缺失影响信任感。
+
+**修复**
+- /shelf 新增「Export CSV」按钮：Title,Series,Date Read 三列（RFC4180 引号转义，无效时间戳日期留空），纯客户端生成下载，数据不出浏览器。
+
+**证据**
+- 线上 /shelf 含 export-csv-btn；node --check + typecheck 通过；交互回归排入批尾 QA；部署 570d26d4。
