@@ -719,3 +719,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - D1 审计确认 8 个流派 all_series≥3 但 with_books<3；部署 0db23cb9 后 sitemap（cache-busted 及 workers.dev 直连）不再包含上述 slug；typecheck 通过。
+
+## Round 57 — 2026-08-06
+
+**发现（五驱动·SEO/UX）**
+- P2：R53 流派词表合并后，23 个旧流派 slug（crime-literature、fantasy-literature、romance 等）直接 404，历史外链/收藏与可能已被收录的 URL 全部断链。
+
+**修复**
+- /genres/:slug 增加 GENRE_SLUG_REDIRECTS 映射：旧 slug 301 到规范流派页（crime-literature→crime-fiction 等 24 条映射）。
+
+**证据**
+- 线上实测：/genres/crime-literature、/genres/romance、/genres/fantasy-literature、/genres/young-adult-fiction 均 301 至规范页且最终 200；typecheck 通过；部署 d63bd7de。

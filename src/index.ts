@@ -469,8 +469,37 @@ ${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2
   );
 });
 
+// Slugs of genre labels merged into a canonical vocabulary; old URLs 301 to the canonical genre page.
+const GENRE_SLUG_REDIRECTS: Record<string, string> = {
+  "children-s-book": "children-s-literature",
+  "children-s-fiction": "children-s-literature",
+  "children-s-novel": "children-s-literature",
+  "crime-literature": "crime-fiction",
+  "crime-novel": "crime-fiction",
+  "cyberpunk-novel": "cyberpunk",
+  "dark-fantasy-literature": "dark-fantasy",
+  "detective-literature": "detective-fiction",
+  "fantasy-literature": "fantasy",
+  "fiction-literature": "fiction",
+  "historical-non-fiction": "non-fiction",
+  "historical-non-fiction-work": "non-fiction",
+  "historical-novel": "historical-fiction",
+  "horror-literature": "horror-fiction",
+  "non-fiction-literary-work": "non-fiction",
+  "non-fiction-literature": "non-fiction",
+  "romance": "romance-novel",
+  "romantic-fiction": "romance-novel",
+  "science-fiction-literature": "science-fiction",
+  "thriller-novel": "thriller",
+  "vampire-literature": "vampire-fiction",
+  "western-novel": "western",
+  "young-adult-fiction": "young-adult-literature",
+};
+
 app.get("/genres/:slug", async (c) => {
   const slug = c.req.param("slug");
+  const redirect = GENRE_SLUG_REDIRECTS[slug];
+  if (redirect) return c.redirect(`/genres/${redirect}`, 301);
   const { results: genres } = await c.env.DB.prepare(
     `SELECT DISTINCT genre FROM series WHERE genre IS NOT NULL`
   ).all<{ genre: string }>();
