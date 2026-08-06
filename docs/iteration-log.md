@@ -1209,3 +1209,18 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上 /privacy 已含新披露文案；部署 ce428952。
+
+## Round 100 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行 + 100 轮收官：R96–99 上线后核心路由健康检查 + IndexNow 全量重提交。QA 在 R97 抓到 P1（var 提升导致 loadSaved 早于 SAVED_KEY 初始化，saved 回退区不渲染），已修复（eb03008）并复检通过。
+
+**修复/动作**
+- 14 个核心端点全通过（/random 正确 302，其余 13 个 200）；IndexNow 全量重提交 25,638 URL（4×200：8000/8000/8000/1638）；部署 ca9e334c。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200；QA 报告 test-report-iter99.md。
+
+---
+
+**100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
