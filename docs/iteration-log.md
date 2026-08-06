@@ -580,3 +580,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：响应头含两项新头；其余安全头不变。
 - 部署 3852c8c5；typecheck 通过。
+
+## Round 45 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品/UX：系列页有「Copy list」一键分享，但作者页的各系列区块没有，作者页读者要多跳一次才能复制阅读顺序。
+
+**修复（P2）**
+- 作者页每个系列区块标题行新增「Copy list」按钮（复用 data-copylist 处理器，复制编号书单+回链 /series/{slug}；Standalone books 区块不加，因无系列落地页）。
+
+**证据**
+- 线上验证：/authors/brandon-sanderson 6 个系列各有按钮；/authors/martha-wells 1 个（Standalone 区块正确无按钮）。
+- 部署 7256351c；typecheck 通过。

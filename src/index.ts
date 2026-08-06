@@ -262,6 +262,7 @@ ${series.map((s) => {
     <h2 class="font-display font-semibold text-2xl text-ink-900"><a href="/series/${s.slug}" class="hover:text-amber-accent">${esc(s.name)}</a></h2>
     <span class="text-sm text-ink-700/75">${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</span>
     <span class="text-sm font-medium text-amber-accent" data-progress-label="${s.slug}"></span>
+    ${bs.length ? `<button type="button" data-copylist="${s.slug}" class="text-sm rounded-full bg-white border border-ink-200 px-3 py-1 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
   </div>
   ${bookList(bs, s)}
 </section>`;
