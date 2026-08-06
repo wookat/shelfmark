@@ -708,3 +708,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - IndexNow/健康检查输出记录于会话；无回归。
+
+## Round 56 — 2026-08-05
+
+**发现（五驱动·QA/SEO 交叉）**
+- P1（SEO 一致性）：sitemap 第 1 分片的流派 URL 列表按「全部系列 ≥3」筛选，未排除 0-book 系列；而流派详情页的 noindex 阈值按「有书系列 <3」判定。导致 8 个已 noindex 的薄流派页（satire、autobiography、anthropomorphic comic 等）仍被 sitemap 宣告，向搜索引擎发送矛盾信号。
+
+**修复**
+- sitemap 流派查询补 `AND book_count > 0`，与 /genres 索引页及详情页 noindex 阈值完全对齐。
+
+**证据**
+- D1 审计确认 8 个流派 all_series≥3 但 with_books<3；部署 0db23cb9 后 sitemap（cache-busted 及 workers.dev 直连）不再包含上述 slug；typecheck 通过。

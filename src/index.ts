@@ -880,7 +880,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
-      `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
+      `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
     urls.push(...genres.map((g) => `/genres/${gslug(g.genre)}`));
   }
