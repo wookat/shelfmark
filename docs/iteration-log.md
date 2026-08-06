@@ -1019,3 +1019,25 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上 /shelf 含 export-csv-btn；node --check + typecheck 通过；交互回归排入批尾 QA；部署 570d26d4。
+
+## Round 83 — 2026-08-06
+
+**发现（五驱动·视觉/分发）**
+- P2：流派页（59+ 页）og:image 仍是通用品牌卡，分享预览不如带封面的作者/系列页。
+
+**修复**
+- 流派页 og:image 改用该页第一个有封面系列的 -L.jpg 大图（无封面回退 /og.png）。
+
+**证据**
+- 线上 /genres/fantasy og:image=covers.openlibrary.org/b/id/14648805-L.jpg；部署 3b56dfe2。
+
+## Round 84 — 2026-08-06
+
+**发现（五驱动·竞品/分发）**
+- P2：AI 助手/答案引擎日益成为「reading order」问句的入口；站点无 llms.txt，结构与 API 对 LLM 爬取不友好，竞品也均未提供（差异化窗口）。
+
+**修复**
+- 新增 GET /llms.txt（llmstxt.org 格式）：站点定位、关键入口（/series /authors /genres /new /about）、两个开放 API 的用法与引用规范，24h 缓存。
+
+**证据**
+- 线上 https://shelfmark.zalize.com/llms.txt 返回完整文档；typecheck 通过；部署 3b56dfe2。

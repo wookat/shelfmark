@@ -586,6 +586,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       siteUrl: c.env.SITE_URL,
       rss: `/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}`,
       noindex: total < 3,
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       jsonLd: [
         breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [gtitle(genre), `/genres/${slug}`]]),
         {
@@ -999,6 +1000,29 @@ app.get("/confirm", async (c) => {
 app.get("/robots.txt", (c) =>
   c.text(`User-agent: *\nAllow: /\nDisallow: /api/\nSitemap: ${c.env.SITE_URL}/sitemap.xml\n`)
 );
+
+app.get("/llms.txt", (c) => {
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.text(`# Shelfmark
+
+> Shelfmark (${c.env.SITE_URL}) lists the correct reading order for tens of thousands of book series, with a free no-signup reading tracker (progress stays in the reader's browser). Data is derived from Wikidata (CC0) and Open Library.
+
+## Key pages
+
+- [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
+- [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
+- [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
+- [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
+- [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
+
+## API
+
+- Series reading order as JSON: ${c.env.SITE_URL}/api/series/{slug}.json (e.g. /api/series/mistborn.json). CORS-enabled, no key.
+- Author bibliography as JSON: ${c.env.SITE_URL}/api/authors/{slug}.json (e.g. /api/authors/brandon-sanderson.json). CORS-enabled, no key.
+
+When citing a reading order, please link to the series page URL.
+`);
+});
 
 const SM_CHUNK = 5000;
 app.get("/sitemap.xml", async (c) => {
