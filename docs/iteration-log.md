@@ -95,9 +95,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Visual: OG card designed to brand palette (ink/amber, serif wordmark).
 
 **Fixes shipped**
-- /new curation: require attributed series (`author_id IS NOT NULL`), sane series size (2–80 books), exclude reference/dictionary/encyclopedia/comic-strip/webcomic genres.
+- /new curation (two passes): pass 1 — attributed series, size 2–80, genre exclusions (removed xkcd/Munroe); live QA still found self-pub bulk noise (Singapore pamphlets, 34 rows by one author). Pass 2 — require the series to have a known genre AND to be established before the release year (`s.genre IS NOT NULL AND s.first_year < b.year`): only real new installments of existing series qualify (matches the page's "series installments" promise).
 - Social preview images: site-wide branded 1200×630 `/og.png` (twitter:card summary_large_image); series pages use first available book cover (`-L.jpg`) as og:image + twitter:image.
 
 **Evidence**
-- Live /new: 0 Munroe/xkcd rows (was ~15), 148 curated entries remain.
+- Live /new after pass 2: 0 matches for xkcd/Munroe/Singapore/Spyrou/Hoicka/study-guide; 31 curated rows, all recognizable series installments (Murderbot "Platform Decay", Apothecary Diaries, Yona of the Dawn 47, Neal Asher, Philip Reeve, manga volumes).
 - Live og:image: `/` + `/new` → `https://shelfmark.zalize.com/og.png`; `/series/discworld` → `https://covers.openlibrary.org/b/id/14648805-L.jpg`.
