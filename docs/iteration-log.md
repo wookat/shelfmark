@@ -964,3 +964,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上 /new.rss 含 5 个 enclosure（如 Platform Decay/The Murderbot Diaries → covers.openlibrary.org 15154430-L.jpg），XML 校验通过；部署 a515e1dd。
+
+## Round 78 — 2026-08-06
+
+**发现（五驱动·竞品/分发）**
+- P2：开放 API 只有系列维度（/api/series/{slug}.json），作者书目（22,839 位）无 JSON 出口——开发者要拼一个作者的全部系列只能爬 HTML。
+
+**修复**
+- 新增 GET /api/authors/{slug}.json：作者名/URL/统计 + 全部有书系列（名称/流派/册数/年份跨度/页面 URL/对应系列 API URL），CORS + 1h 缓存，未知或非法 slug 404；/about「Open data API」板块补文档。
+
+**证据**
+- 线上实测 brandon-sanderson.json 返回 6 系列/60 books 且首条 Mistborn 带 api 链接；nope-xyz.json 与 ..%2Fetc.json 均 404；ACAO:* + max-age=3600 头已验证；typecheck 通过；部署 b8f9b427。

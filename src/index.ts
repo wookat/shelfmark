@@ -809,7 +809,7 @@ app.get("/about", (c) =>
 <li>On mobile, use your browser's <em>Add to Home Screen</em> to install Shelfmark as an app.</li>
 </ul>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Open data API</h2>
-<p>Every reading order is available as JSON: <code class="text-sm bg-ink-100 px-1.5 py-0.5 rounded">/api/series/&lt;slug&gt;.json</code> — e.g. <a class="text-amber-accent underline" href="/api/series/mistborn.json">/api/series/mistborn.json</a>. CORS-enabled, no key required. Underlying data is from Wikidata (CC0) and Open Library; a link back is appreciated.</p>
+<p>Every reading order is available as JSON: <code class="text-sm bg-ink-100 px-1.5 py-0.5 rounded">/api/series/&lt;slug&gt;.json</code> — e.g. <a class="text-amber-accent underline" href="/api/series/mistborn.json">/api/series/mistborn.json</a>. Author bibliographies too: <code class="text-sm bg-ink-100 px-1.5 py-0.5 rounded">/api/authors/&lt;slug&gt;.json</code> — e.g. <a class="text-amber-accent underline" href="/api/authors/brandon-sanderson.json">/api/authors/brandon-sanderson.json</a>. CORS-enabled, no key required. Underlying data is from Wikidata (CC0) and Open Library; a link back is appreciated.</p>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Part of the Zalize family</h2>
 <p>Shelfmark is built by the team behind <a class="text-amber-accent underline" href="https://watchdeck.zalize.com">WatchDeck</a> (TV tracking), <a class="text-amber-accent underline" href="https://mealloop.zalize.com">MealLoop</a>, <a class="text-amber-accent underline" href="https://subsleuth.zalize.com">SubSleuth</a>, <a class="text-amber-accent underline" href="https://cv.zalize.com">HonestCV</a> and <a class="text-amber-accent underline" href="https://astrosage.zalize.com">AstroSage</a>.</p>
 </div>`,
@@ -900,6 +900,36 @@ app.get("/api/series/:file", async (c) => {
     url: `${c.env.SITE_URL}/series/${series.slug}`,
     order: "publication",
     books: ordered.map((b, i) => ({ order: i + 1, title: b.title, year: b.year })),
+    license: "Data from Wikidata (CC0) and Open Library; attribution appreciated.",
+  });
+});
+
+app.get("/api/authors/:file", async (c) => {
+  const m = /^([a-z0-9-]+)\.json$/.exec(c.req.param("file"));
+  if (!m) return c.json({ error: "Not found" }, 404);
+  const author = await c.env.DB.prepare(
+    `SELECT id, name, slug, series_count, book_count FROM authors WHERE slug=?`
+  ).bind(m[1]).first<{ id: number; name: string; slug: string; series_count: number; book_count: number }>();
+  if (!author) return c.json({ error: "Author not found" }, 404);
+  const { results: series } = await c.env.DB.prepare(
+    `SELECT name, slug, genre, book_count, first_year, last_year FROM series WHERE author_id=? AND book_count > 0 ORDER BY book_count DESC, name`
+  ).bind(author.id).all<{ name: string; slug: string; genre: string | null; book_count: number; first_year: number | null; last_year: number | null }>();
+  c.header("Cache-Control", "public, max-age=3600");
+  c.header("Access-Control-Allow-Origin", "*");
+  return c.json({
+    name: author.name,
+    url: `${c.env.SITE_URL}/authors/${author.slug}`,
+    series_count: author.series_count,
+    book_count: author.book_count,
+    series: series.map((s) => ({
+      name: s.name,
+      genre: s.genre,
+      book_count: s.book_count,
+      first_year: s.first_year,
+      last_year: s.last_year,
+      url: `${c.env.SITE_URL}/series/${s.slug}`,
+      api: `${c.env.SITE_URL}/api/series/${s.slug}.json`,
+    })),
     license: "Data from Wikidata (CC0) and Open Library; attribution appreciated.",
   });
 });
