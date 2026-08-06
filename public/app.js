@@ -133,6 +133,49 @@
     }
   });
 
+  // ---- homepage "Continue reading" strip (localStorage only) ----
+  var contEl = document.getElementById("continue-reading");
+  if (contEl) {
+    var bySlug = {};
+    Object.keys(data).forEach(function (id) {
+      var e = data[id];
+      if (!e || !e.slug || e.slug.indexOf("standalone-") === 0) return;
+      if (!bySlug[e.slug] || e.t > bySlug[e.slug].t) bySlug[e.slug] = { t: e.t, series: e.series, slug: e.slug, n: 0 };
+    });
+    Object.keys(data).forEach(function (id) {
+      var e = data[id];
+      if (e && e.slug && bySlug[e.slug]) bySlug[e.slug].n++;
+    });
+    var recent = Object.keys(bySlug).map(function (k) { return bySlug[k]; })
+      .sort(function (a, b) { return b.t - a.t; }).slice(0, 4);
+    if (recent.length) {
+      var sec = document.createElement("section");
+      sec.className = "mt-8";
+      var h2 = document.createElement("h2");
+      h2.className = "font-display font-semibold text-2xl text-ink-900";
+      h2.textContent = "Continue reading";
+      sec.appendChild(h2);
+      var grid = document.createElement("div");
+      grid.className = "grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4";
+      recent.forEach(function (r) {
+        var a = document.createElement("a");
+        a.href = "/series/" + encodeURIComponent(r.slug);
+        a.className = "block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition";
+        var name = document.createElement("p");
+        name.className = "font-display font-semibold text-ink-900 truncate";
+        name.textContent = r.series || r.slug;
+        var meta = document.createElement("p");
+        meta.className = "text-sm text-ink-700/80 mt-1";
+        meta.textContent = r.n + " read · pick up where you left off →";
+        a.appendChild(name);
+        a.appendChild(meta);
+        grid.appendChild(a);
+      });
+      sec.appendChild(grid);
+      contEl.appendChild(sec);
+    }
+  }
+
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
 
   // ---- search typeahead ----

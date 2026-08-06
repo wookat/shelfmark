@@ -975,3 +975,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 brandon-sanderson.json 返回 6 系列/60 books 且首条 Mistborn 带 api 链接；nope-xyz.json 与 ..%2Fetc.json 均 404；ACAO:* + max-age=3600 头已验证；typecheck 通过；部署 b8f9b427。
+
+## Round 79 — 2026-08-06
+
+**发现（五驱动·UX/竞品）**
+- P1：Goodreads/StoryGraph 首页核心是「继续在读」；我们的首页对老用户与新用户完全一样，已有进度的访客要自己想起在读哪个书系再搜一遍。
+
+**修复**
+- 首页新增「Continue reading」条（纯客户端）：从 localStorage 取最近有勾选活动的 ≤4 个书系（排除 standalone），显示书系名+已读册数，点击直达系列页；无进度用户不渲染任何内容；全部 DOM API 构建（textContent），localStorage 字符串不注入 HTML；数据不出浏览器。
+
+**证据**
+- 首页含 #continue-reading 挂载点（线上已验证），app.js node --check 通过；完整交互回归排入批尾 QA；部署 f99f976c。

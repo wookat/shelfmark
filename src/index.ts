@@ -90,6 +90,7 @@ app.get("/", async (c) => {
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
 </section>
+<div id="continue-reading"></div>
 <section class="mt-8">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><a href="/series" class="text-sm text-amber-accent font-medium">All series →</a></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
