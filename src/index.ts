@@ -357,6 +357,16 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
           url: `${c.env.SITE_URL}/series/${slug}`,
           ...(series.author_name ? { author: { "@type": "Person", name: series.author_name } } : {}),
           numberOfItems: series.book_count,
+          ...(orderedBooks.length ? {
+            hasPart: orderedBooks.slice(0, 50).map((b, i) => ({
+              "@type": "Book",
+              name: b.title,
+              position: i + 1,
+              ...(b.year ? { datePublished: String(b.year) } : {}),
+              ...(b.cover_url ? { image: b.cover_url } : {}),
+              ...(series.author_name ? { author: { "@type": "Person", name: series.author_name } } : {}),
+            })),
+          } : {}),
         },
         breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
         ...(faqs.length
