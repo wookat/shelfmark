@@ -84,3 +84,20 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live: https://shelfmark.zalize.com/new (HTTP 200, 2026 section rendering).
+- QA (test-report-iter4.md + recording): /new nav/render/sitemap, Share clipboard fallback (exact URL pasted), search books-only copy, print cleanup, 375px mobile, tracker regression — all pass. One P2 raised: /new dominated by dataset noise (~15 xkcd rows, non-book pamphlet entries) → fixed in Round 5.
+
+## Round 5 — 2026-08-06
+
+**Findings (by driver)**
+- QA carry-over (P2 from Round 4 live test): /new curation — xkcd strips and pamphlet-style rows led the flagship releases page.
+- Competitor/distribution: BSIO/social shares of series links render rich preview cards; Shelfmark pages had og:title/description but **no og:image** — shared links show bare text, weakening the share loop the Round-4 Share button feeds. [P1 for distribution]
+- Data analytics: hits still ~all self-testing (40–52/day); search terms logging works (`/search?q=discworld` top). No organic signal yet — too young; nothing to act on.
+- Visual: OG card designed to brand palette (ink/amber, serif wordmark).
+
+**Fixes shipped**
+- /new curation: require attributed series (`author_id IS NOT NULL`), sane series size (2–80 books), exclude reference/dictionary/encyclopedia/comic-strip/webcomic genres.
+- Social preview images: site-wide branded 1200×630 `/og.png` (twitter:card summary_large_image); series pages use first available book cover (`-L.jpg`) as og:image + twitter:image.
+
+**Evidence**
+- Live /new: 0 Munroe/xkcd rows (was ~15), 148 curated entries remain.
+- Live og:image: `/` + `/new` → `https://shelfmark.zalize.com/og.png`; `/series/discworld` → `https://covers.openlibrary.org/b/id/14648805-L.jpg`.

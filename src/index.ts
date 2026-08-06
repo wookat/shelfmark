@@ -292,6 +292,7 @@ ${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibol
         },
         breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
       ],
+      image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
     })
   );

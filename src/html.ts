@@ -11,6 +11,7 @@ export interface PageOpts {
   jsonLd?: object[];
   body: string;
   h1?: boolean;
+  image?: string;
 }
 
 const SISTERS = [
@@ -39,7 +40,9 @@ export function layout(o: PageOpts): string {
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:site_name" content="Shelfmark">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
+<meta name="twitter:card" content="${o.image ? "summary" : "summary_large_image"}">
+<meta name="twitter:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
