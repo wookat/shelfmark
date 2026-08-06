@@ -156,12 +156,21 @@
     });
     var recent = Object.keys(bySlug).map(function (k) { return bySlug[k]; })
       .sort(function (a, b) { return b.t - a.t; }).slice(0, 4);
+    var heading = "Continue reading";
+    if (!recent.length) {
+      var savedMap = loadSaved();
+      recent = Object.keys(savedMap).map(function (slug) {
+        var se = savedMap[slug] || {};
+        return { t: se.t || 0, series: se.name, slug: slug, n: 0 };
+      }).sort(function (a, b) { return b.t - a.t; }).slice(0, 4);
+      heading = "From your saved list";
+    }
     if (recent.length) {
       var sec = document.createElement("section");
       sec.className = "mt-8";
       var h2 = document.createElement("h2");
       h2.className = "font-display font-semibold text-2xl text-ink-900";
-      h2.textContent = "Continue reading";
+      h2.textContent = heading;
       sec.appendChild(h2);
       var grid = document.createElement("div");
       grid.className = "grid gap-3 sm:grid-cols-2 lg:grid-cols-4 mt-4";
@@ -174,7 +183,7 @@
         name.textContent = r.series || r.slug;
         var meta = document.createElement("p");
         meta.className = "text-sm text-ink-700/80 mt-1";
-        meta.textContent = r.n + " read · pick up where you left off →";
+        meta.textContent = r.n ? r.n + " read · pick up where you left off →" : "saved for later · start reading →";
         a.appendChild(name);
         a.appendChild(meta);
         grid.appendChild(a);
@@ -473,6 +482,18 @@
       a.href = URL.createObjectURL(blob);
       a.download = "shelfmark-export.csv";
       a.click();
+    });
+
+    var clearBtn = document.getElementById("clear-data-btn");
+    if (clearBtn) clearBtn.addEventListener("click", function () {
+      if (!confirm("Erase all Shelfmark data from this browser (reading progress, saved list, goals)? This cannot be undone.")) return;
+      var keys = [];
+      for (var ki = 0; ki < localStorage.length; ki++) {
+        var kn = localStorage.key(ki);
+        if (kn && kn.indexOf("shelfmark") === 0) keys.push(kn);
+      }
+      keys.forEach(function (kn) { localStorage.removeItem(kn); });
+      location.reload();
     });
 
     var importBtn = document.getElementById("import-btn");

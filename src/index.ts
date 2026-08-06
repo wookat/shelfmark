@@ -201,6 +201,7 @@ app.get("/popular", async (c) => {
       title: "100 Most Popular Book Series in Order | Shelfmark",
       description: "The 100 biggest book series with complete reading orders — track your progress for free, no account needed.",
       path: "/popular",
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       siteUrl: c.env.SITE_URL,
       body,
       jsonLd: [
@@ -723,9 +724,10 @@ app.get("/shelf", (c) => {
   <button id="export-csv-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export CSV</button>
   <button id="import-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Import JSON</button>
   <input id="import-file" type="file" accept="application/json,.json" class="hidden" aria-label="Import shelf backup file">
+  <button id="clear-data-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:border-red-400">Clear all data</button>
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
-<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices.</p>
+<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
@@ -879,7 +881,7 @@ app.get("/privacy", (c) =>
       body: `<h1 class="font-display font-bold text-3xl text-ink-900">Privacy Policy</h1>
 <div class="mt-6 max-w-2xl text-ink-700 space-y-4">
 <p><strong>Reading progress</strong> is stored only in your browser's localStorage. It is never transmitted to our servers.</p>
-<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). No IP addresses, fingerprints, or identifiers are stored.</p>
+<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). When you arrive from another website we also count the referring site's hostname (e.g. "google.com" — never the full URL, page, or search query). No IP addresses, user agents, fingerprints, or identifiers are stored.</p>
 <p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. One-click unsubscribe by replying or emailing <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
 <p><strong>Cookies</strong>: none.</p>
 <p>Contact: contact@zalize.com · Operated by Zalize.</p>
@@ -1066,6 +1068,7 @@ app.get("/llms.txt", (c) => {
 ## Key pages
 
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
+- [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).

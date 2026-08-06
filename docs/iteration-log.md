@@ -1165,3 +1165,47 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。
+
+## Round 96 — 2026-08-06
+
+**发现（五驱动·pSEO/视觉）**
+- P2：/popular 分享预览仍是通用品牌卡（流派页 R83 起已用封面大图）；/llms.txt 关键页清单缺 /popular。
+
+**修复**
+- /popular og:image 改用列表中首个有封面系列的 -L 大图；/llms.txt Key pages 增补 /popular。
+
+**证据**
+- 线上 /popular og:image 为 covers.openlibrary.org/...-L.jpg；/llms.txt 含 /popular；部署 ce428952。
+
+## Round 97 — 2026-08-06
+
+**发现（五驱动·UX/数据）**
+- P2：只保存了想读清单（未勾选任何书）的访客回访首页时无个性化入口，Continue reading 条不渲染。
+
+**修复**
+- 首页 Continue reading 无阅读进度时回退渲染「From your saved list」（最多 4 个最近保存的系列，仍纯 localStorage 客户端渲染，数据不出浏览器）。
+
+**证据**
+- app.js 含 saved 回退分支；部署 ce428952。
+
+## Round 98 — 2026-08-06
+
+**发现（五驱动·合规/UX）**
+- P1：隐私优先产品缺「一键清除本地数据」控制（用户在共享设备上无法方便地抹除进度/清单/目标）。
+
+**修复**
+- /shelf 新增「Clear all data」按钮：confirm 确认后删除全部 shelfmark* localStorage 键并刷新；说明文案提示先导出备份。
+
+**证据**
+- 线上 /shelf 含 clear-data-btn；部署 ce428952。
+
+## Round 99 — 2026-08-06
+
+**发现（五驱动·合规）**
+- P1：R94 引荐来源统计上线后 /privacy 的 Analytics 条目未同步披露（透明度缺口）。
+
+**修复**
+- /privacy Analytics 条目明确披露：仅记录来源站 hostname（如 google.com），绝不含完整 URL/页面/搜索词；无 IP/UA/指纹存储。
+
+**证据**
+- 线上 /privacy 已含新披露文案；部署 ce428952。
