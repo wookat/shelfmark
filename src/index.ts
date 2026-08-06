@@ -311,6 +311,7 @@ ${similar.length ? `<section class="mt-12 print:hidden">
           })),
         }] : []),
       ],
+      image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
     })
   );

@@ -775,3 +775,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测首页、/series/discworld、/genres 均含 application/rss+xml link；typecheck 通过；部署 90b0b331。
+
+## Round 62 — 2026-08-06
+
+**发现（五驱动·分发/视觉）**
+- P2：作者页分享到社交平台时 og:image 一律是品牌卡；系列页已用真实封面，作者页（22,839 页）未对齐，分享预览吸引力低。
+
+**修复**
+- 作者页 og:image 使用其第一本有封面书的 Open Library 大图（-L.jpg），无封面作者回退品牌卡。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson og:image=covers.openlibrary.org/b/id/8737489-L.jpg；/authors/randall-munroe 回退 /og.png；typecheck 通过；部署 8243b45c。
