@@ -64,6 +64,21 @@
     document.querySelectorAll('[data-progress-label="' + slug + '"]').forEach(function (el) {
       el.textContent = read ? read + " of " + boxes.length + " read (" + pct + "%)" : "";
     });
+    list.querySelectorAll(".up-next-badge").forEach(function (el) { el.remove(); });
+    if (read > 0 && read < boxes.length) {
+      for (var i = 0; i < boxes.length; i++) {
+        if (!boxes[i].checked) {
+          var title = boxes[i].parentElement.querySelector(".font-medium");
+          if (title) {
+            var badge = document.createElement("span");
+            badge.className = "up-next-badge";
+            badge.textContent = "Up next";
+            title.insertAdjacentElement("afterend", badge);
+          }
+          break;
+        }
+      }
+    }
   }
 
   document.querySelectorAll("ol[data-series]").forEach(function (list) {
@@ -162,6 +177,39 @@
       a.download = "shelfmark-export.json";
       a.click();
     });
+
+    var importBtn = document.getElementById("import-btn");
+    var importFile = document.getElementById("import-file");
+    var importStatus = document.getElementById("import-status");
+    if (importBtn && importFile) {
+      importBtn.addEventListener("click", function () { importFile.click(); });
+      importFile.addEventListener("change", function () {
+        var f = importFile.files && importFile.files[0];
+        if (!f) return;
+        var reader = new FileReader();
+        reader.onload = function () {
+          try {
+            var incoming = JSON.parse(String(reader.result));
+            if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("bad");
+            var cur = load();
+            var added = 0;
+            Object.keys(incoming).forEach(function (k) {
+              var e = incoming[k];
+              if (e && typeof e === "object" && typeof e.title === "string") {
+                if (!cur[k]) added++;
+                cur[k] = { t: typeof e.t === "number" ? e.t : Date.now(), title: e.title, series: typeof e.series === "string" ? e.series : "", slug: typeof e.slug === "string" ? e.slug : "" };
+              }
+            });
+            localStorage.setItem(KEY, JSON.stringify(cur));
+            if (importStatus) importStatus.textContent = "Imported " + added + " new book" + (added === 1 ? "" : "s") + " ✓ Reloading…";
+            setTimeout(function () { location.reload(); }, 1600);
+          } catch (err) {
+            if (importStatus) importStatus.textContent = "That file doesn't look like a Shelfmark export.";
+          }
+        };
+        reader.readAsText(f);
+      });
+    }
 
     var shareBtn = document.getElementById("share-card-btn");
     if (shareBtn) shareBtn.addEventListener("click", function () { drawCard(entries); });
