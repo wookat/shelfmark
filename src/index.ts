@@ -688,6 +688,7 @@ app.get("/sitemaps/:file", async (c) => {
   }
   if (n === 1) {
     urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
+    for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
