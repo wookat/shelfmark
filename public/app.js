@@ -236,6 +236,26 @@
     btn.addEventListener("click", function () { window.print(); });
   });
 
+  // ---- copy list button ----
+  document.querySelectorAll("[data-copylist]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var slug = btn.getAttribute("data-copylist");
+      var list = document.querySelector('ol[data-series="' + slug + '"]');
+      if (!list || !navigator.clipboard) return;
+      var name = list.getAttribute("data-series-name") || document.title;
+      var lines = [name + " — reading order", ""];
+      list.querySelectorAll("input[data-book]").forEach(function (box, i) {
+        lines.push((i + 1) + ". " + box.getAttribute("data-title"));
+      });
+      lines.push("", "via " + location.origin + "/series/" + slug);
+      navigator.clipboard.writeText(lines.join("\n")).then(function () {
+        var old = btn.textContent;
+        btn.textContent = "Copied ✓";
+        setTimeout(function () { btn.textContent = old; }, 2000);
+      }).catch(function () {});
+    });
+  });
+
   // ---- email capture ----
   document.querySelectorAll("form[data-subscribe]").forEach(function (form) {
     form.addEventListener("submit", function (ev) {
