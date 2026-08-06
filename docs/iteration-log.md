@@ -556,3 +556,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：/new?genre=science%20fiction → 4 条 + noindex；chips 渲染于 /new；部署 d48426e6；typecheck 通过。
+
+## Round 43 — 2026-08-05
+
+**发现（五驱动）**
+- UX + 内链：流派页与 /new 流派过滤（R42）互不相通：读者在 /genres/science-fiction 看不到该流派今明两年有哪些新书。
+
+**修复（P2）**
+- 流派详情页副标题新增「New & upcoming in {genre} (N)」链接 → /new?genre={genre}（小写传参，R42 匹配大小写不敏感）；N 为该流派 2026–2027 新作数（与 /new 相同的净化条件），为 0 时不显示。
+
+**证据**
+- 线上验证：/genres/science-fiction 显示 "New & upcoming in science fiction (4)" → /new 过滤视图；/genres/fantasy 无新作故无链接（正确）。
+- 部署 89adff10；typecheck 通过。

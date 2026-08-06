@@ -478,10 +478,14 @@ app.get("/genres/:slug", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
   ).bind(genre, PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
+  const year = new Date().getFullYear();
+  const newCount = Number(((await c.env.DB.prepare(
+    `SELECT COUNT(*) AS n FROM books b JOIN series s ON s.id=b.series_id WHERE b.year>=? AND b.year<=? AND s.genre=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.first_year IS NOT NULL AND s.first_year < b.year`
+  ).bind(year, year + 1, genre).all()).results as any[])[0].n);
   const body = `
 ${crumbs([["Genres", "/genres"], [genre, ""]])}
 <h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
-<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
+<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.${newCount ? ` <a class="text-amber-accent underline" href="/new?genre=${encodeURIComponent(genre.toLowerCase())}">New &amp; upcoming in ${esc(genre.toLowerCase())} (${newCount})</a>` : ""}</p>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
 ${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
