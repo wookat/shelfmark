@@ -281,6 +281,18 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
       jsonLd: [
         { "@context": "https://schema.org", "@type": "Person", name: author.name, url: `${c.env.SITE_URL}/authors/${slug}` },
         breadcrumbLd(c.env.SITE_URL, [["Authors", "/authors"], [author.name, `/authors/${slug}`]]),
+        ...(series.length ? [{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `Book series by ${author.name}`,
+          numberOfItems: series.length,
+          itemListElement: series.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        }] : []),
       ],
       body,
     })

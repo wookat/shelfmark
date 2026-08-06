@@ -528,3 +528,17 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/manifest.json 200 application/json；首页 head 含 manifest link 与 theme-color。
 - 部署 fa2f528a；typecheck 通过。
+
+## Round 41 — 2026-08-05
+
+**发现（五驱动）**
+- SEO：作者页只有 Person + Breadcrumb 结构化数据，缺系列列表 ItemList（流派页 R34 已有，作者页不一致）。
+- UX：R36 联想已支持书名，但搜索框 placeholder 仍写 "Search a series or author…"，能力被低估。
+
+**修复（P2×2）**
+- 作者页 JSON-LD 增补 ItemList（Book series by {author}，按 book_count 排序，含每系列 URL）。
+- 搜索框 placeholder（桌面+移动）改为 "Search series, authors, books…"。
+
+**证据**
+- 线上验证：/authors/brandon-sanderson JSON-LD 含 Person + BreadcrumbList + ItemList(6)；placeholder 已更新。
+- 部署 ea6e37e4；typecheck 通过。
