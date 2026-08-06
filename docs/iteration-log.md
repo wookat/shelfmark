@@ -890,3 +890,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 健康检查输出与 IndexNow 4×200 记录于会话；无代码改动。
+
+## Round 71 — 2026-08-06
+
+**发现（五驱动·竞品/SEO）**
+- P2：系列页早有 FAQ+FAQPage 结构化数据，但 22,839 个作者页没有——"how many books has X written"、"latest X book" 类长尾问句无着陆内容。
+
+**修复**
+- 作者页新增自动生成 FAQ（书目总数/最新一本/最长系列，全部由目录数据推导、无臆测），可见 dl 区块 + FAQPage JSON-LD，与系列页样式一致；无数据的问题自动省略。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 渲染 3 条 FAQ 且 JSON-LD FAQPage 含相同问答（60 books/6 series、最新 Moment Zero、最长 Mistborn 8 books 2006–2022）；typecheck 通过；部署 f04e040e。

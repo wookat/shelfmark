@@ -258,6 +258,11 @@ app.get("/authors/:slug", async (c) => {
          WHERE s.genre=? AND s.book_count > 0 AND a.id != ? GROUP BY a.id ORDER BY top DESC LIMIT 6`
       ).bind(topGenre, author.id).all<{ name: string; slug: string }>()
     : { results: [] as { name: string; slug: string }[] };
+  const latestBook = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
+  const authorFaqs: [string, string][] = [];
+  if (author.book_count) authorFaqs.push([`How many books has ${author.name} written?`, `${author.name} has ${bookNoun(author.book_count)} on record${author.series_count ? ` across ${author.series_count} series` : ""}.`]);
+  if (latestBook?.year) authorFaqs.push([`What is the most recent ${author.name} book?`, `The most recent ${author.name} book on record is “${latestBook.title}” (${latestBook.year}).`]);
+  if (series[0] && series[0].book_count >= 2) authorFaqs.push([`What is ${author.name}'s longest series?`, `${author.name}'s longest series is ${series[0].name}, with ${bookNoun(series[0].book_count)}${yearsSpan(series[0]) ? ` published ${yearsSpan(series[0])}` : ""}.`]);
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 ${author.photo_url ? `<img src="${esc(author.photo_url)}" alt="${esc(author.name)}" width="112" height="112" loading="lazy" class="float-right ml-4 mb-2 w-24 h-24 sm:w-28 sm:h-28 rounded-2xl object-cover border border-ink-200 shadow-sm bg-ink-100">` : ""}
@@ -287,6 +292,7 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
   </div>
   ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
 </section>` : ""}
+${authorFaqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(author.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${authorFaqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}
 ${similar.length ? `<section class="mt-12 print:hidden">
   <h2 class="font-display font-semibold text-2xl text-ink-900">More ${esc(topGenre!.toLowerCase())} authors</h2>
   <div class="mt-4 flex flex-wrap gap-2">
@@ -313,6 +319,15 @@ ${similar.length ? `<section class="mt-12 print:hidden">
             position: i + 1,
             name: s.name,
             url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        }] : []),
+        ...(authorFaqs.length ? [{
+          "@context": "https://schema.org",
+          "@type": "FAQPage",
+          mainEntity: authorFaqs.map(([q2, a2]) => ({
+            "@type": "Question",
+            name: q2,
+            acceptedAnswer: { "@type": "Answer", text: a2 },
           })),
         }] : []),
       ],
