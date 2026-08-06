@@ -157,28 +157,52 @@ function pagination(base: string, page: number, pages: number): string {
 // ---------- Authors index ----------
 app.get("/authors", async (c) => {
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
-  const { results } = await c.env.DB.prepare(
-    `SELECT * FROM authors ORDER BY book_count DESC LIMIT ? OFFSET ?`
-  ).bind(PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Author>();
-  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM authors`).all()).results as any[]);
+  const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
+  const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
+  const where = letter ? `WHERE UPPER(name) LIKE ?` : "";
+  const listSql = `SELECT * FROM authors ${where} ORDER BY ${letter ? "name" : "book_count DESC"} LIMIT ? OFFSET ?`;
+  const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
+  const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Author>();
+  const countSql = `SELECT COUNT(*) AS n FROM authors ${where}`;
+  const [{ n }] = ((letter
+    ? await c.env.DB.prepare(countSql).bind(`${letter}%`).all()
+    : await c.env.DB.prepare(countSql).all()
+  ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  const base = letter ? `/authors?letter=${letter}&` : "/authors?";
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
-<h1 class="font-display font-bold text-3xl text-ink-900">All authors</h1>
-<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} authors with series reading orders. Page ${page} of ${pages}.</p>
+<h1 class="font-display font-bold text-3xl text-ink-900">All authors${letter ? `: ${letter}` : ""}</h1>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} authors${letter ? ` starting with ${letter}` : " with series reading orders"}. Page ${page} of ${pages || 1}.</p>
+<nav aria-label="Authors by letter" class="mt-4 flex flex-wrap gap-1.5 text-sm">
+  <a href="/authors" class="rounded-full px-3 py-1.5 border ${!letter ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
+  ${letters.map((l) => `<a href="/authors?letter=${l}" class="rounded-full px-3 py-1.5 border ${letter === l ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${l}</a>`).join("")}
+</nav>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
 ${results.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}
 </div>
-${pagination("/authors", page, pages)}`;
+${!results.length ? `<p class="mt-6 text-ink-700">No authors under this letter yet.</p>` : ""}
+${paginationQ(base, page, pages)}`;
   return c.html(
     layout({
-      title: `Authors A–Z: Books in Order — Page ${page} | Shelfmark`,
-      description: `Browse ${Number(n).toLocaleString()} authors and find every book series in the correct reading order.`,
-      path: page > 1 ? `/authors?page=${page}` : "/authors",
+      title: `Authors${letter ? ` Starting With ${letter}` : " A–Z"}: Books in Order — Page ${page} | Shelfmark`,
+      description: `Browse ${Number(n).toLocaleString()} authors${letter ? ` starting with ${letter}` : ""} and find every book series in the correct reading order.`,
+      path: letter ? `/authors?letter=${letter}${page > 1 ? `&page=${page}` : ""}` : page > 1 ? `/authors?page=${page}` : "/authors",
       siteUrl: c.env.SITE_URL,
       body,
     })
   );
 });
+
+function paginationQ(base: string, page: number, pages: number): string {
+  if (pages <= 1) return "";
+  const link = (p: number, label: string) =>
+    `<a href="${base}page=${p}" class="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm hover:border-amber-accent">${label}</a>`;
+  return `<div class="flex gap-2 justify-center mt-8">
+    ${page > 1 ? link(page - 1, "← Previous") : ""}
+    ${page < pages ? link(page + 1, "Next →") : ""}
+  </div>`;
+}
 
 // ---------- Author page ----------
 app.get("/authors/:slug", async (c) => {
