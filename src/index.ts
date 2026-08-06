@@ -247,6 +247,13 @@ app.get("/authors/:slug", async (c) => {
     bySeries.get(b.series_id)!.push(b);
   }
   standalone.sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999));
+  const topGenre = series.find((s) => s.genre)?.genre ?? null;
+  const { results: similar } = topGenre
+    ? await c.env.DB.prepare(
+        `SELECT a.name, a.slug, MAX(s.book_count) AS top FROM authors a JOIN series s ON s.author_id=a.id
+         WHERE s.genre=? AND s.book_count > 0 AND a.id != ? GROUP BY a.id ORDER BY top DESC LIMIT 6`
+      ).bind(topGenre, author.id).all<{ name: string; slug: string }>()
+    : { results: [] as { name: string; slug: string }[] };
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
@@ -274,6 +281,13 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
     <span class="text-sm font-medium text-amber-accent" data-progress-label="standalone-${slug}"></span>
   </div>
   ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
+</section>` : ""}
+${similar.length ? `<section class="mt-12 print:hidden">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">More ${esc(topGenre!.toLowerCase())} authors</h2>
+  <div class="mt-4 flex flex-wrap gap-2">
+    ${similar.map((a) => `<a href="/authors/${a.slug}" class="rounded-full bg-white border border-ink-200 px-4 py-2 text-sm hover:border-amber-accent">${esc(a.name)}</a>`).join("")}
+    <a href="/genres/${gslug(topGenre!)}" class="rounded-full bg-white border border-ink-200 px-4 py-2 text-sm text-amber-accent hover:border-amber-accent">All ${esc(topGenre!.toLowerCase())} series →</a>
+  </div>
 </section>` : ""}`;
   return c.html(
     layout({

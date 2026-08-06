@@ -730,3 +730,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测：/genres/crime-literature、/genres/romance、/genres/fantasy-literature、/genres/young-adult-fiction 均 301 至规范页且最终 200；typecheck 通过；部署 d63bd7de。
+
+## Round 58 — 2026-08-06
+
+**发现（五驱动·竞品/UX/SEO）**
+- P2：作者页是流量入口（22,839 页），但读完一个作者后无横向发现路径；BSIO 类站点靠「相似作者」内链留住读者并强化 pSEO 内链网络。
+
+**修复**
+- 作者页新增「More {genre} authors」区块：按该作者最大有流派系列的流派，推荐同流派 6 位作者（按其最大系列规模排序）+「All {genre} series →」入口；无流派作者不显示；打印时隐藏。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 显示「More fantasy authors」：Terry Pratchett、Piers Anthony、Mercedes Lackey 等 6 位 + fantasy 流派入口；typecheck 通过；部署 409ea791。
