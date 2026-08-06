@@ -123,21 +123,34 @@ ${fresh.length ? `<section class="mt-12">
 // ---------- Series index ----------
 app.get("/series", async (c) => {
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
-  const { results } = await c.env.DB.prepare(
-    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
-  ).bind(PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
-  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series`).all()).results as any[]);
+  const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
+  const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
+  const where = letter ? `WHERE UPPER(s.name) LIKE ?` : "";
+  const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "s.book_count DESC"} LIMIT ? OFFSET ?`;
+  const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
+  const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Series>();
+  const countSql = `SELECT COUNT(*) AS n FROM series s ${where}`;
+  const [{ n }] = ((letter
+    ? await c.env.DB.prepare(countSql).bind(`${letter}%`).all()
+    : await c.env.DB.prepare(countSql).all()
+  ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
-<h1 class="font-display font-bold text-3xl text-ink-900">All book series</h1>
-<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series, sorted by size. Page ${page} of ${pages}.</p>
+<h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series${letter ? ` starting with ${letter}` : ", sorted by size"}. Page ${page} of ${pages || 1}.</p>
+<nav aria-label="Series by letter" class="mt-4 flex flex-wrap gap-1.5 text-sm">
+  <a href="/series" class="rounded-full px-3 py-1.5 border ${!letter ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
+  ${letters.map((l) => `<a href="/series?letter=${l}" class="rounded-full px-3 py-1.5 border ${letter === l ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${l}</a>`).join("")}
+</nav>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
-${pagination("/series", page, pages)}`;
+${!results.length ? `<p class="mt-6 text-ink-700">No series under this letter yet.</p>` : ""}
+${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}`;
   return c.html(
     layout({
-      title: `All Book Series in Order — Page ${page} | Shelfmark`,
-      description: `Browse ${Number(n).toLocaleString()} book series with complete reading orders and a free progress tracker.`,
-      path: page > 1 ? `/series?page=${page}` : "/series",
+      title: `${letter ? `Book Series Starting With ${letter}` : "All Book Series in Order"} — Page ${page} | Shelfmark`,
+      description: `Browse ${Number(n).toLocaleString()} book series${letter ? ` starting with ${letter}` : ""} with complete reading orders and a free progress tracker.`,
+      path: letter ? `/series?letter=${letter}${page > 1 ? `&page=${page}` : ""}` : page > 1 ? `/series?page=${page}` : "/series",
       siteUrl: c.env.SITE_URL,
       body,
     })
