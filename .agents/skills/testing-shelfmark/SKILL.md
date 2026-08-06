@@ -26,3 +26,12 @@ description: How to test the Shelfmark live site (shelfmark.zalize.com) — key 
 
 ## Devin Secrets Needed
 - None for live-site testing. `CLOUDFLARE_WORKERS_API_TOKEN` / `CLOUDFLARE_ADMIN_API_TOKEN` only if deploying or querying D1 directly.
+
+## Edge cache gotcha
+When verifying response headers or newly deployed routes, the zalize.com edge may serve stale cached headers/HTML. Verify against the direct origin `https://shelfmark.wookat520.workers.dev` with a cache-bust query param (e.g. `?cb=$RANDOM`).
+
+## Post-deploy CSS caching
+styles.css is cached max-age=3600, so right after a deploy the browser may render new markup with the previous stylesheet and produce false layout failures. Hard-reload (Ctrl+Shift+R) before judging CSS-dependent UI.
+
+## Shelf goal card in headless contexts
+To render the /shelf goal card headlessly (e.g. for axe), seed BOTH `shelfmark_read_v1` (`{"<bookId>":{"t":<ms>,"title":...,"series":...,"slug":...}}`) and `shelfmark:goal:<year>` in localStorage before navigating — the goal card only renders when tracked books exist. Reading-card PNG content must be verified from the downloaded file, not the DOM.

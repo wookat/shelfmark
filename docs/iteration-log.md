@@ -821,3 +821,168 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /api/series/mistborn.json 返回 7 本正确顺序 JSON、ACAO:*、max-age=3600；does-not-exist.json 与路径穿越样例均 404；typecheck+css 通过；部署 01936eba。
+
+## Round 65 补充（QA 修复）— 2026-08-06
+
+**发现**
+- P1（QA 回归）：R61 全站 RSS autodiscovery 上线后，/new?genre= 过滤页 head 中的 alternate link 指向全量 /new.rss 而非过滤 feed（页面可见链接正确，仅 head 链接错误）。
+
+**修复**
+- /new 路由 layout 的 rss 参数改为随 activeGenre 拼接 ?genre=。
+
+**证据**
+- 线上实测 /new?genre=fantasy head alternate = /new.rss?genre=fantasy，/new 仍为 /new.rss；typecheck 通过；部署 883d242f。
+
+## Round 66 — 2026-08-06
+
+**发现（五驱动·视觉/SEO）**
+- P2：genre 详情页 title/h1/面包屑与 /genres 索引卡片直接输出小写流派名（“fantasy Book Series in Order”），观感不专业，SERP 标题也不规范。
+
+**修复**
+- 新增 gtitle() 标题化 helper（按词首字母大写，保留连字符/撇号），应用于 genre 页 title/h1/面包屑/BreadcrumbList、/genres 索引卡片与 ItemList name；正文句中引用保持小写。
+
+**证据**
+- 线上实测 “Science Fiction Book Series in Order (290 Series)”、“Fantasy …(385)”、“Children's Literature …(73)”；typecheck 通过；部署 d7e03599。
+
+## Round 67 — 2026-08-06
+
+**发现（五驱动·竞品/视觉）**
+- P1：竞品（BSIO 等）作者页普遍有作者照片，我们的 1,120 个有系列作者页纯文字，视觉信任感与分享预览都吃亏。
+
+**修复**
+- 新增 scripts/fetch_author_photos.py：按 50/批走 Wikidata wbgetentities 拉 P18 头像，669/1,075 位有系列作者命中。
+- D1 authors 表新增 photo_url（schema.sql 同步），批量回填 669 条 Commons Special:FilePath URL（width=256）。
+- 作者页头部渲染圆角头像（float-right，lazy，无照片不渲染）；Person JSON-LD 加 image；og:image 优先作者照片（width=512）→ 无照片回退书封 → 品牌卡；CSP img-src 放行 commons.wikimedia.org 与 upload.wikimedia.org（跳转目标）。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 头像与 og:image 均为 Commons 照片、图片 URL 200 image/jpeg；typecheck 通过；部署 40fbdf7a。
+
+## Round 68 — 2026-08-06
+
+**发现（五驱动·视觉/UX）**
+- P2：R67 拿到 669 位作者照片后，首页「Prolific authors」与 /authors 索引卡片仍是纯文字，视觉密度低且没利用新数据。
+
+**修复**
+- 抽出 authorCard() 组件：48px 圆形头像（Commons width=96，lazy），无照片显示首字母占位圆（与书封占位一致的风格），应用于首页与 /authors 全部列表页。
+
+**证据**
+- 线上实测首页出现 R.L. Stine/Asimov/Nora Roberts 等头像 URL、/authors?letter=B 渲染头像卡；width=96 URL 200 image/jpeg；typecheck+css 通过；部署 0bc899c3。
+
+## Round 69 — 2026-08-06
+
+**发现（五驱动·UX/分发）**
+- P2：R60 的分流派 RSS 只能从 /new 过滤视图发现；genre 详情页（订阅意图最强的场景）既无可见 RSS 链接、head autodiscovery 也指向全量 feed。
+
+**修复**
+- genre 详情页副标题新增「RSS」链接（紧跟 New & upcoming 入口）；layout rss 参数改为该流派的 /new.rss?genre=…，feed 阅读器在 genre 页可直接发现分流派订阅源。
+
+**证据**
+- 线上实测 /genres/fantasy 可见链接 /new.rss?genre=fantasy、/genres/science-fiction head autodiscovery=/new.rss?genre=science%20fiction 且 feed 200；typecheck 通过；部署 a1133844。
+
+## Round 70 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 例行批尾巡检：R66–69 改动了全部 genre 页 title/面包屑、作者页与索引头像、genre RSS，需要全站健康检查并把变化推给搜索引擎。
+
+**修复/动作**
+- 17 个核心端点健康检查全部 200（页面/feed/API/sitemap/robots/opensearch/manifest）。
+- IndexNow 全量重提交 25,637 URL（4 批次全部 HTTP 200）。
+
+**证据**
+- 健康检查输出与 IndexNow 4×200 记录于会话；无代码改动。
+
+## Round 71 — 2026-08-06
+
+**发现（五驱动·竞品/SEO）**
+- P2：系列页早有 FAQ+FAQPage 结构化数据，但 22,839 个作者页没有——"how many books has X written"、"latest X book" 类长尾问句无着陆内容。
+
+**修复**
+- 作者页新增自动生成 FAQ（书目总数/最新一本/最长系列，全部由目录数据推导、无臆测），可见 dl 区块 + FAQPage JSON-LD，与系列页样式一致；无数据的问题自动省略。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 渲染 3 条 FAQ 且 JSON-LD FAQPage 含相同问答（60 books/6 series、最新 Moment Zero、最长 Mistborn 8 books 2006–2022）；typecheck 通过；部署 f04e040e。
+
+## Round 72 — 2026-08-06
+
+**发现（五驱动·UX/视觉）**
+- P2：搜索结果页 Authors 区仍是旧纯文字卡，与首页//authors 的头像卡（R68）不一致。
+
+**修复**
+- 搜索结果 Authors 区改用共享 authorCard()（头像/首字母占位），三处作者卡样式统一。
+
+**证据**
+- 线上实测 /search?q=sanderson Authors 卡渲染 Commons 头像；typecheck 通过；部署 2280247a。
+
+## Round 73 — 2026-08-06
+
+**发现（五驱动·竞品）**
+- P1：StoryGraph/Goodreads 的年度阅读目标是核心留存功能，我们的 /shelf 只有静态统计，没有任何「目标感」。
+
+**修复**
+- /shelf 新增年度阅读目标卡：Set goal 设定（prompt，1–9999，0/空清除），进度条（role=progressbar+aria）显示「今年已读/目标」，达标显示 🎉；目标按年份存 localStorage（shelfmark:goal:YYYY），不出浏览器。
+
+**证据**
+- app.js 语法校验+线上已含 goal 代码；Tailwind 类齐全；部署 5e9d2833；完整交互回归排入批尾 QA。
+
+## Round 74 — 2026-08-06
+
+**发现（五驱动·UX/分发）**
+- P2：R73 加了年度目标后，「Download my reading card」分享卡未体现目标进度，分享传播少了最有炫耀价值的信息。
+
+**修复**
+- 分享卡副标题追加「YYYY goal X/N（达标 ✓）」，仅在设定了目标时显示；数据全部来自 localStorage。
+
+**证据**
+- app.js 语法校验通过、线上 app.js 已含 cardGoal 逻辑（etag 更新）；部署 419a600b；画布渲染回归排入批尾 QA。
+
+## Round 75 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾巡检：R71–74 改动作者页（FAQ）、搜索结果（头像卡）、/shelf 与分享卡（年度目标），需全站回归+搜索引擎重提交。
+
+**修复/动作**
+- 8 个核心端点健康检查全 200；IndexNow 全量重提交 25,637 URL（4×200）；完整浏览器回归交由 QA（含录屏），结果见 PR #12 评论。
+
+## Round 76 — 2026-08-06
+
+**发现（五驱动·视觉/竞品）**
+- P1：系列卡（首页 Popular/流派页/搜索/相关推荐/A–Z）纯文字无封面，视觉密度低于 BSIO/OrderOfBooks 的图文卡；而目录里 1,198 个有书系列已有首本封面可用。
+
+**修复**
+- series 表新增 cover_url 列（D1 已迁移+schema.sql 同步），一次性 SQL 回填 = 各系列第一本有封面书的封面（1,198/2,590）；seriesCard 统一渲染 40×56 封面缩略图（lazy、无封面显示首字母占位），全站 8 处系列网格生效；修正卡内 span>p 非法嵌套为 div。
+
+**证据**
+- 线上实测 workers.dev 首页 Popular series 12 卡全部带缩略图，/genres/fantasy 卡片含 covers.openlibrary.org 图；typecheck+CSS 构建通过；部署 719dbcdb。
+
+## Round 77 — 2026-08-06
+
+**发现（五驱动·数据/分发）**
+- P2：/new.rss 条目纯文本，无封面 enclosure——feed 阅读器（Feedly/NetNewsWire 等）里没有视觉卡片，分发吸引力弱于带图 feed。
+
+**修复**
+- /new.rss（含分流派变体）为有封面的条目输出 <enclosure url="…-L.jpg" type="image/jpeg">，无封面条目保持不变。
+
+**证据**
+- 线上 /new.rss 含 5 个 enclosure（如 Platform Decay/The Murderbot Diaries → covers.openlibrary.org 15154430-L.jpg），XML 校验通过；部署 a515e1dd。
+
+## Round 78 — 2026-08-06
+
+**发现（五驱动·竞品/分发）**
+- P2：开放 API 只有系列维度（/api/series/{slug}.json），作者书目（22,839 位）无 JSON 出口——开发者要拼一个作者的全部系列只能爬 HTML。
+
+**修复**
+- 新增 GET /api/authors/{slug}.json：作者名/URL/统计 + 全部有书系列（名称/流派/册数/年份跨度/页面 URL/对应系列 API URL），CORS + 1h 缓存，未知或非法 slug 404；/about「Open data API」板块补文档。
+
+**证据**
+- 线上实测 brandon-sanderson.json 返回 6 系列/60 books 且首条 Mistborn 带 api 链接；nope-xyz.json 与 ..%2Fetc.json 均 404；ACAO:* + max-age=3600 头已验证；typecheck 通过；部署 b8f9b427。
+
+## Round 79 — 2026-08-06
+
+**发现（五驱动·UX/竞品）**
+- P1：Goodreads/StoryGraph 首页核心是「继续在读」；我们的首页对老用户与新用户完全一样，已有进度的访客要自己想起在读哪个书系再搜一遍。
+
+**修复**
+- 首页新增「Continue reading」条（纯客户端）：从 localStorage 取最近有勾选活动的 ≤4 个书系（排除 standalone），显示书系名+已读册数，点击直达系列页；无进度用户不渲染任何内容；全部 DOM API 构建（textContent），localStorage 字符串不注入 HTML；数据不出浏览器。
+
+**证据**
+- 首页含 #continue-reading 挂载点（线上已验证），app.js node --check 通过；完整交互回归排入批尾 QA；部署 f99f976c。
