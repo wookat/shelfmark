@@ -696,7 +696,7 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
       path: "/new",
       siteUrl: c.env.SITE_URL,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["New releases", "/new"]])],
-      rss: "/new.rss",
+      rss: `/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}`,
       noindex,
       body,
     })

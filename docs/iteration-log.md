@@ -821,3 +821,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /api/series/mistborn.json 返回 7 本正确顺序 JSON、ACAO:*、max-age=3600；does-not-exist.json 与路径穿越样例均 404；typecheck+css 通过；部署 01936eba。
+
+## Round 65 补充（QA 修复）— 2026-08-06
+
+**发现**
+- P1（QA 回归）：R61 全站 RSS autodiscovery 上线后，/new?genre= 过滤页 head 中的 alternate link 指向全量 /new.rss 而非过滤 feed（页面可见链接正确，仅 head 链接错误）。
+
+**修复**
+- /new 路由 layout 的 rss 参数改为随 activeGenre 拼接 ?genre=。
+
+**证据**
+- 线上实测 /new?genre=fantasy head alternate = /new.rss?genre=fantasy，/new 仍为 /new.rss；typecheck 通过；部署 883d242f。
