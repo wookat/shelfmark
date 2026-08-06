@@ -12,6 +12,11 @@
   --color-amber-accent: #9a6414;
 }
 
+/* Amber accent needs to be lighter on dark surfaces to keep ≥4.5:1 contrast. */
+.bg-ink-900 .text-amber-accent {
+  color: #e8b05f;
+}
+
 .up-next-badge {
   display: inline-block;
   margin-left: 0.5rem;

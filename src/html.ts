@@ -78,7 +78,7 @@ ${o.body}
     <div>
       <p class="font-display font-bold text-ink-900 text-lg mb-2">Shelfmark</p>
       <p>Every book series in the right order — and a private, no-signup reading tracker built into every page.</p>
-      <p class="mt-3 text-xs text-ink-700/70">Data from Wikidata &amp; Open Library (CC0). Not affiliated with any retailer.</p>
+      <p class="mt-3 text-xs text-ink-700/75">Data from Wikidata &amp; Open Library (CC0). Not affiliated with any retailer.</p>
     </div>
     <div>
       <p class="font-semibold text-ink-900 mb-2">Explore</p>

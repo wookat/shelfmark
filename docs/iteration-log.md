@@ -283,3 +283,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy 1a0f0854); IndexNow `200 9`. Round 19 a11y re-audit in test-report-iter19.md.
+
+## Round 21 — 2026-08-06
+
+**Findings (by driver)**
+- Visual/a11y (Round 19 re-audit residuals): 29 color-contrast nodes remained — amber `#9a6414` links inside the dark `bg-ink-900` section (3.52:1 on `#1a1916`) and remaining `text-ink-700/70` small text (4.43:1 on `#f7f6f3`). [P1]
+
+**Fixes shipped**
+- Dark-surface accent override: `.bg-ink-900 .text-amber-accent { color: #e8b05f }` (light amber ≥7:1 on `#1a1916`); light-background amber unchanged.
+- All remaining `text-ink-700/70` bumped to `/75` across templates and app.js.
+
+**Evidence**
+- Live (deploy bcd327e4): served CSS contains the dark-surface override; `/` and `/shelf` render zero `/70` classes. Full axe re-audit in test-report-iter21.md.
