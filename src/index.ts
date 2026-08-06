@@ -462,6 +462,7 @@ function breadcrumbLd(siteUrl: string, items: [string, string][]) {
 
 // ---------- Genres ----------
 const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const gtitle = (g: string) => g.replace(/(^|[\s-])[a-z]/g, (ch) => ch.toUpperCase());
 
 app.get("/genres", async (c) => {
   const { results } = await c.env.DB.prepare(
@@ -471,7 +472,7 @@ app.get("/genres", async (c) => {
 <h1 class="font-display font-bold text-3xl text-ink-900">Browse series by genre</h1>
 <p class="mt-2 text-ink-700">Every genre with reading orders on Shelfmark.</p>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">
-${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(g.genre)}</p><p class="text-sm text-ink-700/80 mt-1">${g.n} series</p></a>`).join("")}
+${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition"><p class="font-display font-semibold text-ink-900">${esc(gtitle(g.genre))}</p><p class="text-sm text-ink-700/80 mt-1">${g.n} series</p></a>`).join("")}
 </div>`;
   return c.html(
     layout({
@@ -489,7 +490,7 @@ ${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2
           itemListElement: results.map((g, i) => ({
             "@type": "ListItem",
             position: i + 1,
-            name: g.genre,
+            name: gtitle(g.genre),
             url: `${c.env.SITE_URL}/genres/${gslug(g.genre)}`,
           })),
         },
@@ -548,20 +549,20 @@ app.get("/genres/:slug", async (c) => {
     `SELECT COUNT(*) AS n FROM books b JOIN series s ON s.id=b.series_id WHERE b.year>=? AND b.year<=? AND s.genre=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.first_year IS NOT NULL AND s.first_year < b.year`
   ).bind(year, year + 1, genre).all()).results as any[])[0].n);
   const body = `
-${crumbs([["Genres", "/genres"], [genre, ""]])}
-<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
+${crumbs([["Genres", "/genres"], [gtitle(genre), ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">${esc(gtitle(genre))} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
 <p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.${newCount ? ` <a class="text-amber-accent underline" href="/new?genre=${encodeURIComponent(genre.toLowerCase())}">New &amp; upcoming in ${esc(genre.toLowerCase())} (${newCount})</a>` : ""}</p>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
 ${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
     layout({
-      title: `${genre} Book Series in Order (${total} Series) | Shelfmark`,
+      title: `${gtitle(genre)} Book Series in Order (${total} Series) | Shelfmark`,
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
       noindex: total < 3,
       jsonLd: [
-        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]]),
+        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [gtitle(genre), `/genres/${slug}`]]),
         {
           "@context": "https://schema.org",
           "@type": "ItemList",

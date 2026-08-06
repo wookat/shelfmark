@@ -832,3 +832,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /new?genre=fantasy head alternate = /new.rss?genre=fantasy，/new 仍为 /new.rss；typecheck 通过；部署 883d242f。
+
+## Round 66 — 2026-08-06
+
+**发现（五驱动·视觉/SEO）**
+- P2：genre 详情页 title/h1/面包屑与 /genres 索引卡片直接输出小写流派名（“fantasy Book Series in Order”），观感不专业，SERP 标题也不规范。
+
+**修复**
+- 新增 gtitle() 标题化 helper（按词首字母大写，保留连字符/撇号），应用于 genre 页 title/h1/面包屑/BreadcrumbList、/genres 索引卡片与 ItemList name；正文句中引用保持小写。
+
+**证据**
+- 线上实测 “Science Fiction Book Series in Order (290 Series)”、“Fantasy …(385)”、“Children's Literature …(73)”；typecheck 通过；部署 d7e03599。
