@@ -306,9 +306,11 @@
         statCard(thisYear, "read in " + new Date().getFullYear()) +
         statCard(topSeries ? escapeHtml(topSeries.name.length > 22 ? topSeries.name.slice(0, 21) + "…" : topSeries.name) : "—", "most-read series") +
         "</div>";
-      Object.keys(bySeries).forEach(function (k) {
+      Object.keys(bySeries).map(function (k) {
         var g = bySeries[k];
         g.items.sort(function (a, b) { return b.t - a.t; });
+        return g;
+      }).sort(function (a, b) { return (b.items[0].t || 0) - (a.items[0].t || 0); }).forEach(function (g) {
         html += '<section class="mb-6"><h2 class="font-display font-semibold text-xl text-ink-900">' +
           (g.slug ? '<a class="hover:text-amber-accent" href="' + (g.slug.indexOf("standalone-") === 0 ? "/authors/" + g.slug.slice(11) : "/series/" + g.slug) + '">' : "") + escapeHtml(g.name) + (g.slug ? "</a>" : "") +
           ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + ' read</span>' +
