@@ -132,7 +132,7 @@
           (g.slug ? '<a class="hover:text-amber-accent" href="' + (g.slug.indexOf("standalone-") === 0 ? "/authors/" + g.slug.slice(11) : "/series/" + g.slug) + '">' : "") + escapeHtml(g.name) + (g.slug ? "</a>" : "") +
           ' <span class="text-sm font-sans font-normal text-ink-700/70">' + g.items.length + " read</span></h2><ul class=\"mt-2 space-y-1\">" +
           g.items.map(function (e) {
-            return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/60">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
+            return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
           }).join("") + "</ul></section>";
       });
       root.innerHTML = html;

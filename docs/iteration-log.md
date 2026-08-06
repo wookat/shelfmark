@@ -33,3 +33,21 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Styled title-initial placeholder for books without covers.
 - Skip link; blurb/footer text AA contrast check.
 - OL cover backfill continues in background (4 shards running).
+
+## Round 2 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor (OrderOfBooks.com deep-dive, new this round): per-series pages offer publication + chronological order, short stories/collections tables, and an "If You Like X, You'll Love…" recommendation block. Recommendations are implementable with our genre data. [P1 opportunity]
+- Visual: books without covers left a ragged list (no placeholder). [P2]
+- A11y (carry-over): no skip link; `text-ink-700/60` secondary text below AA contrast on cream. [P2]
+- Data: OL cover backfill produced 5,123 total matches so far; production covers 6,947 → 10,045 after import.
+
+**Fixes shipped**
+- "If you like {series}, you'll love…" section on series pages: same-genre series by other authors (`genre=? AND author_id<>?`, book_count 3–60, top 6) — internal-linking + engagement analog of OrderOfBooks' block.
+- Styled title-initial placeholder for missing covers (38×57 tile, display-font initial).
+- Skip-to-content link; `#main` anchor; secondary text bumped `/60`→`/75` opacity for AA contrast.
+- +3,098 covers imported into production D1 (10,045 total).
+
+**Evidence**
+- Live: `/series/mistborn` shows "If you like Mistborn, you'll love…"; skip link in DOM.
+- Cover count via D1: 10,045 `cover_url IS NOT NULL`.
