@@ -415,7 +415,7 @@ const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace
 
 app.get("/genres", async (c) => {
   const { results } = await c.env.DB.prepare(
-    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3 ORDER BY n DESC`
+    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3 ORDER BY n DESC`
   ).all<{ genre: string; n: number }>();
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">Browse series by genre</h1>
