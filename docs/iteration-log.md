@@ -604,3 +604,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/series/the-murderbot-diaries 显示 New in 2026 + Platform Decay 横幅；/series/discworld（无今年新作）正确不显示。
 - 部署 71cab39b；typecheck + css 重建通过。
+
+## Round 47 — 2026-08-05
+
+**发现（五驱动）**
+- UX 走查：新访客首次打开 /shelf 只有一个「Browse series」按钮，空状态缺少具体起步建议，跳出成本高。
+
+**修复（P2）**
+- 空书架状态新增「Popular starts」行：Discworld / Mistborn / The Murderbot Diaries / New releases 四个直达链接（纯客户端，不影响已有进度用户）。
+
+**证据**
+- 线上验证：app.js 已含 Popular starts（部署 7d0cf7d3）；node --check 语法通过。

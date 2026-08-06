@@ -284,7 +284,7 @@
   if (root) {
     var entries = Object.keys(data).map(function (k) { var e = data[k]; e.id = k; return e; });
     if (!entries.length) {
-      root.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center"><p class="font-display font-semibold text-xl text-ink-900">Your shelf is empty</p><p class="mt-2 text-ink-700">Find a series and tick off the books you\u2019ve read \u2014 they\u2019ll show up here.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p></div>';
+      root.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center"><p class="font-display font-semibold text-xl text-ink-900">Your shelf is empty</p><p class="mt-2 text-ink-700">Find a series and tick off the books you\u2019ve read \u2014 they\u2019ll show up here.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p><p class="mt-5 text-sm text-ink-700/75">Popular starts: <a class="text-amber-accent underline" href="/series/discworld">Discworld</a> \u00b7 <a class="text-amber-accent underline" href="/series/mistborn">Mistborn</a> \u00b7 <a class="text-amber-accent underline" href="/series/the-murderbot-diaries">The Murderbot Diaries</a> \u00b7 <a class="text-amber-accent underline" href="/new">New releases</a></p></div>';
     } else {
       var bySeries = {};
       entries.forEach(function (e) {
