@@ -986,3 +986,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 首页含 #continue-reading 挂载点（线上已验证），app.js node --check 通过；完整交互回归排入批尾 QA；部署 f99f976c。
+
+## Round 80 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R76–79 上线后核心路由健康检查 + IndexNow 全量重提交（本批新增 /api/authors API 与首页/卡片结构变化）。
+
+**修复/动作**
+- 10 个核心端点（含新 /api/authors/brandon-sanderson.json）线上全 200；IndexNow 全量重提交 25,637 URL（4 批均 200：8000/8000/8000/1637）。
+
+**证据**
+- 见上方响应码清单；提交脚本 scripts/indexnow.sh 输出 4×200。
