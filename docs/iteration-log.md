@@ -467,3 +467,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **QA follow-up (same day)**
 - Live QA caught the chip failing axe color-contrast (4.36:1 on the amber/10 tint). Replaced the utility classes with a dedicated `.year-chip` (bg #f0e6d6 / text #6d4708, ≈7:1; print-hidden via the print media block). Re-audit on deploy 0e11b673: /series/the-murderbot-diaries back to 0 violations. "Upcoming" chip remains runtime-unverified (no >2026 book in catalog).
+
+## Round 36 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析：搜索词统计里有用户按「书名」而非系列名搜索；联想下拉（R25/R28）只覆盖系列+作者，书名前缀无候选。
+- 竞品：Goodreads/StoryGraph 联想均含书目条目。
+
+**修复（P1）**
+- `/api/suggest` 增加书名前缀匹配（≤3 条，去重，跳转所属系列页），联想合计上限 8 条；客户端已有的 kind 标签自动显示 "book"。
+
+**证据**
+- 线上验证：`/api/suggest?q=platform dec` → Platform Decay → /series/the-murderbot-diaries；`q=mistborn` → 1 系列 + 3 书目条目。
+- 部署 48ce73de；typecheck 通过。

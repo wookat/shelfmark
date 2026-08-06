@@ -680,12 +680,17 @@ app.get("/api/suggest", async (c) => {
   const { results: authors } = await c.env.DB.prepare(
     `SELECT name, slug FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 3`
   ).bind(like).all<{ name: string; slug: string }>();
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT b.title, s.slug FROM books b JOIN series s ON s.id=b.series_id WHERE b.title LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
+  ).bind(like).all<{ title: string; slug: string }>();
   c.header("Cache-Control", "public, max-age=3600");
+  const seen = new Set<string>();
   return c.json({
     results: [
       ...series.map((s) => ({ label: s.name, href: `/series/${s.slug}`, kind: "series" })),
       ...authors.map((a) => ({ label: a.name, href: `/authors/${a.slug}`, kind: "author" })),
-    ],
+      ...books.filter((b) => (seen.has(b.title) ? false : (seen.add(b.title), true))).map((b) => ({ label: b.title, href: `/series/${b.slug}`, kind: "book" })),
+    ].slice(0, 8),
   });
 });
 
