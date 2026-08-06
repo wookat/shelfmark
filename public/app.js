@@ -176,7 +176,19 @@
     }
   }
 
-  // progress bars on card grids (series cards elsewhere) — computed only for lists present.
+  // ---- fill series-card progress bars from localStorage on listing pages ----
+  var readsBySlug = {};
+  Object.keys(data).forEach(function (id) {
+    var e = data[id];
+    if (e && e.slug) readsBySlug[e.slug] = (readsBySlug[e.slug] || 0) + 1;
+  });
+  document.querySelectorAll("[data-progress-bar][data-total]").forEach(function (el) {
+    var slug = el.getAttribute("data-progress-bar");
+    if (document.querySelector('ol[data-series="' + slug + '"]')) return; // handled by updateSeriesUI
+    var total = parseInt(el.getAttribute("data-total"), 10);
+    var read = readsBySlug[slug] || 0;
+    if (total > 0 && read > 0) el.style.width = Math.min(100, Math.round((read / total) * 100)) + "%";
+  });
 
   // ---- search typeahead ----
   var typeaheadSeq = 0;

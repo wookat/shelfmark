@@ -997,3 +997,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 见上方响应码清单；提交脚本 scripts/indexnow.sh 输出 4×200。
+
+## Round 81 — 2026-08-06
+
+**发现（五驱动·QA/UX）**
+- P1：批尾 QA 指出（v1 起既有行为）：首页/流派/索引等列表页的系列卡进度条永远 0%——只有同页存在勾选列表时才填充，已有进度的用户在列表页看不到自己的进度。
+
+**修复**
+- seriesCard 进度条增加 data-total（册数）；app.js 按 localStorage 中各 slug 的已读计数填充列表页卡片进度条（min 100%，系列页勾选列表仍由 updateSeriesUI 接管避免双写）。
+
+**证据**
+- /genres/fantasy 线上含 data-total 属性；node --check + typecheck 通过；交互回归排入批尾 QA；部署 19a7891b。

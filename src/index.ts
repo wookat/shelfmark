@@ -55,7 +55,7 @@ function seriesCard(s: Series): string {
     <div class="min-w-0 flex-1">
     <p class="font-display font-semibold text-ink-900">${esc(s.name)}</p>
     <p class="text-sm text-ink-700/80 mt-1">${s.author_name ? esc(s.author_name) + " · " : ""}${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</p>
-    <div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-amber-accent rounded-full" style="width:0%" data-progress-bar="${s.slug}"></div></div>
+    <div class="mt-2 h-1.5 rounded-full bg-ink-100 overflow-hidden"><div class="h-full bg-amber-accent rounded-full" style="width:0%" data-progress-bar="${s.slug}" data-total="${s.book_count}"></div></div>
     </div>
   </a>`;
 }
