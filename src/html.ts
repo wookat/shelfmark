@@ -59,6 +59,7 @@ ${ld}
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
       <a href="/genres" class="hover:text-amber-accent">Genres</a>
+      <a href="/new" class="hover:text-amber-accent hidden sm:inline">New</a>
       <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3.5 py-1.5 hover:bg-ink-700">My Shelf</a>
     </nav>
   </div>
@@ -82,6 +83,7 @@ ${o.body}
         <li><a class="hover:text-amber-accent" href="/series">All series</a></li>
         <li><a class="hover:text-amber-accent" href="/authors">All authors</a></li>
         <li><a class="hover:text-amber-accent" href="/genres">Genres</a></li>
+        <li><a class="hover:text-amber-accent" href="/new">New releases</a></li>
         <li><a class="hover:text-amber-accent" href="/shelf">My shelf</a></li>
         <li><a class="hover:text-amber-accent" href="/about">About &amp; methodology</a></li>
         <li><a class="hover:text-amber-accent" href="/privacy">Privacy</a></li>

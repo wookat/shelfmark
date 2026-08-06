@@ -266,6 +266,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
@@ -438,6 +439,35 @@ app.get("/shelf", (c) => {
   );
 });
 
+// ---------- New releases ----------
+app.get("/new", async (c) => {
+  const year = new Date().getFullYear();
+  const { results: upcoming } = await c.env.DB.prepare(
+    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`
+  ).bind(year, year + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
+  const byYear = new Map<number, typeof upcoming>();
+  for (const b of upcoming) {
+    if (!byYear.has(b.year)) byYear.set(b.year, []);
+    byYear.get(b.year)!.push(b);
+  }
+  const body = `
+${crumbs([["New releases", ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
+<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order.</p>
+${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
+${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
+  return c.html(
+    layout({
+      title: `New Book Series Releases ${year} & ${year + 1} | Shelfmark`,
+      description: `New and upcoming series books for ${year}–${year + 1}, linked to full reading orders.`,
+      path: "/new",
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["New releases", "/new"]])],
+      body,
+    })
+  );
+});
+
 // ---------- Static-ish pages ----------
 app.get("/about", (c) =>
   c.html(
@@ -571,7 +601,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls = results.map((r) => `/series/${r.slug}`);
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about");
+    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();

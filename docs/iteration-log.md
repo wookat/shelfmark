@@ -69,3 +69,18 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **Evidence**
 - Live: `/search?q=The+Final+Empire` shows Books section; `/series/warriors-2` shows disambiguation line.
 - IndexNow: 200 8000 ×3 + 200 1594.
+- Post-QA fixes: no-results copy accounts for book hits; progress pill + tick tip hidden in print.
+
+## Round 4 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor (BSIO/OrderOfBooks): both surface a new/upcoming-releases destination (release calendar / front-page features); Shelfmark had none although the catalog holds 216 books dated 2026 and 705 dated 2025. [P1 opportunity]
+- Distribution (charter: natural sharing): no share mechanism on series pages — the natural "send this reading order to a friend" loop was unsupported. [P1]
+- Data: OL cover backfill deep in the low-match tail (recent batches 0-match); production covers steady at 10,045.
+
+**Fixes shipped**
+- `/new` — "New & Upcoming Series Books" page (current + next year, grouped by year, joined to series/author, covers/placeholders), linked from header nav + footer, added to sitemap chunk 1.
+- Share button on series pages: Web Share API with clipboard fallback ("Link copied ✓").
+
+**Evidence**
+- Live: https://shelfmark.zalize.com/new (HTTP 200, 2026 section rendering).

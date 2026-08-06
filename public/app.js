@@ -89,6 +89,22 @@
 
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
 
+  // ---- share button ----
+  document.querySelectorAll("[data-share]").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var payload = { title: btn.getAttribute("data-share-title") || document.title, url: location.href };
+      if (navigator.share) {
+        navigator.share(payload).catch(function () {});
+      } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(location.href).then(function () {
+          var old = btn.textContent;
+          btn.textContent = "Link copied ✓";
+          setTimeout(function () { btn.textContent = old; }, 2000);
+        }).catch(function () {});
+      }
+    });
+  });
+
   // ---- email capture ----
   document.querySelectorAll("form[data-subscribe]").forEach(function (form) {
     form.addEventListener("submit", function (ev) {
