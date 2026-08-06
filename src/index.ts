@@ -63,6 +63,10 @@ app.get("/", async (c) => {
   const { results: authors } = await c.env.DB.prepare(
     `SELECT * FROM authors WHERE series_count >= 2 AND book_count BETWEEN 10 AND 400 ORDER BY book_count DESC LIMIT 12`
   ).all<Author>();
+  const homeYear = new Date().getFullYear();
+  const { results: fresh } = await c.env.DB.prepare(
+    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 6`
+  ).bind(homeYear, homeYear + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
   const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
   const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books`).all()).results as any[]);
   const body = `
@@ -78,6 +82,10 @@ app.get("/", async (c) => {
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><a href="/series" class="text-sm text-amber-accent font-medium">All series →</a></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
 </section>
+${fresh.length ? `<section class="mt-12">
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">New &amp; upcoming</h2><a href="/new" class="text-sm text-amber-accent font-medium">All new releases →</a></div>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li><a href="/series/${b.series_slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
+</section>` : ""}
 <section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Prolific authors</h2><a href="/authors" class="text-sm text-amber-accent font-medium">All authors →</a></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
