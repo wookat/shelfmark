@@ -612,6 +612,21 @@ app.get("/privacy", (c) =>
 );
 
 // ---------- APIs ----------
+app.get("/api/series-books/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const series = await c.env.DB.prepare(`SELECT id FROM series WHERE slug=?`).bind(slug).first<{ id: number }>();
+  if (!series) return c.json({ books: [] }, 404);
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT id, title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+  ).bind(series.id).all<{ id: number; title: string; position: number | null; year: number | null }>();
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const ordered = new Set(positions).size !== positions.length
+    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+    : books;
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json({ books: ordered.map((b) => ({ id: b.id, title: b.title })) });
+});
+
 app.post("/api/subscribe", async (c) => {
   if (await rateLimited(c, "sub", 5)) return c.json({ ok: false, error: "Too many requests" }, 429);
   const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);

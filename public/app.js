@@ -206,12 +206,31 @@
         g.items.sort(function (a, b) { return b.t - a.t; });
         html += '<section class="mb-6"><h2 class="font-display font-semibold text-xl text-ink-900">' +
           (g.slug ? '<a class="hover:text-amber-accent" href="' + (g.slug.indexOf("standalone-") === 0 ? "/authors/" + g.slug.slice(11) : "/series/" + g.slug) + '">' : "") + escapeHtml(g.name) + (g.slug ? "</a>" : "") +
-          ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + " read</span></h2><ul class=\"mt-2 space-y-1\">" +
+          ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + ' read</span>' +
+          (g.slug && g.slug.indexOf("standalone-") !== 0 ? ' <span class="block sm:inline text-sm font-sans font-normal" data-upnext="' + escapeHtml(g.slug) + '"></span>' : '') +
+          '</h2><ul class="mt-2 space-y-1">' +
           g.items.map(function (e) {
             return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
           }).join("") + "</ul></section>";
       });
       root.innerHTML = html;
+
+      var slots = Array.prototype.slice.call(root.querySelectorAll("[data-upnext]")).slice(0, 20);
+      slots.forEach(function (slot) {
+        var slug = slot.getAttribute("data-upnext");
+        fetch("/api/series-books/" + encodeURIComponent(slug)).then(function (r) { return r.ok ? r.json() : null; }).then(function (res) {
+          if (!res || !res.books) return;
+          var next = null;
+          for (var i = 0; i < res.books.length; i++) {
+            if (!data[String(res.books[i].id)]) { next = res.books[i]; break; }
+          }
+          if (next) {
+            slot.innerHTML = '\u00b7 Up next: <a class="text-amber-accent hover:underline" href="/series/' + escapeHtml(slug) + '">' + escapeHtml(next.title) + "</a>";
+          } else if (res.books.length) {
+            slot.innerHTML = '<span class="text-ink-700/75">\u00b7 Series complete \ud83c\udf89</span>';
+          }
+        }).catch(function () {});
+      });
     }
 
     var exportBtn = document.getElementById("export-btn");
