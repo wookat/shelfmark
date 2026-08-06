@@ -133,7 +133,7 @@ app.get("/series", async (c) => {
   const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
   const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
   const where = letter ? `WHERE s.book_count > 0 AND UPPER(s.name) LIKE ?` : "WHERE s.book_count > 0";
-  const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "s.book_count DESC"} LIMIT ? OFFSET ?`;
+  const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "(s.author_id IS NOT NULL AND s.genre IS NOT NULL) DESC, s.book_count DESC"} LIMIT ? OFFSET ?`;
   const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
   const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Series>();
   const countSql = `SELECT COUNT(*) AS n FROM series s ${where}`;
@@ -146,7 +146,7 @@ app.get("/series", async (c) => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
-<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series${letter ? ` starting with ${letter}` : ", sorted by size"}. Page ${page} of ${pages || 1}.</p>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series${letter ? ` starting with ${letter}` : ", best-documented first"}. Page ${page} of ${pages || 1}.</p>
 <nav aria-label="Series by letter" class="mt-4 flex flex-wrap gap-1.5 text-sm">
   <a href="/series" class="rounded-full px-3 py-1.5 border ${!letter ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
   ${letters.map((l) => `<a href="/series?letter=${l}" class="rounded-full px-3 py-1.5 border ${letter === l ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${l}</a>`).join("")}
