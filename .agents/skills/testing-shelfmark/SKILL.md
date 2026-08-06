@@ -29,3 +29,6 @@ description: How to test the Shelfmark live site (shelfmark.zalize.com) — key 
 
 ## Edge cache gotcha
 When verifying response headers or newly deployed routes, the zalize.com edge may serve stale cached headers/HTML. Verify against the direct origin `https://shelfmark.wookat520.workers.dev` with a cache-bust query param (e.g. `?cb=$RANDOM`).
+
+## Post-deploy CSS caching
+styles.css is cached max-age=3600, so right after a deploy the browser may render new markup with the previous stylesheet and produce false layout failures. Hard-reload (Ctrl+Shift+R) before judging CSS-dependent UI.
