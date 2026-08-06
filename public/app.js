@@ -300,11 +300,20 @@
       function statCard(num, label) {
         return '<div class="rounded-2xl bg-white border border-ink-200 p-4 text-center"><p class="font-display font-bold text-2xl text-ink-900">' + num + '</p><p class="text-xs text-ink-700/80 mt-1">' + label + "</p></div>";
       }
-      var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">' +
+      var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">' +
         statCard(entries.length, "books read") +
         statCard(Object.keys(bySeries).length, "series followed") +
         statCard(thisYear, "read in " + new Date().getFullYear()) +
         statCard(topSeries ? escapeHtml(topSeries.name.length > 22 ? topSeries.name.slice(0, 21) + "…" : topSeries.name) : "—", "most-read series") +
+        "</div>";
+      var GOAL_KEY = "shelfmark:goal:" + new Date().getFullYear();
+      var goal = parseInt(localStorage.getItem(GOAL_KEY), 10) || 0;
+      var goalPct = goal ? Math.min(100, Math.round((thisYear / goal) * 100)) : 0;
+      html += '<div class="rounded-2xl bg-white border border-ink-200 p-4 mb-8">' +
+        (goal
+          ? '<div class="flex items-baseline justify-between gap-3"><p class="text-sm font-medium text-ink-900">' + new Date().getFullYear() + ' reading goal: ' + thisYear + ' of ' + goal + ' books' + (thisYear >= goal ? ' 🎉' : '') + '</p><button type="button" id="goal-edit" class="text-xs text-amber-accent underline cursor-pointer">Edit goal</button></div>' +
+            '<div class="mt-2 h-2 rounded-full bg-ink-100 overflow-hidden" role="progressbar" aria-valuenow="' + thisYear + '" aria-valuemin="0" aria-valuemax="' + goal + '" aria-label="Yearly reading goal"><div class="h-full bg-amber-accent rounded-full" style="width:' + goalPct + '%"></div></div>'
+          : '<div class="flex items-baseline justify-between gap-3"><p class="text-sm text-ink-700">Set a yearly reading goal to track your pace — stored only in this browser.</p><button type="button" id="goal-edit" class="text-xs rounded-full bg-ink-900 text-ink-50 px-3 py-1.5 font-semibold cursor-pointer">Set goal</button></div>') +
         "</div>";
       Object.keys(bySeries).map(function (k) {
         var g = bySeries[k];
@@ -321,6 +330,15 @@
           }).join("") + "</ul></section>";
       });
       root.innerHTML = html;
+
+      var goalBtn = document.getElementById("goal-edit");
+      if (goalBtn) goalBtn.addEventListener("click", function () {
+        var v = prompt("How many books do you want to read in " + new Date().getFullYear() + "?", goal || "24");
+        if (v === null) return;
+        var n = parseInt(v, 10);
+        if (n > 0 && n < 10000) { try { localStorage.setItem(GOAL_KEY, String(n)); } catch (e) {} location.reload(); }
+        else if (v.trim() === "0" || v.trim() === "") { try { localStorage.removeItem(GOAL_KEY); } catch (e) {} location.reload(); }
+      });
 
       var slots = Array.prototype.slice.call(root.querySelectorAll("[data-upnext]")).slice(0, 20);
       slots.forEach(function (slot) {

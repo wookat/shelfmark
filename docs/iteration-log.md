@@ -912,3 +912,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /search?q=sanderson Authors 卡渲染 Commons 头像；typecheck 通过；部署 2280247a。
+
+## Round 73 — 2026-08-06
+
+**发现（五驱动·竞品）**
+- P1：StoryGraph/Goodreads 的年度阅读目标是核心留存功能，我们的 /shelf 只有静态统计，没有任何「目标感」。
+
+**修复**
+- /shelf 新增年度阅读目标卡：Set goal 设定（prompt，1–9999，0/空清除），进度条（role=progressbar+aria）显示「今年已读/目标」，达标显示 🎉；目标按年份存 localStorage（shelfmark:goal:YYYY），不出浏览器。
+
+**证据**
+- app.js 语法校验+线上已含 goal 代码；Tailwind 类齐全；部署 5e9d2833；完整交互回归排入批尾 QA。
