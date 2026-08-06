@@ -187,7 +187,7 @@
             });
             localStorage.setItem(KEY, JSON.stringify(cur));
             if (importStatus) importStatus.textContent = "Imported " + added + " new book" + (added === 1 ? "" : "s") + " ✓ Reloading…";
-            setTimeout(function () { location.reload(); }, 800);
+            setTimeout(function () { location.reload(); }, 1600);
           } catch (err) {
             if (importStatus) importStatus.textContent = "That file doesn't look like a Shelfmark export.";
           }
