@@ -221,7 +221,7 @@ function paginationQ(base: string, page: number, pages: number): string {
 app.get("/authors/:slug", async (c) => {
   const slug = c.req.param("slug");
   const author = await c.env.DB.prepare(`SELECT * FROM authors WHERE slug=?`).bind(slug).first<Author>();
-  if (!author) return notFound(c);
+  if (!author) return notFound(c, await authorSuggestions(c, slug), slug.replace(/-/g, " "));
   const { results: series } = await c.env.DB.prepare(
     `SELECT * FROM series WHERE author_id=? ORDER BY book_count DESC`
   ).bind(author.id).all<Series>();
@@ -280,7 +280,7 @@ app.get("/series/:slug", async (c) => {
   const series = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=?`
   ).bind(slug).first<Series>();
-  if (!series) return notFound(c);
+  if (!series) return notFound(c, await seriesSuggestions(c, slug), slug.replace(/-/g, " "));
   const { results: books } = await c.env.DB.prepare(
     `SELECT * FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
   ).bind(series.id).all<Book>();
@@ -684,17 +684,40 @@ app.get("/sitemaps/:file", async (c) => {
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
 });
 
-function notFound(c: any) {
+function notFound(c: any, suggestions: { href: string; label: string }[] = [], query = "") {
   return c.html(
     layout({
       title: "Not Found | Shelfmark",
       description: "Page not found.",
       path: c.req.path,
       siteUrl: c.env.SITE_URL,
-      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-4xl text-ink-900">Page not found</h1><p class="mt-3 text-ink-700">Try <a href="/search" class="text-amber-accent underline">searching</a> for a series or author.</p></div>`,
+      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-4xl text-ink-900">Page not found</h1>
+${suggestions.length ? `<p class="mt-4 text-ink-700">Were you looking for one of these?</p><ul class="mt-3 space-y-1.5">${suggestions.map((s) => `<li><a class="text-amber-accent underline" href="${s.href}">${esc(s.label)}</a></li>`).join("")}</ul>` : ""}
+<p class="mt-4 text-ink-700">Try <a href="/search${query ? `?q=${encodeURIComponent(query)}` : ""}" class="text-amber-accent underline">searching</a> for a series or author.</p></div>`,
     }),
     404
   );
+}
+
+const slugWords = (slug: string) =>
+  slug.replace(/-\d+$/, "").split("-").filter((w) => w.length > 2).slice(0, 3).map((w) => `%${w.slice(0, 5)}%`);
+
+async function seriesSuggestions(c: any, slug: string): Promise<{ href: string; label: string }[]> {
+  const words = slugWords(slug);
+  if (!words.length) return [];
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${words.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 5`
+  ).bind(...words).all();
+  return (results as { slug: string; name: string; author_name: string | null }[]).map((s) => ({ href: `/series/${s.slug}`, label: s.name + (s.author_name ? ` by ${s.author_name}` : "") }));
+}
+
+async function authorSuggestions(c: any, slug: string): Promise<{ href: string; label: string }[]> {
+  const words = slugWords(slug);
+  if (!words.length) return [];
+  const { results } = await c.env.DB.prepare(
+    `SELECT slug, name FROM authors WHERE ${words.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 5`
+  ).bind(...words).all();
+  return (results as { slug: string; name: string }[]).map((a) => ({ href: `/authors/${a.slug}`, label: a.name }));
 }
 
 app.notFound(notFound);
