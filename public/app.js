@@ -64,6 +64,21 @@
     document.querySelectorAll('[data-progress-label="' + slug + '"]').forEach(function (el) {
       el.textContent = read ? read + " of " + boxes.length + " read (" + pct + "%)" : "";
     });
+    list.querySelectorAll(".up-next-badge").forEach(function (el) { el.remove(); });
+    if (read > 0 && read < boxes.length) {
+      for (var i = 0; i < boxes.length; i++) {
+        if (!boxes[i].checked) {
+          var title = boxes[i].parentElement.querySelector(".font-medium");
+          if (title) {
+            var badge = document.createElement("span");
+            badge.className = "up-next-badge";
+            badge.textContent = "Up next";
+            title.insertAdjacentElement("afterend", badge);
+          }
+          break;
+        }
+      }
+    }
   }
 
   document.querySelectorAll("ol[data-series]").forEach(function (list) {
