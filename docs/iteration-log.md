@@ -878,3 +878,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /genres/fantasy 可见链接 /new.rss?genre=fantasy、/genres/science-fiction head autodiscovery=/new.rss?genre=science%20fiction 且 feed 200；typecheck 通过；部署 a1133844。
+
+## Round 70 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 例行批尾巡检：R66–69 改动了全部 genre 页 title/面包屑、作者页与索引头像、genre RSS，需要全站健康检查并把变化推给搜索引擎。
+
+**修复/动作**
+- 17 个核心端点健康检查全部 200（页面/feed/API/sitemap/robots/opensearch/manifest）。
+- IndexNow 全量重提交 25,637 URL（4 批次全部 HTTP 200）。
+
+**证据**
+- 健康检查输出与 IndexNow 4×200 记录于会话；无代码改动。
