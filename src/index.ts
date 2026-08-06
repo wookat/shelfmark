@@ -482,7 +482,11 @@ app.get("/shelf", (c) => {
 <div class="mt-10 flex flex-wrap gap-3">
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
+  <button id="import-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Import JSON</button>
+  <input id="import-file" type="file" accept="application/json,.json" class="hidden" aria-label="Import shelf backup file">
+  <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
+<p class="mt-3 text-xs text-ink-700/70 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
