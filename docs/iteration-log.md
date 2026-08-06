@@ -592,3 +592,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/authors/brandon-sanderson 6 个系列各有按钮；/authors/martha-wells 1 个（Standalone 区块正确无按钮）。
 - 部署 7256351c；typecheck 通过。
+
+## Round 46 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品/UX：读者最常问「这个系列最近出新书了吗」，R35 的行内 New 徽章要滚动到列表里才看到；页首无醒目提示。
+
+**修复（P2）**
+- 系列页 H1 下新增新作横幅：最新一本出版年 ≥ 今年时显示「New in {year} “{title}” is the newest … book — it's in the list below」；年份 > 今年显示 Upcoming 变体。复用 .year-chip 高对比配色。
+
+**证据**
+- 线上验证：/series/the-murderbot-diaries 显示 New in 2026 + Platform Decay 横幅；/series/discworld（无今年新作）正确不显示。
+- 部署 71cab39b；typecheck + css 重建通过。
