@@ -25,6 +25,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Rate limit: 429 observed after exceeding subscribe limit.
 - QA report: `test-report-iter1.md` + recording (session artifacts).
 
+**Regression (live)**
+- Two-pass regression: first pass caught `*.archive.org` wildcard not matching apex `archive.org` redirect (37/46 covers blocked); apex added, re-verified 46/46 Discworld covers render, 0 CSP violations (test-report-iter1c.md).
+
 **Carry-over → Round 2**
 - Verify covers render clean under final CSP (live regression).
 - Styled title-initial placeholder for books without covers.
