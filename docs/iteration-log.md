@@ -453,3 +453,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy be25e741): /genres/fantasy LD → numberOfItems 272, 60 items, first "Discworld" position 1; page 2 first position 61.
+
+## Round 35 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor (BSIO re-check via Sanderson page): BSIO lists upcoming installments (e.g. 2026 titles) inline but with no visual emphasis; nothing on our book lists flagged current-year or future releases either — users scanning a long list can miss that a new installment just landed. [P2]
+
+**Fixes shipped**
+- Book list rows now badge current-year releases with an amber "New" chip and future-year releases with "Upcoming" (print-hidden; series and author pages both, via shared `bookList`).
+
+**Evidence**
+- Live (deploy 52bdbe2c): /series/the-murderbot-diaries shows 2 "New" chips on its 2026 installments. Browser/axe regression in next QA round.

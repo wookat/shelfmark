@@ -401,7 +401,7 @@ ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white bo
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="ml-2 rounded-full bg-amber-accent/10 text-amber-accent text-xs font-semibold px-2 py-0.5 align-middle print:hidden">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
 </ol>`;
