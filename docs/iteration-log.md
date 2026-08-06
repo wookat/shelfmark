@@ -1110,3 +1110,58 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ### R86 补充 — QA 修复
 - QA 深色模式 axe 抓到 1 个 serious 对比度违规：反色区 My Shelf 链接 #9a6414 on #f2efe6 = 4.34:1 < AA。已改 #8f5d12（4.88:1），部署 99ce72c3，复检 axe 深色模式 0 违规。
+
+## Round 91 — 2026-08-06
+
+**发现（五驱动·UX/测试）**
+- P2：R89 的 Save for later 清单不随 JSON 备份走，换设备会丢想读清单。
+
+**修复**
+- 导出 JSON 增加保留键 _saved（slug→{name,t}，仅非空时写入）；导入合并 _saved 且书目循环跳过该键。旧版导入器读新文件时 _saved 因无 title 被自然跳过，格式向后兼容。
+
+**证据**
+- 线上 app.js 含 _saved 逻辑；部署 55613339。
+
+## Round 92 — 2026-08-06
+
+**发现（五驱动·竞品/视觉）**
+- P2：/shelf 统计只有 4 个数字卡，无阅读节奏可视化（StoryGraph 核心卖点之一）。
+
+**修复**
+- /shelf 新增「Reading pace — last 12 months」12 根月度条形图（纯 DOM/Tailwind div，无库，仅统计有日期的条目，无日期数据不渲染；role=img+aria-label）。
+
+**证据**
+- 线上 app.js 含 Reading pace 渲染；部署 15e151cc。
+
+## Round 93 — 2026-08-06
+
+**发现（五驱动·pSEO/竞品）**
+- P1：站点缺跨流派的「最热系列」落地页；BSIO 类站点该类页承接大量导航型搜索。
+
+**修复**
+- 新增 /popular：目录中 100 个规模最大、文档最全的系列（同质量过滤），面包屑+ItemList JSON-LD；首页「Top 100 →」入口、页脚 Explore 链接、sitemap 收录。
+
+**证据**
+- 线上 /popular 200、含 100 张系列卡；sitemaps/1.xml 含 /popular；部署 7ca82432。
+
+## Round 94 — 2026-08-06
+
+**发现（五驱动·数据）**
+- P1：第一方统计只有 day/path 计数，无法区分自然流量与自测——「站点是否有真实访客」始终无法回答。
+
+**修复**
+- 无 Cookie 引荐来源统计：前端 beacon 追加外部 referrer 主机名（仅 hostname，不含路径/查询，站内跳转不计）；新增 referrers(day,host,count) 表（生产 D1 已建），/api/hit 校验主机名格式后聚合。隐私模型不变：无 Cookie、无 UA、无 IP 存储。
+
+**证据**
+- 线上实测 POST /api/hit 带 google.com referrer → referrers 表 +1；schema.sql 已更新；部署 187823eb。
+
+## Round 95 — 2026-08-06
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R91–94 上线后核心路由健康检查 + IndexNow 全量重提交。
+
+**修复/动作**
+- 13 个核心端点全通过（含新 /popular，/random 正确 302）；IndexNow 全量重提交 25,638 URL（4×200：8000/8000/8000/1638）。
+
+**证据**
+- 响应码清单见会话记录；scripts/indexnow.sh 输出 4×200。

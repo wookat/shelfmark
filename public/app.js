@@ -18,8 +18,16 @@
   try {
     var p = location.pathname;
     if (p === "/search" && location.search) p += location.search.slice(0, 120);
-    if (navigator.sendBeacon) navigator.sendBeacon("/api/hit", p);
-    else fetch("/api/hit", { method: "POST", body: p, keepalive: true });
+    var refHost = "";
+    try {
+      if (document.referrer) {
+        var rh = new URL(document.referrer).hostname;
+        if (rh && rh !== location.hostname) refHost = rh;
+      }
+    } catch (e2) {}
+    var payload = refHost ? p + "\n" + refHost : p;
+    if (navigator.sendBeacon) navigator.sendBeacon("/api/hit", payload);
+    else fetch("/api/hit", { method: "POST", body: payload, keepalive: true });
   } catch (e) {}
 
   // ---- one-time id migration (catalog re-imports can renumber book ids) ----
@@ -370,6 +378,30 @@
             '<div class="mt-2 h-2 rounded-full bg-ink-100 overflow-hidden" role="progressbar" aria-valuenow="' + thisYear + '" aria-valuemin="0" aria-valuemax="' + goal + '" aria-label="Yearly reading goal"><div class="h-full bg-amber-accent rounded-full" style="width:' + goalPct + '%"></div></div>'
           : '<div class="flex items-baseline justify-between gap-3"><p class="text-sm text-ink-700">Set a yearly reading goal to track your pace — stored only in this browser.</p><button type="button" id="goal-edit" class="text-xs rounded-full bg-ink-900 text-ink-50 px-3 py-1.5 font-semibold cursor-pointer">Set goal</button></div>') +
         "</div>";
+      // last-12-months reading pace chart (dated entries only)
+      var months = [];
+      var now = new Date();
+      for (var mi = 11; mi >= 0; mi--) {
+        var d0 = new Date(now.getFullYear(), now.getMonth() - mi, 1);
+        months.push({ y: d0.getFullYear(), m: d0.getMonth(), label: d0.toLocaleDateString(undefined, { month: "short" }), n: 0 });
+      }
+      var dated = 0;
+      entries.forEach(function (e) {
+        if (!(e.t > 1e12)) return;
+        var dt = new Date(e.t);
+        for (var j = 0; j < months.length; j++) {
+          if (months[j].y === dt.getFullYear() && months[j].m === dt.getMonth()) { months[j].n++; dated++; break; }
+        }
+      });
+      if (dated) {
+        var maxN = months.reduce(function (mx, mo) { return Math.max(mx, mo.n); }, 1);
+        html += '<div class="rounded-2xl bg-white border border-ink-200 p-4 mb-8"><p class="text-sm font-medium text-ink-900">Reading pace — last 12 months</p>' +
+          '<div class="mt-3 flex items-end gap-1.5 h-24" role="img" aria-label="Books read per month over the last 12 months">' +
+          months.map(function (mo) {
+            var hpx = mo.n ? Math.max(6, Math.round((mo.n / maxN) * 84)) : 2;
+            return '<div class="flex-1 flex flex-col items-center gap-1 min-w-0"><span class="text-[10px] tabular-nums text-ink-700/75">' + (mo.n || "") + '</span><div class="w-full rounded-t ' + (mo.n ? "bg-amber-accent" : "bg-ink-100") + '" style="height:' + hpx + 'px"></div><span class="text-[10px] text-ink-700/75 truncate">' + mo.label + "</span></div>";
+          }).join("") + "</div></div>";
+      }
       Object.keys(bySeries).map(function (k) {
         var g = bySeries[k];
         g.items.sort(function (a, b) { return b.t - a.t; });
@@ -415,7 +447,10 @@
 
     var exportBtn = document.getElementById("export-btn");
     if (exportBtn) exportBtn.addEventListener("click", function () {
-      var blob = new Blob([JSON.stringify(load(), null, 2)], { type: "application/json" });
+      var out = load();
+      var savedList = loadSaved();
+      if (Object.keys(savedList).length) out = Object.assign({ _saved: savedList }, out);
+      var blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
       var a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
       a.download = "shelfmark-export.json";
@@ -455,8 +490,19 @@
             if (!incoming || typeof incoming !== "object" || Array.isArray(incoming)) throw new Error("bad");
             var cur = load();
             var added = 0;
+            if (incoming._saved && typeof incoming._saved === "object" && !Array.isArray(incoming._saved)) {
+              var curSaved = loadSaved();
+              Object.keys(incoming._saved).forEach(function (slug) {
+                var se = incoming._saved[slug];
+                if (se && typeof se === "object" && typeof se.name === "string" && !curSaved[slug]) {
+                  curSaved[slug] = { name: se.name, t: typeof se.t === "number" ? se.t : Date.now() };
+                }
+              });
+              storeSaved(curSaved);
+            }
             Object.keys(incoming).forEach(function (k) {
               var e = incoming[k];
+              if (k === "_saved") return;
               if (e && typeof e === "object" && typeof e.title === "string") {
                 if (!cur[k]) added++;
                 cur[k] = { t: typeof e.t === "number" ? e.t : Date.now(), title: e.title, series: typeof e.series === "string" ? e.series : "", slug: typeof e.slug === "string" ? e.slug : "" };
