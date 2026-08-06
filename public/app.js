@@ -423,7 +423,14 @@
     ctx.fillText(String(entries.length), 80, 480);
     ctx.font = "400 44px Arial, sans-serif";
     ctx.fillStyle = "#d9d5c8";
-    ctx.fillText("books read \u00b7 " + Object.keys(bySeries).length + " series", 80, 560);
+    var subline = "books read \u00b7 " + Object.keys(bySeries).length + " series";
+    var cardGoal = parseInt(localStorage.getItem("shelfmark:goal:" + new Date().getFullYear()), 10) || 0;
+    if (cardGoal) {
+      var yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+      var readThisYear = entries.filter(function (e) { return e.t > 1e12 && e.t >= yearStart; }).length;
+      subline += " \u00b7 " + new Date().getFullYear() + " goal " + readThisYear + "/" + cardGoal + (readThisYear >= cardGoal ? " \u2713" : "");
+    }
+    ctx.fillText(subline, 80, 560);
     var top = Object.keys(bySeries).map(function (k) { return [k, bySeries[k]]; })
       .sort(function (a, b) { return b[1] - a[1]; }).slice(0, 6);
     var y = 680;

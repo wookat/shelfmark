@@ -923,3 +923,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - app.js 语法校验+线上已含 goal 代码；Tailwind 类齐全；部署 5e9d2833；完整交互回归排入批尾 QA。
+
+## Round 74 — 2026-08-06
+
+**发现（五驱动·UX/分发）**
+- P2：R73 加了年度目标后，「Download my reading card」分享卡未体现目标进度，分享传播少了最有炫耀价值的信息。
+
+**修复**
+- 分享卡副标题追加「YYYY goal X/N（达标 ✓）」，仅在设定了目标时显示；数据全部来自 localStorage。
+
+**证据**
+- app.js 语法校验通过、线上 app.js 已含 cardGoal 逻辑（etag 更新）；部署 419a600b；画布渲染回归排入批尾 QA。
