@@ -12,6 +12,7 @@ export interface PageOpts {
   body: string;
   h1?: boolean;
   image?: string;
+  noindex?: boolean;
 }
 
 const SISTERS = [
@@ -34,7 +35,8 @@ export function layout(o: PageOpts): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(o.title)}</title>
 <meta name="description" content="${esc(o.description)}">
-<link rel="canonical" href="${esc(canonical)}">
+<link rel="canonical" href="${esc(canonical)}">${o.noindex ? `
+<meta name="robots" content="noindex,follow">` : ""}
 <meta property="og:title" content="${esc(o.title)}">
 <meta property="og:description" content="${esc(o.description)}">
 <meta property="og:url" content="${esc(canonical)}">

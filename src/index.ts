@@ -142,6 +142,7 @@ app.get("/series", async (c) => {
     : await c.env.DB.prepare(countSql).all()
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  if (page > Math.max(1, pages)) return notFound(c);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
@@ -189,6 +190,7 @@ app.get("/authors", async (c) => {
     : await c.env.DB.prepare(countSql).all()
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  if (page > Math.max(1, pages)) return notFound(c);
   const base = letter ? `/authors?letter=${letter}&` : "/authors?";
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
@@ -443,6 +445,7 @@ app.get("/genres/:slug", async (c) => {
   const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series WHERE genre=? AND book_count > 0`).bind(genre).all()).results as any[]);
   const total = Number(n);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > pages) return notFound(c);
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
   ).bind(genre, PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
@@ -506,6 +509,7 @@ ${!series.length && !authors.length && !bookHits.length ? `<p class="mt-6 text-i
       description: "Search book series and authors on Shelfmark.",
       path: "/search",
       siteUrl: c.env.SITE_URL,
+      noindex: !!q,
       body,
     })
   );
