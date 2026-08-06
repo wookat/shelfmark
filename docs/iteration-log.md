@@ -51,3 +51,21 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **Evidence**
 - Live: `/series/mistborn` shows "If you like Mistborn, you'll love…"; skip link in DOM.
 - Cover count via D1: 10,045 `cover_url IS NOT NULL`.
+
+## Round 3 — 2026-08-06
+
+**Findings (by driver)**
+- Data analytics: `/series/warriors` vs `/series/warriors-2` ambiguity still confused visitors (both in hit log); generalized as "same-name series have no cross-links". [P2]
+- QA/UX: searching an individual book title returned nothing (search only covered series/author names) — a common search intent ("<book> series order"). [P1]
+- Competitor (BSIO parity): BSIO offers a print dialog for its lists; Shelfmark printed with nav/checkboxes/progress clutter. [P2]
+- SEO ops: content changed in Rounds 1–2 across all series pages; IndexNow resubmission due. indexnow.sh only submitted sitemaps 1–2 of 6 and 400'd on oversized batches. [P2 bug]
+
+**Fixes shipped**
+- Search now also matches book titles: "Books" section links each hit to its series page (`b.title LIKE ? JOIN series`, top 20).
+- Same-name disambiguation: series pages with identical names cross-link each other ("Looking for a different Warriors? …") — resolves the Warriors ambiguity generically.
+- Print stylesheet: header/footer/forms/checkboxes/progress hidden, white background — clean printable reading order (BSIO print parity).
+- indexnow.sh fixed (all 6 sitemap chunks, 8K-URL batches); resubmitted 25,594 URLs (4× HTTP 200).
+
+**Evidence**
+- Live: `/search?q=The+Final+Empire` shows Books section; `/series/warriors-2` shows disambiguation line.
+- IndexNow: 200 8000 ×3 + 200 1594.
