@@ -96,7 +96,7 @@ ${o.body}
   <div class="max-w-5xl mx-auto px-4 mt-8 flex flex-wrap items-center gap-4 justify-between">
     <p>© ${new Date().getFullYear()} Shelfmark · zalize.com</p>
     <form data-subscribe class="flex flex-wrap gap-2">
-      <input type="email" name="email" required placeholder="Email for new-release alerts" class="rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs w-56">
+      <input type="email" name="email" required aria-label="Email for new-release alerts" placeholder="Email for new-release alerts" class="rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs w-56">
       <button class="rounded-full bg-amber-accent text-white px-3.5 py-1.5 text-xs font-semibold hover:opacity-90">Notify me</button>
     </form>
   </div>

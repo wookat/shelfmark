@@ -11,3 +11,10 @@
   --color-ink-900: #1a1916;
   --color-amber-accent: #c8842c;
 }
+
+input:focus-visible,
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--color-amber-accent);
+  outline-offset: 2px;
+}

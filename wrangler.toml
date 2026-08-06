@@ -3,9 +3,8 @@ main = "src/index.ts"
 account_id = "ddff52d24ee44e21a021c15eaffcc86d"
 compatibility_date = "2026-07-01"
 
-routes = [
-  { pattern = "shelfmark.zalize.com", custom_domain = true }
-]
+# routes managed in dashboard (custom domain already attached)
+# routes = [ { pattern = "shelfmark.zalize.com", custom_domain = true } ]
 
 [assets]
 directory = "./public"

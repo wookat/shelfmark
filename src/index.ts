@@ -15,6 +15,28 @@ type TrackList = { slug: string; name: string };
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.use("*", async (c, next) => {
+  await next();
+  const h = c.res.headers;
+  h.set("X-Content-Type-Options", "nosniff");
+  h.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  h.set("X-Frame-Options", "DENY");
+  if ((h.get("content-type") ?? "").includes("text/html")) {
+    h.set(
+      "Content-Security-Policy",
+      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://*.archive.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    );
+  }
+});
+
+async function rateLimited(c: { env: Env; req: { header: (n: string) => string | undefined } }, bucket: string, limit: number): Promise<boolean> {
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  const key = `rl:${bucket}:${ip}:${Math.floor(Date.now() / 60000)}`;
+  const n = parseInt((await c.env.CACHE.get(key)) ?? "0", 10) + 1;
+  await c.env.CACHE.put(key, String(n), { expirationTtl: 120 });
+  return n > limit;
+}
+
 const PAGE_SIZE = 60;
 
 function bookNoun(n: number) {
@@ -39,7 +61,7 @@ app.get("/", async (c) => {
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC LIMIT 12`
   ).all<Series>();
   const { results: authors } = await c.env.DB.prepare(
-    `SELECT * FROM authors ORDER BY book_count DESC LIMIT 12`
+    `SELECT * FROM authors WHERE series_count >= 2 AND book_count BETWEEN 10 AND 400 ORDER BY book_count DESC LIMIT 12`
   ).all<Author>();
   const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
   const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books`).all()).results as any[]);
@@ -273,7 +295,7 @@ function bookList(books: Book[], s: TrackList): string {
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
-    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100" onerror="this.remove()">` : ""}
+    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : ""}
     <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/60 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
@@ -445,6 +467,7 @@ app.get("/privacy", (c) =>
 
 // ---------- APIs ----------
 app.post("/api/subscribe", async (c) => {
+  if (await rateLimited(c, "sub", 5)) return c.json({ ok: false, error: "Too many requests" }, 429);
   const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
     return c.json({ ok: false, error: "Invalid email" }, 400);
@@ -456,6 +479,7 @@ app.post("/api/subscribe", async (c) => {
 });
 
 app.post("/api/migrate-ids", async (c) => {
+  if (await rateLimited(c, "mig", 10)) return c.json({}, 429);
   const { ids } = await c.req.json<{ ids?: unknown }>().catch(() => ({}) as { ids?: unknown });
   if (!Array.isArray(ids) || !ids.length) return c.json({});
   const nums = ids.map((x) => parseInt(String(x), 10)).filter((n) => Number.isFinite(n)).slice(0, 2000);
@@ -472,6 +496,7 @@ app.post("/api/migrate-ids", async (c) => {
 });
 
 app.post("/api/hit", async (c) => {
+  if (await rateLimited(c, "hit", 60)) return c.body(null, 429);
   const path = (await c.req.text()).slice(0, 200);
   if (!path.startsWith("/")) return c.body(null, 204);
   const day = new Date().toISOString().slice(0, 10);
