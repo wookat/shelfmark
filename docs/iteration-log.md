@@ -638,3 +638,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：/about 显示新板块（部署 5b4bb009）；typecheck 通过。
+
+## Round 50 — 2026-08-05
+
+**发现（五驱动）**
+- QA/分发：R43–49 改动了系列页、/about、搜索页等大批页面，需要全站健康检查并向搜索引擎重新宣告。
+
+**修复（P1/例行）**
+- 16 个关键端点线上健康检查全部 200（含 sitemap/robots/opensearch/manifest/RSS）。
+- IndexNow 全量重提交 25,647 个 URL（4 批，全部 HTTP 200）。
+
+**证据**
+- 健康检查与 IndexNow 输出记录于会话；无回归。
