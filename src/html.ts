@@ -11,6 +11,7 @@ export interface PageOpts {
   jsonLd?: object[];
   body: string;
   h1?: boolean;
+  image?: string;
 }
 
 const SISTERS = [
@@ -39,7 +40,9 @@ export function layout(o: PageOpts): string {
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:site_name" content="Shelfmark">
 <meta property="og:type" content="website">
-<meta name="twitter:card" content="summary">
+<meta property="og:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
+<meta name="twitter:card" content="${o.image ? "summary" : "summary_large_image"}">
+<meta name="twitter:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -48,6 +51,7 @@ export function layout(o: PageOpts): string {
 ${ld}
 </head>
 <body class="bg-ink-50 text-ink-800 font-sans antialiased min-h-screen flex flex-col">
+<a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-3 focus:py-1.5 focus:rounded-full focus:text-sm focus:shadow">Skip to content</a>
 <header class="border-b border-ink-200 bg-ink-50/90 backdrop-blur sticky top-0 z-20">
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
     <a href="/" class="font-display font-bold text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
@@ -58,6 +62,7 @@ ${ld}
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
       <a href="/genres" class="hover:text-amber-accent">Genres</a>
+      <a href="/new" class="hover:text-amber-accent hidden sm:inline">New</a>
       <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3.5 py-1.5 hover:bg-ink-700">My Shelf</a>
     </nav>
   </div>
@@ -65,7 +70,7 @@ ${ld}
     <input name="q" type="search" placeholder="Search a series or author…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
   </form>
 </header>
-<main class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+<main id="main" class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
 ${o.body}
 </main>
 <footer class="border-t border-ink-200 mt-16 py-10 text-sm text-ink-700">
@@ -81,6 +86,7 @@ ${o.body}
         <li><a class="hover:text-amber-accent" href="/series">All series</a></li>
         <li><a class="hover:text-amber-accent" href="/authors">All authors</a></li>
         <li><a class="hover:text-amber-accent" href="/genres">Genres</a></li>
+        <li><a class="hover:text-amber-accent" href="/new">New releases</a></li>
         <li><a class="hover:text-amber-accent" href="/shelf">My shelf</a></li>
         <li><a class="hover:text-amber-accent" href="/about">About &amp; methodology</a></li>
         <li><a class="hover:text-amber-accent" href="/privacy">Privacy</a></li>
@@ -89,14 +95,14 @@ ${o.body}
     <div>
       <p class="font-semibold text-ink-900 mb-2">More from Zalize</p>
       <ul class="space-y-1">
-        ${SISTERS.map(([n, u, d]) => `<li><a class="hover:text-amber-accent" href="${u}" title="${esc(d)}">${n}</a> <span class="text-ink-700/60">— ${esc(d)}</span></li>`).join("")}
+        ${SISTERS.map(([n, u, d]) => `<li><a class="hover:text-amber-accent" href="${u}" title="${esc(d)}">${n}</a> <span class="text-ink-700/80">— ${esc(d)}</span></li>`).join("")}
       </ul>
     </div>
   </div>
   <div class="max-w-5xl mx-auto px-4 mt-8 flex flex-wrap items-center gap-4 justify-between">
     <p>© ${new Date().getFullYear()} Shelfmark · zalize.com</p>
     <form data-subscribe class="flex flex-wrap gap-2">
-      <input type="email" name="email" required placeholder="Email for new-release alerts" class="rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs w-56">
+      <input type="email" name="email" required aria-label="Email for new-release alerts" placeholder="Email for new-release alerts" class="rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs w-56">
       <button class="rounded-full bg-amber-accent text-white px-3.5 py-1.5 text-xs font-semibold hover:opacity-90">Notify me</button>
     </form>
   </div>

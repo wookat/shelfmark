@@ -15,6 +15,28 @@ type TrackList = { slug: string; name: string };
 
 const app = new Hono<{ Bindings: Env }>();
 
+app.use("*", async (c, next) => {
+  await next();
+  const h = c.res.headers;
+  h.set("X-Content-Type-Options", "nosniff");
+  h.set("Referrer-Policy", "strict-origin-when-cross-origin");
+  h.set("X-Frame-Options", "DENY");
+  if ((h.get("content-type") ?? "").includes("text/html")) {
+    h.set(
+      "Content-Security-Policy",
+      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+    );
+  }
+});
+
+async function rateLimited(c: { env: Env; req: { header: (n: string) => string | undefined } }, bucket: string, limit: number): Promise<boolean> {
+  const ip = c.req.header("cf-connecting-ip") ?? "unknown";
+  const key = `rl:${bucket}:${ip}:${Math.floor(Date.now() / 60000)}`;
+  const n = parseInt((await c.env.CACHE.get(key)) ?? "0", 10) + 1;
+  await c.env.CACHE.put(key, String(n), { expirationTtl: 120 });
+  return n > limit;
+}
+
 const PAGE_SIZE = 60;
 
 function bookNoun(n: number) {
@@ -39,7 +61,7 @@ app.get("/", async (c) => {
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC LIMIT 12`
   ).all<Series>();
   const { results: authors } = await c.env.DB.prepare(
-    `SELECT * FROM authors ORDER BY book_count DESC LIMIT 12`
+    `SELECT * FROM authors WHERE series_count >= 2 AND book_count BETWEEN 10 AND 400 ORDER BY book_count DESC LIMIT 12`
   ).all<Author>();
   const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
   const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books`).all()).results as any[]);
@@ -226,22 +248,40 @@ app.get("/series/:slug", async (c) => {
   const parent = series.parent_id
     ? await c.env.DB.prepare(`SELECT slug, name FROM series WHERE id=?`).bind(series.parent_id).first<{ slug: string; name: string }>()
     : null;
+  const { results: alsoLike } = series.genre
+    ? await c.env.DB.prepare(
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.id<>? AND (s.author_id IS NULL OR s.author_id<>?) AND s.book_count BETWEEN 3 AND 60 ORDER BY s.book_count DESC LIMIT 6`
+      ).bind(series.genre, series.id, series.author_id ?? -1).all<Series>()
+    : { results: [] as Series[] };
+  const { results: sameName } = await c.env.DB.prepare(
+    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
+  ).bind(series.name, series.id).all<{ slug: string; name: string; author_name: string | null }>();
   const first = books[0];
+  const latest = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
+  const faqs: [string, string][] = [];
+  if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. Publication order is the order most readers should follow.`]);
+  faqs.push([`How many books are in the ${series.name} series?`, `There are ${bookNoun(series.book_count)} in ${series.name}${yearsSpan(series) ? `, published ${yearsSpan(series)}` : ""}.`]);
+  if (latest && latest !== first) faqs.push([`What is the most recent ${series.name} book?`, `The most recent installment on record is “${latest.title}”${latest.year ? ` (${latest.year})` : ""}.`]);
+  if (series.author_name) faqs.push([`Who writes the ${series.name} series?`, `${series.name} is written by ${series.author_name}.`]);
   const body = `
 ${crumbs([["Series", "/series"], [series.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
+${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a different ${esc(series.name)}? ${sameName.map((o) => `<a class="text-amber-accent underline" href="/series/${o.slug}">${esc(o.name)}${o.author_name ? ` by ${esc(o.author_name)}` : ""}</a>`).join(" · ")}</p>` : ""}
 <p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the publication order — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
 <div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
-  <span class="font-medium text-amber-accent" data-progress-label="${series.slug}"></span>
+  <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
+  <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
 ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
-<p class="mt-4 text-sm text-ink-700/70">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
-${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}`;
+<p class="mt-4 text-sm text-ink-700/70 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
+${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
+${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div></section>` : ""}
+${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
       title: `${series.name} Books in Order (${series.book_count} Books)${series.author_name ? " — " + series.author_name : ""} | Shelfmark`,
@@ -258,7 +298,19 @@ ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold
           numberOfItems: series.book_count,
         },
         breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
+        ...(faqs.length
+          ? [{
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              mainEntity: faqs.map(([q2, a2]) => ({
+                "@type": "Question",
+                name: q2,
+                acceptedAnswer: { "@type": "Answer", text: a2 },
+              })),
+            }]
+          : []),
       ],
+      image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
     })
   );
@@ -273,8 +325,8 @@ function bookList(books: Book[], s: TrackList): string {
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
-    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100" onerror="this.remove()">` : ""}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/60 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/60 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
 </ol>`;
@@ -364,10 +416,14 @@ app.get("/search", async (c) => {
     const { results: authors } = await c.env.DB.prepare(
       `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
     ).bind(like).all<Author>();
+    const { results: bookHits } = await c.env.DB.prepare(
+      `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
+    ).bind(like).all<{ title: string; year: number | null; series_slug: string; series_name: string; author_name: string | null }>();
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map((a) => `<a href="/authors/${a.slug}" class="block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-1">${a.series_count} series · ${bookNoun(a.book_count)}</p></a>`).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
-${!series.length && !authors.length ? `<p class="mt-6 text-ink-700">Nothing found. Try a different spelling, or <a href="/authors" class="text-amber-accent underline">browse all authors</a>.</p>` : ""}`;
+${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/series/${b.series_slug}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></li>`).join("")}</ul>` : ""}
+${!series.length && !authors.length && !bookHits.length ? `<p class="mt-6 text-ink-700">Nothing found. Try a different spelling, or <a href="/authors" class="text-amber-accent underline">browse all authors</a>.</p>` : ""}`;
   }
   return c.html(
     layout({
@@ -397,6 +453,35 @@ app.get("/shelf", (c) => {
       description: "Your private, no-signup reading progress across every series you follow on Shelfmark.",
       path: "/shelf",
       siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- New releases ----------
+app.get("/new", async (c) => {
+  const year = new Date().getFullYear();
+  const { results: upcoming } = await c.env.DB.prepare(
+    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`
+  ).bind(year, year + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
+  const byYear = new Map<number, typeof upcoming>();
+  for (const b of upcoming) {
+    if (!byYear.has(b.year)) byYear.set(b.year, []);
+    byYear.get(b.year)!.push(b);
+  }
+  const body = `
+${crumbs([["New releases", ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
+<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order.</p>
+${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
+${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
+  return c.html(
+    layout({
+      title: `New Book Series Releases ${year} & ${year + 1} | Shelfmark`,
+      description: `New and upcoming series books for ${year}–${year + 1}, linked to full reading orders.`,
+      path: "/new",
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["New releases", "/new"]])],
       body,
     })
   );
@@ -445,6 +530,7 @@ app.get("/privacy", (c) =>
 
 // ---------- APIs ----------
 app.post("/api/subscribe", async (c) => {
+  if (await rateLimited(c, "sub", 5)) return c.json({ ok: false, error: "Too many requests" }, 429);
   const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
     return c.json({ ok: false, error: "Invalid email" }, 400);
@@ -456,6 +542,7 @@ app.post("/api/subscribe", async (c) => {
 });
 
 app.post("/api/migrate-ids", async (c) => {
+  if (await rateLimited(c, "mig", 10)) return c.json({}, 429);
   const { ids } = await c.req.json<{ ids?: unknown }>().catch(() => ({}) as { ids?: unknown });
   if (!Array.isArray(ids) || !ids.length) return c.json({});
   const nums = ids.map((x) => parseInt(String(x), 10)).filter((n) => Number.isFinite(n)).slice(0, 2000);
@@ -472,6 +559,7 @@ app.post("/api/migrate-ids", async (c) => {
 });
 
 app.post("/api/hit", async (c) => {
+  if (await rateLimited(c, "hit", 60)) return c.body(null, 429);
   const path = (await c.req.text()).slice(0, 200);
   if (!path.startsWith("/")) return c.body(null, 204);
   const day = new Date().toISOString().slice(0, 10);
@@ -532,7 +620,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls = results.map((r) => `/series/${r.slug}`);
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about");
+    urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
