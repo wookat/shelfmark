@@ -335,6 +335,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  ${series.genre ? `<a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent capitalize">${esc(series.genre)}</a>` : ""}
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
   ${books.length ? `<button type="button" data-copylist="${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}

@@ -492,3 +492,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/series 首屏现为 Kuroko's Basketball / One Piece / Star Trek / Nancy Drew / Goosebumps / Sherlock Holmes 等真实书系；xkcd、LNCS、working papers 退后。
 - 部署 366d4785；typecheck 通过。
+
+## Round 38 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品 + SEO：系列页无法一键跳到所属流派；流派页是站内强枢纽（fantasy 272 系列），但反向内链缺失，既损发现性也损内链权重。
+
+**修复（P2）**
+- 系列页信息条新增流派 chip（如 Fantasy / Science fiction），链接到 /genres/{slug}，capitalize 展示；无流派的系列不显示。
+
+**证据**
+- 线上验证：/series/mistborn 出现 fantasy chip → /genres/fantasy；无流派系列不受影响。
+- 部署 7d993d3a；typecheck 通过，styles.css 已重建（capitalize）。
