@@ -685,3 +685,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：/genres/fantasy 385、/genres/crime-fiction 38、旧 /genres/crime-literature 正确 404。
+
+## Round 54 — 2026-08-05
+
+**发现（五驱动）**
+- SEO 审计（R52–53 后）：genre 词表扩至 190+，其中大量 1–2 个系列的薄页（如 cozy mystery）可经系列页流派 chip 被爬虫发现，但不在 sitemap（阈值 n≥3），存在薄内容收录风险。
+
+**修复（P1，SEO）**
+- 流派详情页 total < 3 时输出 noindex,follow（与 /new 过滤视图、搜索结果页策略一致），链接权重仍可传递。
+
+**证据**
+- 线上验证：/genres/cozy-mystery（1 系列）输出 noindex,follow；/genres/fantasy（385）无 noindex。
+- 部署 4783d03e；typecheck 通过。

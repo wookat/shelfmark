@@ -500,6 +500,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
+      noindex: total < 3,
       jsonLd: [
         breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]]),
         {
