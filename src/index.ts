@@ -247,6 +247,13 @@ app.get("/authors/:slug", async (c) => {
     bySeries.get(b.series_id)!.push(b);
   }
   standalone.sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999));
+  const topGenre = series.find((s) => s.genre)?.genre ?? null;
+  const { results: similar } = topGenre
+    ? await c.env.DB.prepare(
+        `SELECT a.name, a.slug, MAX(s.book_count) AS top FROM authors a JOIN series s ON s.author_id=a.id
+         WHERE s.genre=? AND s.book_count > 0 AND a.id != ? GROUP BY a.id ORDER BY top DESC LIMIT 6`
+      ).bind(topGenre, author.id).all<{ name: string; slug: string }>()
+    : { results: [] as { name: string; slug: string }[] };
   const body = `
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
@@ -274,6 +281,13 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
     <span class="text-sm font-medium text-amber-accent" data-progress-label="standalone-${slug}"></span>
   </div>
   ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
+</section>` : ""}
+${similar.length ? `<section class="mt-12 print:hidden">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">More ${esc(topGenre!.toLowerCase())} authors</h2>
+  <div class="mt-4 flex flex-wrap gap-2">
+    ${similar.map((a) => `<a href="/authors/${a.slug}" class="rounded-full bg-white border border-ink-200 px-4 py-2 text-sm hover:border-amber-accent">${esc(a.name)}</a>`).join("")}
+    <a href="/genres/${gslug(topGenre!)}" class="rounded-full bg-white border border-ink-200 px-4 py-2 text-sm text-amber-accent hover:border-amber-accent">All ${esc(topGenre!.toLowerCase())} series →</a>
+  </div>
 </section>` : ""}`;
   return c.html(
     layout({
@@ -297,6 +311,7 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
           })),
         }] : []),
       ],
+      image: books.find((b) => b.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       body,
     })
   );
@@ -464,13 +479,57 @@ ${results.map((g) => `<a href="/genres/${gslug(g.genre)}" class="block rounded-2
       description: "Browse book series reading orders by genre: fantasy, crime, science fiction, romance and more.",
       path: "/genres",
       siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "Book series genres on Shelfmark",
+          numberOfItems: results.length,
+          itemListElement: results.map((g, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: g.genre,
+            url: `${c.env.SITE_URL}/genres/${gslug(g.genre)}`,
+          })),
+        },
+      ],
       body,
     })
   );
 });
 
+// Slugs of genre labels merged into a canonical vocabulary; old URLs 301 to the canonical genre page.
+const GENRE_SLUG_REDIRECTS: Record<string, string> = {
+  "children-s-book": "children-s-literature",
+  "children-s-fiction": "children-s-literature",
+  "children-s-novel": "children-s-literature",
+  "crime-literature": "crime-fiction",
+  "crime-novel": "crime-fiction",
+  "cyberpunk-novel": "cyberpunk",
+  "dark-fantasy-literature": "dark-fantasy",
+  "detective-literature": "detective-fiction",
+  "fantasy-literature": "fantasy",
+  "fiction-literature": "fiction",
+  "historical-non-fiction": "non-fiction",
+  "historical-non-fiction-work": "non-fiction",
+  "historical-novel": "historical-fiction",
+  "horror-literature": "horror-fiction",
+  "non-fiction-literary-work": "non-fiction",
+  "non-fiction-literature": "non-fiction",
+  "romance": "romance-novel",
+  "romantic-fiction": "romance-novel",
+  "science-fiction-literature": "science-fiction",
+  "thriller-novel": "thriller",
+  "vampire-literature": "vampire-fiction",
+  "western-novel": "western",
+  "young-adult-fiction": "young-adult-literature",
+};
+
 app.get("/genres/:slug", async (c) => {
   const slug = c.req.param("slug");
+  const redirect = GENRE_SLUG_REDIRECTS[slug];
+  if (redirect) return c.redirect(`/genres/${redirect}`, 301);
   const { results: genres } = await c.env.DB.prepare(
     `SELECT DISTINCT genre FROM series WHERE genre IS NOT NULL`
   ).all<{ genre: string }>();
@@ -500,6 +559,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
+      noindex: total < 3,
       jsonLd: [
         breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]]),
         {
@@ -621,7 +681,7 @@ app.get("/new", async (c) => {
   const body = `
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
-<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss">RSS feed</a></p>
+<p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}">RSS feed${activeGenre ? ` (${esc(activeGenre.toLowerCase())})` : ""}</a></p>
 ${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-wrap gap-1.5 text-sm print:hidden">
   <a href="/new" class="rounded-full px-3 py-1.5 border ${!activeGenre ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
   ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(g)} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
@@ -645,19 +705,23 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
 
 app.get("/new.rss", async (c) => {
   const year = new Date().getFullYear();
+  const genreParam = (c.req.query("genre") ?? "").trim().toLowerCase().slice(0, 40);
   const { results: items } = await c.env.DB.prepare(
-    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
-  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; author_name: string | null }>();
+    `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, s.genre AS genre, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 100`
+  ).bind(year, year + 1).all<{ title: string; year: number; series_slug: string; series_name: string; genre: string; author_name: string | null }>();
+  const activeGenre = genreParam ? items.find((b) => b.genre.toLowerCase() === genreParam)?.genre ?? null : null;
+  const filtered = activeGenre ? items.filter((b) => b.genre === activeGenre) : items;
   const site = c.env.SITE_URL;
+  const selfUrl = `${site}/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}`;
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
 <channel>
-<title>Shelfmark — New &amp; Upcoming Series Books</title>
-<link>${site}/new</link>
-<atom:link href="${site}/new.rss" rel="self" type="application/rss+xml"/>
-<description>New and upcoming series installments for ${year}–${year + 1}, linked to full reading orders.</description>
+<title>Shelfmark — New &amp; Upcoming${activeGenre ? ` ${esc(activeGenre[0].toUpperCase() + activeGenre.slice(1))}` : ""} Series Books</title>
+<link>${site}/new${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}</link>
+<atom:link href="${selfUrl}" rel="self" type="application/rss+xml"/>
+<description>New and upcoming${activeGenre ? ` ${esc(activeGenre.toLowerCase())}` : ""} series installments for ${year}–${year + 1}, linked to full reading orders.</description>
 <language>en</language>
-${items.map((b) => `<item>
+${filtered.map((b) => `<item>
 <title>${esc(b.title)} (${b.series_name ? esc(b.series_name) : ""}${b.author_name ? ` by ${esc(b.author_name)}` : ""}, ${b.year})</title>
 <link>${site}/series/${b.series_slug}</link>
 <guid isPermaLink="false">${site}/series/${b.series_slug}#${esc(b.title)}-${b.year}</guid>
@@ -719,6 +783,8 @@ app.get("/about", (c) =>
 <li>Add Shelfmark to your browser's address-bar search engines (we ship an <a class="text-amber-accent underline" href="/opensearch.xml">OpenSearch description</a> with live suggestions).</li>
 <li>On mobile, use your browser's <em>Add to Home Screen</em> to install Shelfmark as an app.</li>
 </ul>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Open data API</h2>
+<p>Every reading order is available as JSON: <code class="text-sm bg-ink-100 px-1.5 py-0.5 rounded">/api/series/&lt;slug&gt;.json</code> — e.g. <a class="text-amber-accent underline" href="/api/series/mistborn.json">/api/series/mistborn.json</a>. CORS-enabled, no key required. Underlying data is from Wikidata (CC0) and Open Library; a link back is appreciated.</p>
 <h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Part of the Zalize family</h2>
 <p>Shelfmark is built by the team behind <a class="text-amber-accent underline" href="https://watchdeck.zalize.com">WatchDeck</a> (TV tracking), <a class="text-amber-accent underline" href="https://mealloop.zalize.com">MealLoop</a>, <a class="text-amber-accent underline" href="https://subsleuth.zalize.com">SubSleuth</a>, <a class="text-amber-accent underline" href="https://cv.zalize.com">HonestCV</a> and <a class="text-amber-accent underline" href="https://astrosage.zalize.com">AstroSage</a>.</p>
 </div>`,
@@ -783,6 +849,34 @@ app.get("/api/series-books/:slug", async (c) => {
     : books;
   c.header("Cache-Control", "public, max-age=3600");
   return c.json({ books: ordered.map((b) => ({ id: b.id, title: b.title })) });
+});
+
+app.get("/api/series/:file", async (c) => {
+  const m = /^([a-z0-9-]+)\.json$/.exec(c.req.param("file"));
+  if (!m) return c.json({ error: "Not found" }, 404);
+  const slug = m[1];
+  const series = await c.env.DB.prepare(
+    `SELECT s.id, s.name, s.slug, s.genre, s.book_count, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=?`
+  ).bind(slug).first<{ id: number; name: string; slug: string; genre: string | null; book_count: number; author_name: string | null }>();
+  if (!series) return c.json({ error: "Series not found" }, 404);
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+  ).bind(series.id).all<{ title: string; position: number | null; year: number | null }>();
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  const ordered = new Set(positions).size !== positions.length
+    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+    : books;
+  c.header("Cache-Control", "public, max-age=3600");
+  c.header("Access-Control-Allow-Origin", "*");
+  return c.json({
+    name: series.name,
+    author: series.author_name,
+    genre: series.genre,
+    url: `${c.env.SITE_URL}/series/${series.slug}`,
+    order: "publication",
+    books: ordered.map((b, i) => ({ order: i + 1, title: b.title, year: b.year })),
+    license: "Data from Wikidata (CC0) and Open Library; attribution appreciated.",
+  });
 });
 
 app.post("/api/subscribe", async (c) => {
@@ -879,7 +973,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls.unshift("/", "/series", "/authors", "/genres", "/shelf", "/about", "/new");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
-      `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL GROUP BY genre HAVING n >= 3`
+      `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
     urls.push(...genres.map((g) => `/genres/${gslug(g.genre)}`));
   }

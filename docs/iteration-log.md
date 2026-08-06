@@ -674,3 +674,150 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **证据**
 - 线上验证：/genres/fantasy 显示 379 series；新入流派样本 Fitz and the Fool（Robin Hobb）归入 fantasy 正确。
 - 未伪造数据：全部取自 Wikidata P136；无多数一致者保持 NULL（余 1,145 个）。
+
+## Round 53 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析（R52 后审计）：genre 词表碎片化——crime literature/crime fiction、children's fiction/children's literature、romance/romance novel 等同义分裂，稀释流派聚合页；另有 7 个非流派的错误 P136 值（如作者名 Gunilla Bergström、timeline）。
+
+**修复（P1，数据治理）**
+- 新增 scripts/normalize_genres.py：23 组保守同义合并 + 7 个错误值清空，共 96 行修正。fantasy 379→385、crime fiction 16→38、children's literature 51→73。
+
+**证据**
+- 线上验证：/genres/fantasy 385、/genres/crime-fiction 38、旧 /genres/crime-literature 正确 404。
+
+## Round 54 — 2026-08-05
+
+**发现（五驱动）**
+- SEO 审计（R52–53 后）：genre 词表扩至 190+，其中大量 1–2 个系列的薄页（如 cozy mystery）可经系列页流派 chip 被爬虫发现，但不在 sitemap（阈值 n≥3），存在薄内容收录风险。
+
+**修复（P1，SEO）**
+- 流派详情页 total < 3 时输出 noindex,follow（与 /new 过滤视图、搜索结果页策略一致），链接权重仍可传递。
+
+**证据**
+- 线上验证：/genres/cozy-mystery（1 系列）输出 noindex,follow；/genres/fantasy（385）无 noindex。
+- 部署 4783d03e；typecheck 通过。
+
+## Round 55 — 2026-08-05
+
+**发现（五驱动）**
+- QA/分发：R52–54 大幅变更流派数据与 sitemap 集合（新增流派页、合并流派、薄页 noindex），需向搜索引擎重新宣告并做健康检查。
+
+**修复（例行）**
+- IndexNow 全量重提交 25,645 URL（4 批全部 HTTP 200）；关键端点健康检查全 200。
+
+**证据**
+- IndexNow/健康检查输出记录于会话；无回归。
+
+## Round 56 — 2026-08-05
+
+**发现（五驱动·QA/SEO 交叉）**
+- P1（SEO 一致性）：sitemap 第 1 分片的流派 URL 列表按「全部系列 ≥3」筛选，未排除 0-book 系列；而流派详情页的 noindex 阈值按「有书系列 <3」判定。导致 8 个已 noindex 的薄流派页（satire、autobiography、anthropomorphic comic 等）仍被 sitemap 宣告，向搜索引擎发送矛盾信号。
+
+**修复**
+- sitemap 流派查询补 `AND book_count > 0`，与 /genres 索引页及详情页 noindex 阈值完全对齐。
+
+**证据**
+- D1 审计确认 8 个流派 all_series≥3 但 with_books<3；部署 0db23cb9 后 sitemap（cache-busted 及 workers.dev 直连）不再包含上述 slug；typecheck 通过。
+
+## Round 57 — 2026-08-06
+
+**发现（五驱动·SEO/UX）**
+- P2：R53 流派词表合并后，23 个旧流派 slug（crime-literature、fantasy-literature、romance 等）直接 404，历史外链/收藏与可能已被收录的 URL 全部断链。
+
+**修复**
+- /genres/:slug 增加 GENRE_SLUG_REDIRECTS 映射：旧 slug 301 到规范流派页（crime-literature→crime-fiction 等 24 条映射）。
+
+**证据**
+- 线上实测：/genres/crime-literature、/genres/romance、/genres/fantasy-literature、/genres/young-adult-fiction 均 301 至规范页且最终 200；typecheck 通过；部署 d63bd7de。
+
+## Round 58 — 2026-08-06
+
+**发现（五驱动·竞品/UX/SEO）**
+- P2：作者页是流量入口（22,839 页），但读完一个作者后无横向发现路径；BSIO 类站点靠「相似作者」内链留住读者并强化 pSEO 内链网络。
+
+**修复**
+- 作者页新增「More {genre} authors」区块：按该作者最大有流派系列的流派，推荐同流派 6 位作者（按其最大系列规模排序）+「All {genre} series →」入口；无流派作者不显示；打印时隐藏。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson 显示「More fantasy authors」：Terry Pratchett、Piers Anthony、Mercedes Lackey 等 6 位 + fantasy 流派入口；typecheck 通过；部署 409ea791。
+
+## Round 59 — 2026-08-06
+
+**发现（五驱动·SEO 一致性）**
+- P2：/genres 索引页是全站唯一没有结构化数据的列表页（系列/作者/流派详情页均有 BreadcrumbList/ItemList），59 个流派入口未向搜索引擎声明。
+
+**修复**
+- /genres 页补 BreadcrumbList + ItemList JSON-LD（59 个流派，含规范 URL）。
+
+**证据**
+- 线上解析 /genres 的 ld+json：BreadcrumbList + ItemList numberOfItems=59；typecheck 通过；部署 17223d0b。
+
+## Round 60 — 2026-08-06
+
+**发现（五驱动·分发/竞品）**
+- P2：/new 已有流派过滤视图，但 RSS 只有全量 feed；读者想只订阅某一流派的新书（feed 阅读器是无账号分发的主要通道）。
+
+**修复**
+- /new.rss 支持 ?genre= 过滤（标题/链接/self URL/描述随流派变化，未知流派回退全量）；/new 过滤视图中的 RSS 链接自动携带当前流派参数并标注「RSS feed (fantasy)」。
+
+**证据**
+- 线上实测：?genre=fantasy 标题「New & Upcoming Fantasy Series Books」1 条、全量 33 条、未知流派回退 33 条、XML 均可解析；/new?genre=fantasy 页面 RSS 链接为流派版；typecheck 通过；部署 34bdbde6。
+
+## Round 61 — 2026-08-06
+
+**发现（五驱动·分发）**
+- P2：RSS 自动发现 `<link rel="alternate">` 只在 /new 页输出；feed 阅读器订阅首页或系列页时无法自动发现订阅源。
+- P1（数据，进行中）：核心系列书目封面覆盖率仅 41%（4,263/10,418）；已启动 Open Library 封面匹配后台任务（6,155 本待匹配，API 限速下跨轮运行，结果将在后续轮次回填 D1）。
+
+**修复**
+- layout 默认对全站每页输出 RSS 自动发现链接（默认 /new.rss，/new 页保持原逻辑）。
+
+**证据**
+- 线上实测首页、/series/discworld、/genres 均含 application/rss+xml link；typecheck 通过；部署 90b0b331。
+
+## Round 62 — 2026-08-06
+
+**发现（五驱动·分发/视觉）**
+- P2：作者页分享到社交平台时 og:image 一律是品牌卡；系列页已用真实封面，作者页（22,839 页）未对齐，分享预览吸引力低。
+
+**修复**
+- 作者页 og:image 使用其第一本有封面书的 Open Library 大图（-L.jpg），无封面作者回退品牌卡。
+
+**证据**
+- 线上实测 /authors/brandon-sanderson og:image=covers.openlibrary.org/b/id/8737489-L.jpg；/authors/randall-munroe 回退 /og.png；typecheck 通过；部署 8243b45c。
+
+## Round 63 — 2026-08-06
+
+**发现（五驱动·流程合规）**
+- P2（Company OS 交接上下文制度）：长期项目要求仓库内维护 docs/handoff-context.md，Shelfmark 尚缺，换会话/负责人接手成本高。
+
+**修复**
+- 新增 docs/handoff-context.md：基础设施/技术栈/数据管线/统计/已知缺口/流程约定全量沉淀。
+
+**证据**
+- 文档入库本轮 commit；无线上代码变更（无需部署）。
+
+## Round 64 — 2026-08-06
+
+**发现（五驱动·性能）**
+- P2：静态资源（styles.css/app.js/favicon.svg/og.png/manifest.json）以 max-age=0, must-revalidate 提供，每次页面浏览都要 ETag 往返，移动端重复访问白白多付 RTT。
+
+**修复**
+- 新增 public/_headers（Workers Assets 支持）：css/js max-age=3600，图标/og 图/manifest max-age=86400；ETag 到期后仍可协商复用。
+- 附带：scripts/fetch_ol_covers.py 超时 30→90s、间隔 0.6→1.0s（OL 搜索 API 慢查询在 30s 超时下大面积失败）；封面回填后台任务持续运行中。
+
+**证据**
+- 线上验证（workers.dev 直连绕边缘缓存）：styles.css/app.js Cache-Control: public, max-age=3600，favicon.svg 86400；部署 283902e9。
+
+## Round 65 — 2026-08-06
+
+**发现（五驱动·分发/竞品）**
+- P1（分发）：全部竞品（BSIO/readingorderlist 等）都没有开放数据接口；提供免 key 的 JSON API 可吸引开发者引用与反链（天然分发），且我们数据本就来自 CC0 的 Wikidata。
+
+**修复**
+- 新增公开 API `GET /api/series/{slug}.json`：series 名称/作者/流派/出版顺序书目（与页面渲染顺序一致，含重复序号回退逻辑），CORS `*`、Cache-Control 1h、slug 白名单正则防注入；未知 slug/非法文件名 404。
+- /about 新增「Open data API」板块（示例链接 + CC0 出处说明）。
+
+**证据**
+- 线上实测 /api/series/mistborn.json 返回 7 本正确顺序 JSON、ACAO:*、max-age=3600；does-not-exist.json 与路径穿越样例均 404；typecheck+css 通过；部署 01936eba。
