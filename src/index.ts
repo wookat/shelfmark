@@ -556,7 +556,7 @@ app.get("/genres/:slug", async (c) => {
   const body = `
 ${crumbs([["Genres", "/genres"], [gtitle(genre), ""]])}
 <h1 class="font-display font-bold text-3xl text-ink-900">${esc(gtitle(genre))} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
-<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.${newCount ? ` <a class="text-amber-accent underline" href="/new?genre=${encodeURIComponent(genre.toLowerCase())}">New &amp; upcoming in ${esc(genre.toLowerCase())} (${newCount})</a>` : ""}</p>
+<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.${newCount ? ` <a class="text-amber-accent underline" href="/new?genre=${encodeURIComponent(genre.toLowerCase())}">New &amp; upcoming in ${esc(genre.toLowerCase())} (${newCount})</a> · <a class="text-amber-accent underline" href="/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}">RSS</a>` : ""}</p>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
 ${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
@@ -565,6 +565,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
+      rss: `/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}`,
       noindex: total < 3,
       jsonLd: [
         breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [gtitle(genre), `/genres/${slug}`]]),

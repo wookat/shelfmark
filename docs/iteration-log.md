@@ -867,3 +867,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测首页出现 R.L. Stine/Asimov/Nora Roberts 等头像 URL、/authors?letter=B 渲染头像卡；width=96 URL 200 image/jpeg；typecheck+css 通过；部署 0bc899c3。
+
+## Round 69 — 2026-08-06
+
+**发现（五驱动·UX/分发）**
+- P2：R60 的分流派 RSS 只能从 /new 过滤视图发现；genre 详情页（订阅意图最强的场景）既无可见 RSS 链接、head autodiscovery 也指向全量 feed。
+
+**修复**
+- genre 详情页副标题新增「RSS」链接（紧跟 New & upcoming 入口）；layout rss 参数改为该流派的 /new.rss?genre=…，feed 阅读器在 genre 页可直接发现分流派订阅源。
+
+**证据**
+- 线上实测 /genres/fantasy 可见链接 /new.rss?genre=fantasy、/genres/science-fiction head autodiscovery=/new.rss?genre=science%20fiction 且 feed 200；typecheck 通过；部署 a1133844。
