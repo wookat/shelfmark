@@ -901,3 +901,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /authors/brandon-sanderson 渲染 3 条 FAQ 且 JSON-LD FAQPage 含相同问答（60 books/6 series、最新 Moment Zero、最长 Mistborn 8 books 2006–2022）；typecheck 通过；部署 f04e040e。
+
+## Round 72 — 2026-08-06
+
+**发现（五驱动·UX/视觉）**
+- P2：搜索结果页 Authors 区仍是旧纯文字卡，与首页//authors 的头像卡（R68）不一致。
+
+**修复**
+- 搜索结果 Authors 区改用共享 authorCard()（头像/首字母占位），三处作者卡样式统一。
+
+**证据**
+- 线上实测 /search?q=sanderson Authors 卡渲染 Commons 头像；typecheck 通过；部署 2280247a。
