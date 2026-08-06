@@ -46,7 +46,10 @@ export function layout(o: PageOpts): string {
 <meta property="og:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
 <meta name="twitter:card" content="${o.image ? "summary" : "summary_large_image"}">
 <meta name="twitter:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
-<link rel="icon" href="/favicon.svg" type="image/svg+xml">${o.rss ? `
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#f7f6f3">
+<link rel="search" type="application/opensearchdescription+xml" title="Shelfmark" href="/opensearch.xml">${o.rss ? `
 <link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + o.rss)}">` : ""}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -60,7 +63,7 @@ ${ld}
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
     <a href="/" class="font-display font-bold text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
-      <input name="q" type="search" placeholder="Search a series or author…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
+      <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
     <nav aria-label="Primary" class="ml-auto flex items-center gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
@@ -71,7 +74,7 @@ ${ld}
     </nav>
   </div>
   <form action="/search" method="get" class="sm:hidden px-4 pb-3">
-    <input name="q" type="search" placeholder="Search a series or author…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
+    <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
   </form>
 </header>
 <main id="main" class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">

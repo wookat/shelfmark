@@ -1,0 +1,12 @@
+{
+  "name": "Shelfmark — Book Series in Order",
+  "short_name": "Shelfmark",
+  "description": "Every book series in the right order, with a private no-signup reading tracker.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#f7f6f3",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -420,3 +420,139 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **Evidence**
 - Live (deploy b7ef1d86): /series/discworld LD `hasPart` = 50 items starting "1. The Light Fantastic (1986), 2. Mort (1987), 3. Equal Rites (1987)" — identical to the rendered/copy-list order; /series/mistborn = 8 items in publication order.
+
+## Round 32 — 2026-08-06
+
+**Findings (by driver)**
+- UX walkthrough: My Shelf series sections rendered in arbitrary object-key order — the series you're actively reading could sit at the bottom. [P1]
+
+**Fixes shipped**
+- Shelf sections now sort by most recent activity (group with the newest tick first; items within a group already newest-first).
+
+**Evidence**
+- Live QA (deploy d0c25dfd, recorded): ticking Fire and Ice on Warriors moved that section to the top of /shelf; stats 10/3/7 → 11/3/8 and Up next advanced correctly; untick restored order and stats exactly; axe /shelf 0 violations. See test-report-iter32.md and PR #9.
+
+## Round 33 — 2026-08-06
+
+**Findings (by driver)**
+- UX walkthrough: author pages had the same print stylesheet and trackable lists as series pages but no visible Share / Print list affordances — parity gap with the R27 series-page buttons. [P2]
+
+**Fixes shipped**
+- Author pages get a Share + "Print list" pill row under the intro (reuses the existing `data-share` / `data-print` handlers; row is print-hidden).
+
+**Evidence**
+- Live (deploy 2c78b079): /authors/brandon-sanderson renders both buttons; browser regression in next QA round.
+
+## Round 34 — 2026-08-06
+
+**Findings (by driver)**
+- SEO: genre pages listed up to 60 series cards with only BreadcrumbList structured data — no machine-readable list (series pages got `hasPart` in R31). [P2]
+
+**Fixes shipped**
+- Genre pages add `ItemList` JSON-LD: `numberOfItems` = full genre total, `itemListElement` = the page's series with absolute positions across pagination.
+
+**Evidence**
+- Live (deploy be25e741): /genres/fantasy LD → numberOfItems 272, 60 items, first "Discworld" position 1; page 2 first position 61.
+
+## Round 35 — 2026-08-06
+
+**Findings (by driver)**
+- Competitor (BSIO re-check via Sanderson page): BSIO lists upcoming installments (e.g. 2026 titles) inline but with no visual emphasis; nothing on our book lists flagged current-year or future releases either — users scanning a long list can miss that a new installment just landed. [P2]
+
+**Fixes shipped**
+- Book list rows now badge current-year releases with an amber "New" chip and future-year releases with "Upcoming" (print-hidden; series and author pages both, via shared `bookList`).
+
+**Evidence**
+- Live (deploy 52bdbe2c): /series/the-murderbot-diaries shows 2 "New" chips on its 2026 installments. Browser/axe regression in next QA round.
+
+**QA follow-up (same day)**
+- Live QA caught the chip failing axe color-contrast (4.36:1 on the amber/10 tint). Replaced the utility classes with a dedicated `.year-chip` (bg #f0e6d6 / text #6d4708, ≈7:1; print-hidden via the print media block). Re-audit on deploy 0e11b673: /series/the-murderbot-diaries back to 0 violations. "Upcoming" chip remains runtime-unverified (no >2026 book in catalog).
+
+## Round 36 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析：搜索词统计里有用户按「书名」而非系列名搜索；联想下拉（R25/R28）只覆盖系列+作者，书名前缀无候选。
+- 竞品：Goodreads/StoryGraph 联想均含书目条目。
+
+**修复（P1）**
+- `/api/suggest` 增加书名前缀匹配（≤3 条，去重，跳转所属系列页），联想合计上限 8 条；客户端已有的 kind 标签自动显示 "book"。
+
+**证据**
+- 线上验证：`/api/suggest?q=platform dec` → Platform Decay → /series/the-murderbot-diaries；`q=mistborn` → 1 系列 + 3 书目条目。
+- 部署 48ce73de；typecheck 通过。
+
+## Round 37 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析 + UX 走查：/series 浏览首页（默认 All 视图）按 book_count 排序，前排被目录噪音占领（xkcd 3200 条、Lecture Notes in Computer Science、ASCL working papers、动物志等非小说书系），第一印象差且不利收录。
+
+**修复（P1）**
+- /series 默认排序改为「有作者且有流派的书系优先」再按册数：`ORDER BY (author_id IS NOT NULL AND genre IS NOT NULL) DESC, book_count DESC`；文案同步改为 "best-documented first"。字母视图仍按名称排序，无 URL 变化、无数据删除。
+
+**证据**
+- 线上验证：/series 首屏现为 Kuroko's Basketball / One Piece / Star Trek / Nancy Drew / Goosebumps / Sherlock Holmes 等真实书系；xkcd、LNCS、working papers 退后。
+- 部署 366d4785；typecheck 通过。
+
+## Round 38 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品 + SEO：系列页无法一键跳到所属流派；流派页是站内强枢纽（fantasy 272 系列），但反向内链缺失，既损发现性也损内链权重。
+
+**修复（P2）**
+- 系列页信息条新增流派 chip（如 Fantasy / Science fiction），链接到 /genres/{slug}，capitalize 展示；无流派的系列不显示。
+
+**证据**
+- 线上验证：/series/mistborn 出现 fantasy chip → /genres/fantasy；无流派系列不受影响。
+- 部署 7d993d3a；typecheck 通过，styles.css 已重建（capitalize）。
+
+## Round 39 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品 + 分发：浏览器可通过 OpenSearch 把站点注册为地址栏搜索引擎（Goodreads 等均支持），Shelfmark 缺此免登录分发入口。
+
+**修复（P2）**
+- 新增 /opensearch.xml（OpenSearchDescription：/search?q={searchTerms} 模板 + JSON 建议端点）与 /api/opensearch-suggest（OpenSearch 建议格式，前 5 个系列名，1h 缓存）；全站 <head> 加 rel="search" 自动发现。
+
+**证据**
+- 线上验证：/opensearch.xml 200 + application/opensearchdescription+xml；/api/opensearch-suggest?q=disc → ["disc",["Discworld",…]]；首页 head 含 opensearch link。
+- 部署 31aad757；typecheck 通过。注意：新路由边缘传播约需 2–5 分钟（与 /new.rss 现象一致）。
+
+## Round 40 — 2026-08-05
+
+**发现（五驱动）**
+- 视觉/移动端：站点缺 Web App Manifest 与 theme-color，移动端「添加到主屏幕」体验为普通书签，浏览器 UI 不随品牌配色。
+
+**修复（P2）**
+- 新增 /manifest.json（name/short_name/standalone/背景与主题色 #f7f6f3/SVG 图标）；全站 <head> 加 rel="manifest" + theme-color meta。追踪器本就 localStorage 本地化，PWA 安装后离线书架天然可用（无 SW，仅安装性增强）。
+
+**证据**
+- 线上验证：/manifest.json 200 application/json；首页 head 含 manifest link 与 theme-color。
+- 部署 fa2f528a；typecheck 通过。
+
+## Round 41 — 2026-08-05
+
+**发现（五驱动）**
+- SEO：作者页只有 Person + Breadcrumb 结构化数据，缺系列列表 ItemList（流派页 R34 已有，作者页不一致）。
+- UX：R36 联想已支持书名，但搜索框 placeholder 仍写 "Search a series or author…"，能力被低估。
+
+**修复（P2×2）**
+- 作者页 JSON-LD 增补 ItemList（Book series by {author}，按 book_count 排序，含每系列 URL）。
+- 搜索框 placeholder（桌面+移动）改为 "Search series, authors, books…"。
+
+**证据**
+- 线上验证：/authors/brandon-sanderson JSON-LD 含 Person + BreadcrumbList + ItemList(6)；placeholder 已更新。
+- 部署 ea6e37e4；typecheck 通过。
+
+## Round 42 — 2026-08-05
+
+**发现（五驱动）**
+- UX + 竞品：/new 混排全部流派（31 条含 manga/学术等），读者无法按兴趣浏览；竞品新书页普遍可按类型过滤。
+- 分发：R37-41 大改后核心 hub URL 需重新提交 IndexNow。
+
+**修复（P1+运营）**
+- /new 新增流派过滤 chips（按条数排序 + All，选中态深色、含计数、print 隐藏），?genre= 大小写不敏感匹配，过滤视图 noindex,follow 防重复收录；无效 genre 回落 All。
+- IndexNow 重新提交 9 个核心 URL（200）。
+- QA 抓到首版 bug：混合大小写流派（Nordic noir）因 lowercase includes 匹配失败导致过滤不生效，已修复（find + toLowerCase 对比）。
+
+**证据**
+- 线上验证：/new?genre=science%20fiction → 4 条 + noindex；chips 渲染于 /new；部署 d48426e6；typecheck 通过。

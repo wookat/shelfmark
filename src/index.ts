@@ -133,7 +133,7 @@ app.get("/series", async (c) => {
   const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
   const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
   const where = letter ? `WHERE s.book_count > 0 AND UPPER(s.name) LIKE ?` : "WHERE s.book_count > 0";
-  const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "s.book_count DESC"} LIMIT ? OFFSET ?`;
+  const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "(s.author_id IS NOT NULL AND s.genre IS NOT NULL) DESC, s.book_count DESC"} LIMIT ? OFFSET ?`;
   const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
   const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Series>();
   const countSql = `SELECT COUNT(*) AS n FROM series s ${where}`;
@@ -146,7 +146,7 @@ app.get("/series", async (c) => {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
-<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series${letter ? ` starting with ${letter}` : ", sorted by size"}. Page ${page} of ${pages || 1}.</p>
+<p class="mt-2 text-ink-700">${Number(n).toLocaleString()} series${letter ? ` starting with ${letter}` : ", best-documented first"}. Page ${page} of ${pages || 1}.</p>
 <nav aria-label="Series by letter" class="mt-4 flex flex-wrap gap-1.5 text-sm">
   <a href="/series" class="rounded-full px-3 py-1.5 border ${!letter ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
   ${letters.map((l) => `<a href="/series?letter=${l}" class="rounded-full px-3 py-1.5 border ${letter === l ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${l}</a>`).join("")}
@@ -249,6 +249,10 @@ app.get("/authors/:slug", async (c) => {
 ${crumbs([["Authors", "/authors"], [author.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(author.name)} Books in Order</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">${author.bio ? `${esc(author.name)} is ${/^[aeiou]/i.test(author.bio) ? "an" : "a"} ${esc(author.bio)}. ` : ""}${esc(`${author.name} has written ${bookNoun(author.book_count)}${author.series_count ? ` across ${author.series_count} series` : ""}. Below is every book in publication order — tick books off as you read them; progress saves automatically on your device.`)}</p>
+<div class="mt-4 flex flex-wrap items-center gap-3 text-sm print:hidden">
+  <button type="button" data-share data-share-title="${esc(author.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Share</button>
+  <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Print list</button>
+</div>
 ${series.map((s) => {
   const bs = bySeries.get(s.id) ?? [];
   return `<section class="mt-10" id="${s.slug}">
@@ -277,6 +281,18 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
       jsonLd: [
         { "@context": "https://schema.org", "@type": "Person", name: author.name, url: `${c.env.SITE_URL}/authors/${slug}` },
         breadcrumbLd(c.env.SITE_URL, [["Authors", "/authors"], [author.name, `/authors/${slug}`]]),
+        ...(series.length ? [{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `Book series by ${author.name}`,
+          numberOfItems: series.length,
+          itemListElement: series.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        }] : []),
       ],
       body,
     })
@@ -331,6 +347,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  ${series.genre ? `<a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent capitalize">${esc(series.genre)}</a>` : ""}
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
   ${books.length ? `<button type="button" data-copylist="${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
@@ -397,7 +414,7 @@ ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white bo
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
 </ol>`;
@@ -473,7 +490,21 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
-      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]])],
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `${genre} book series in order`,
+          numberOfItems: total,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: (page - 1) * PAGE_SIZE + i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
       body,
     })
   );
@@ -556,9 +587,15 @@ app.get("/shelf", (c) => {
 // ---------- New releases ----------
 app.get("/new", async (c) => {
   const year = new Date().getFullYear();
-  const { results: upcoming } = await c.env.DB.prepare(
-    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`
-  ).bind(year, year + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
+  const genreParam = (c.req.query("genre") ?? "").trim().toLowerCase().slice(0, 40);
+  const { results: all } = await c.env.DB.prepare(
+    `SELECT b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, s.genre AS genre, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`
+  ).bind(year, year + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; genre: string; author_name: string | null }>();
+  const genreCounts = new Map<string, number>();
+  for (const b of all) genreCounts.set(b.genre, (genreCounts.get(b.genre) ?? 0) + 1);
+  const genres = [...genreCounts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
+  const activeGenre = genres.find((g) => g.toLowerCase() === genreParam) ?? null;
+  const upcoming = activeGenre ? all.filter((b) => b.genre === activeGenre) : all;
   const byYear = new Map<number, typeof upcoming>();
   for (const b of upcoming) {
     if (!byYear.has(b.year)) byYear.set(b.year, []);
@@ -568,8 +605,13 @@ app.get("/new", async (c) => {
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss">RSS feed</a></p>
+${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-wrap gap-1.5 text-sm print:hidden">
+  <a href="/new" class="rounded-full px-3 py-1.5 border ${!activeGenre ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
+  ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(g)} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
+</nav>` : ""}
 ${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
 ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
+  const noindex = Boolean(activeGenre);
   return c.html(
     layout({
       title: `New Book Series Releases ${year} & ${year + 1} | Shelfmark`,
@@ -578,6 +620,7 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
       siteUrl: c.env.SITE_URL,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["New releases", "/new"]])],
       rss: "/new.rss",
+      noindex,
       body,
     })
   );
@@ -608,6 +651,33 @@ ${items.map((b) => `<item>
   c.header("Content-Type", "application/rss+xml; charset=utf-8");
   c.header("Cache-Control", "public, max-age=3600");
   return c.body(xml);
+});
+
+app.get("/opensearch.xml", (c) => {
+  const site = c.env.SITE_URL;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+<ShortName>Shelfmark</ShortName>
+<Description>Search book series and authors on Shelfmark — reading orders and a free tracker.</Description>
+<InputEncoding>UTF-8</InputEncoding>
+<Image width="16" height="16" type="image/svg+xml">${site}/favicon.svg</Image>
+<Url type="text/html" method="get" template="${site}/search?q={searchTerms}"/>
+<Url type="application/x-suggestions+json" method="get" template="${site}/api/opensearch-suggest?q={searchTerms}"/>
+</OpenSearchDescription>`;
+  c.header("Content-Type", "application/opensearchdescription+xml; charset=utf-8");
+  c.header("Cache-Control", "public, max-age=86400");
+  return c.body(xml);
+});
+
+app.get("/api/opensearch-suggest", async (c) => {
+  const q = (c.req.query("q") ?? "").trim().slice(0, 60);
+  if (q.length < 2) return c.json([q, []]);
+  const like = `${q.replace(/[%_]/g, " ")}%`;
+  const { results } = await c.env.DB.prepare(
+    `SELECT name FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+  ).bind(like).all<{ name: string }>();
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.json([q, results.map((s) => s.name)]);
 });
 
 // ---------- Static-ish pages ----------
@@ -662,12 +732,17 @@ app.get("/api/suggest", async (c) => {
   const { results: authors } = await c.env.DB.prepare(
     `SELECT name, slug FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 3`
   ).bind(like).all<{ name: string; slug: string }>();
+  const { results: books } = await c.env.DB.prepare(
+    `SELECT b.title, s.slug FROM books b JOIN series s ON s.id=b.series_id WHERE b.title LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
+  ).bind(like).all<{ title: string; slug: string }>();
   c.header("Cache-Control", "public, max-age=3600");
+  const seen = new Set<string>();
   return c.json({
     results: [
       ...series.map((s) => ({ label: s.name, href: `/series/${s.slug}`, kind: "series" })),
       ...authors.map((a) => ({ label: a.name, href: `/authors/${a.slug}`, kind: "author" })),
-    ],
+      ...books.filter((b) => (seen.has(b.title) ? false : (seen.add(b.title), true))).map((b) => ({ label: b.title, href: `/series/${b.slug}`, kind: "book" })),
+    ].slice(0, 8),
   });
 });
 
