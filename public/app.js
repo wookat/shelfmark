@@ -100,6 +100,37 @@
       });
     });
     updateSeriesUI(slug);
+
+    var boxes = list.querySelectorAll("input[data-book]");
+    if (boxes.length > 1) {
+      var controls = document.createElement("div");
+      controls.className = "mt-3 flex gap-2 text-xs print:hidden";
+      function bulkBtn(label, checked) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = label;
+        b.className = "rounded-full bg-white border border-ink-200 px-3 py-1.5 hover:border-amber-accent cursor-pointer";
+        b.addEventListener("click", function () {
+          var d = load();
+          boxes.forEach(function (box) {
+            var id = box.getAttribute("data-book");
+            box.checked = checked;
+            if (checked) {
+              if (!d[id]) d[id] = { t: Date.now(), title: box.getAttribute("data-title"), series: seriesName, slug: slug };
+            } else {
+              delete d[id];
+            }
+          });
+          save(d);
+          data = d;
+          updateSeriesUI(slug);
+        });
+        return b;
+      }
+      controls.appendChild(bulkBtn("Mark all read", true));
+      controls.appendChild(bulkBtn("Clear progress", false));
+      list.insertAdjacentElement("afterend", controls);
+    }
   });
 
   // progress bars on card grids (series cards elsewhere) — computed only for lists present.
@@ -155,13 +186,27 @@
         var key = e.slug || e.series || "other";
         (bySeries[key] = bySeries[key] || { name: e.series || key, slug: e.slug, items: [] }).items.push(e);
       });
-      var html = '<p class="text-ink-700 mb-6"><strong>' + entries.length + "</strong> books read across <strong>" + Object.keys(bySeries).length + "</strong> series.</p>";
+      var yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
+      var thisYear = entries.filter(function (e) { return e.t > 1e12 && e.t >= yearStart; }).length;
+      var topSeries = null;
+      Object.keys(bySeries).forEach(function (k) {
+        if (!topSeries || bySeries[k].items.length > topSeries.items.length) topSeries = bySeries[k];
+      });
+      function statCard(num, label) {
+        return '<div class="rounded-2xl bg-white border border-ink-200 p-4 text-center"><p class="font-display font-bold text-2xl text-ink-900">' + num + '</p><p class="text-xs text-ink-700/80 mt-1">' + label + "</p></div>";
+      }
+      var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">' +
+        statCard(entries.length, "books read") +
+        statCard(Object.keys(bySeries).length, "series followed") +
+        statCard(thisYear, "read in " + new Date().getFullYear()) +
+        statCard(topSeries ? escapeHtml(topSeries.name.length > 22 ? topSeries.name.slice(0, 21) + "…" : topSeries.name) : "—", "most-read series") +
+        "</div>";
       Object.keys(bySeries).forEach(function (k) {
         var g = bySeries[k];
         g.items.sort(function (a, b) { return b.t - a.t; });
         html += '<section class="mb-6"><h2 class="font-display font-semibold text-xl text-ink-900">' +
           (g.slug ? '<a class="hover:text-amber-accent" href="' + (g.slug.indexOf("standalone-") === 0 ? "/authors/" + g.slug.slice(11) : "/series/" + g.slug) + '">' : "") + escapeHtml(g.name) + (g.slug ? "</a>" : "") +
-          ' <span class="text-sm font-sans font-normal text-ink-700/70">' + g.items.length + " read</span></h2><ul class=\"mt-2 space-y-1\">" +
+          ' <span class="text-sm font-sans font-normal text-ink-700/75">' + g.items.length + " read</span></h2><ul class=\"mt-2 space-y-1\">" +
           g.items.map(function (e) {
             return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
           }).join("") + "</ul></section>";

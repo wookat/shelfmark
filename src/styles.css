@@ -9,7 +9,12 @@
   --color-ink-700: #3d3a33;
   --color-ink-800: #292722;
   --color-ink-900: #1a1916;
-  --color-amber-accent: #c8842c;
+  --color-amber-accent: #9a6414;
+}
+
+/* Amber accent needs to be lighter on dark surfaces to keep ≥4.5:1 contrast. */
+.bg-ink-900 .text-amber-accent {
+  color: #e8b05f;
 }
 
 .up-next-badge {

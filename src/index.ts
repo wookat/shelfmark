@@ -69,6 +69,9 @@ app.get("/", async (c) => {
   ).bind(homeYear, homeYear + 1).all<{ title: string; year: number; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
   const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
   const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books`).all()).results as any[]);
+  const { results: topGenres } = await c.env.DB.prepare(
+    `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 10 ORDER BY n DESC LIMIT 12`
+  ).all<{ genre: string; n: number }>();
   const body = `
 <section class="text-center py-10">
   <h1 class="font-display font-bold text-4xl sm:text-5xl text-ink-900 leading-tight">Read every series<br>in the <span class="text-amber-accent">right order</span>.</h1>
@@ -84,8 +87,12 @@ app.get("/", async (c) => {
 </section>
 ${fresh.length ? `<section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">New &amp; upcoming</h2><a href="/new" class="text-sm text-amber-accent font-medium">All new releases →</a></div>
-  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li><a href="/series/${b.series_slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li><a href="/series/${b.series_slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
 </section>` : ""}
+<section class="mt-12">
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Browse by genre</h2><a href="/genres" class="text-sm text-amber-accent font-medium">All genres →</a></div>
+  <div class="mt-4 flex flex-wrap gap-2">${topGenres.map((g) => `<a href="/genres/${gslug(g.genre)}" class="rounded-full bg-white border border-ink-200 px-4 py-2 text-sm hover:border-amber-accent">${esc(g.genre)} <span class="text-ink-700/75">${g.n}</span></a>`).join("")}</div>
+</section>
 <section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Prolific authors</h2><a href="/authors" class="text-sm text-amber-accent font-medium">All authors →</a></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">
@@ -125,7 +132,7 @@ app.get("/series", async (c) => {
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
   const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
   const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
-  const where = letter ? `WHERE UPPER(s.name) LIKE ?` : "";
+  const where = letter ? `WHERE s.book_count > 0 AND UPPER(s.name) LIKE ?` : "WHERE s.book_count > 0";
   const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "s.book_count DESC"} LIMIT ? OFFSET ?`;
   const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
   const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Series>();
@@ -135,6 +142,7 @@ app.get("/series", async (c) => {
     : await c.env.DB.prepare(countSql).all()
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  if (page > Math.max(1, pages)) return notFound(c);
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
@@ -182,6 +190,7 @@ app.get("/authors", async (c) => {
     : await c.env.DB.prepare(countSql).all()
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
+  if (page > Math.max(1, pages)) return notFound(c);
   const base = letter ? `/authors?letter=${letter}&` : "/authors?";
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
@@ -245,7 +254,7 @@ ${series.map((s) => {
   return `<section class="mt-10" id="${s.slug}">
   <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
     <h2 class="font-display font-semibold text-2xl text-ink-900"><a href="/series/${s.slug}" class="hover:text-amber-accent">${esc(s.name)}</a></h2>
-    <span class="text-sm text-ink-700/70">${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</span>
+    <span class="text-sm text-ink-700/75">${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</span>
     <span class="text-sm font-medium text-amber-accent" data-progress-label="${s.slug}"></span>
   </div>
   ${bookList(bs, s)}
@@ -254,7 +263,7 @@ ${series.map((s) => {
 ${standalone.length ? `<section class="mt-10" id="standalone">
   <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
     <h2 class="font-display font-semibold text-2xl text-ink-900">Standalone books</h2>
-    <span class="text-sm text-ink-700/70">${bookNoun(standalone.length)}</span>
+    <span class="text-sm text-ink-700/75">${bookNoun(standalone.length)}</span>
     <span class="text-sm font-medium text-amber-accent" data-progress-label="standalone-${slug}"></span>
   </div>
   ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
@@ -328,7 +337,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
 ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
-<p class="mt-4 text-sm text-ink-700/70 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
+<p class="mt-4 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>.</p>
 ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
 ${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div></section>` : ""}
 ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
@@ -367,7 +376,7 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
 });
 
 function bookList(books: Book[], s: TrackList): string {
-  if (!books.length) return `<p class="mt-4 text-ink-700/70 text-sm">No books recorded for this series yet.</p>`;
+  if (!books.length) return `<p class="mt-4 text-ink-700/75 text-sm">No books recorded for this series yet.</p>`;
   const positions = books.map((b) => b.position).filter((p): p is number => p != null);
   const dupPositions = new Set(positions).size !== positions.length;
   if (dupPositions) books = [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0));
@@ -375,15 +384,15 @@ function bookList(books: Book[], s: TrackList): string {
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
-    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/50 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
 </li>`).join("\n")}
 </ol>`;
 }
 
 function crumbs(items: [string, string][]): string {
-  return `<nav class="text-sm text-ink-700/70 mb-4"><a href="/" class="hover:text-amber-accent">Home</a>${items
+  return `<nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a>${items
     .map(([label, href]) => ` / ${href ? `<a href="${href}" class="hover:text-amber-accent">${esc(label)}</a>` : `<span class="text-ink-900">${esc(label)}</span>`}`)
     .join("")}</nav>`;
 }
@@ -432,19 +441,25 @@ app.get("/genres/:slug", async (c) => {
   ).all<{ genre: string }>();
   const genre = genres.find((g) => gslug(g.genre) === slug)?.genre;
   if (!genre) return notFound(c);
+  const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
+  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series WHERE genre=? AND book_count > 0`).bind(genre).all()).results as any[]);
+  const total = Number(n);
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (page > pages) return notFound(c);
   const { results } = await c.env.DB.prepare(
-    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? ORDER BY s.book_count DESC LIMIT 200`
-  ).bind(genre).all<Series>();
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
+  ).bind(genre, PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
   const body = `
 ${crumbs([["Genres", "/genres"], [genre, ""]])}
-<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order</h1>
-<p class="mt-2 text-ink-700">${results.length} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
-<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
+<h1 class="font-display font-bold text-3xl text-ink-900">${esc(genre)} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
+<p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
     layout({
-      title: `${genre} Book Series in Order (${results.length} Series) | Shelfmark`,
+      title: `${genre} Book Series in Order (${total} Series) | Shelfmark`,
       description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
-      path: `/genres/${slug}`,
+      path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Genres", "/genres"], [genre, `/genres/${slug}`]])],
       body,
@@ -461,7 +476,7 @@ app.get("/search", async (c) => {
   } else {
     const like = `%${q.replace(/[%_]/g, " ")}%`;
     let { results: series } = await c.env.DB.prepare(
-      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? ORDER BY s.book_count DESC LIMIT 30`
+      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 30`
     ).bind(like).all<Series>();
     let { results: authors } = await c.env.DB.prepare(
       `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
@@ -475,7 +490,7 @@ app.get("/search", async (c) => {
       closeMatches = true;
       const binds = tokens.map((t) => `%${t}%`);
       ({ results: series } = await c.env.DB.prepare(
-        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${tokens.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 12`
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count > 0 AND (${tokens.map(() => "s.name LIKE ?").join(" OR ")}) ORDER BY s.book_count DESC LIMIT 12`
       ).bind(...binds).all<Series>());
       ({ results: authors } = await c.env.DB.prepare(
         `SELECT * FROM authors WHERE ${tokens.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 12`
@@ -494,6 +509,7 @@ ${!series.length && !authors.length && !bookHits.length ? `<p class="mt-6 text-i
       description: "Search book series and authors on Shelfmark.",
       path: "/search",
       siteUrl: c.env.SITE_URL,
+      noindex: !!q,
       body,
     })
   );
@@ -504,7 +520,7 @@ app.get("/shelf", (c) => {
   const body = `
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">My Shelf</h1>
 <p class="mt-2 text-ink-700 max-w-2xl">Everything you've ticked off, in one place. Stored privately in this browser — nothing leaves your device.</p>
-<div id="shelf-root" class="mt-8"><p class="text-ink-700/70">Loading your shelf…</p></div>
+<div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
 <div class="mt-10 flex flex-wrap gap-3">
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
@@ -512,7 +528,7 @@ app.get("/shelf", (c) => {
   <input id="import-file" type="file" accept="application/json,.json" class="hidden" aria-label="Import shelf backup file">
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
-<p class="mt-3 text-xs text-ink-700/70 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices.</p>
+<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
@@ -540,7 +556,7 @@ app.get("/new", async (c) => {
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order.</p>
-${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/50">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
+${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
 ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
   return c.html(
     layout({
@@ -720,7 +736,7 @@ async function seriesSuggestions(c: any, slug: string): Promise<{ href: string; 
   const words = slugWords(slug);
   if (!words.length) return [];
   const { results } = await c.env.DB.prepare(
-    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${words.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 5`
+    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count > 0 AND (${words.map(() => "s.name LIKE ?").join(" OR ")}) ORDER BY s.book_count DESC LIMIT 5`
   ).bind(...words).all();
   return (results as { slug: string; name: string; author_name: string | null }[]).map((s) => ({ href: `/series/${s.slug}`, label: s.name + (s.author_name ? ` by ${s.author_name}` : "") }));
 }

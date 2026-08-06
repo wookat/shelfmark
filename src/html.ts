@@ -12,6 +12,7 @@ export interface PageOpts {
   body: string;
   h1?: boolean;
   image?: string;
+  noindex?: boolean;
 }
 
 const SISTERS = [
@@ -34,7 +35,8 @@ export function layout(o: PageOpts): string {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${esc(o.title)}</title>
 <meta name="description" content="${esc(o.description)}">
-<link rel="canonical" href="${esc(canonical)}">
+<link rel="canonical" href="${esc(canonical)}">${o.noindex ? `
+<meta name="robots" content="noindex,follow">` : ""}
 <meta property="og:title" content="${esc(o.title)}">
 <meta property="og:description" content="${esc(o.description)}">
 <meta property="og:url" content="${esc(canonical)}">
@@ -58,7 +60,7 @@ ${ld}
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
       <input name="q" type="search" placeholder="Search a series or author…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
-    <nav class="ml-auto flex items-center gap-4 text-sm font-medium">
+    <nav aria-label="Primary" class="ml-auto flex items-center gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
       <a href="/genres" class="hover:text-amber-accent">Genres</a>
@@ -78,7 +80,7 @@ ${o.body}
     <div>
       <p class="font-display font-bold text-ink-900 text-lg mb-2">Shelfmark</p>
       <p>Every book series in the right order — and a private, no-signup reading tracker built into every page.</p>
-      <p class="mt-3 text-xs text-ink-700/70">Data from Wikidata &amp; Open Library (CC0). Not affiliated with any retailer.</p>
+      <p class="mt-3 text-xs text-ink-700/75">Data from Wikidata &amp; Open Library (CC0). Not affiliated with any retailer.</p>
     </div>
     <div>
       <p class="font-semibold text-ink-900 mb-2">Explore</p>
