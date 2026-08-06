@@ -786,3 +786,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上实测 /authors/brandon-sanderson og:image=covers.openlibrary.org/b/id/8737489-L.jpg；/authors/randall-munroe 回退 /og.png；typecheck 通过；部署 8243b45c。
+
+## Round 63 — 2026-08-06
+
+**发现（五驱动·流程合规）**
+- P2（Company OS 交接上下文制度）：长期项目要求仓库内维护 docs/handoff-context.md，Shelfmark 尚缺，换会话/负责人接手成本高。
+
+**修复**
+- 新增 docs/handoff-context.md：基础设施/技术栈/数据管线/统计/已知缺口/流程约定全量沉淀。
+
+**证据**
+- 文档入库本轮 commit；无线上代码变更（无需部署）。
