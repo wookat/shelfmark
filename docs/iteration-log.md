@@ -556,3 +556,121 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**
 - 线上验证：/new?genre=science%20fiction → 4 条 + noindex；chips 渲染于 /new；部署 d48426e6；typecheck 通过。
+
+## Round 43 — 2026-08-05
+
+**发现（五驱动）**
+- UX + 内链：流派页与 /new 流派过滤（R42）互不相通：读者在 /genres/science-fiction 看不到该流派今明两年有哪些新书。
+
+**修复（P2）**
+- 流派详情页副标题新增「New & upcoming in {genre} (N)」链接 → /new?genre={genre}（小写传参，R42 匹配大小写不敏感）；N 为该流派 2026–2027 新作数（与 /new 相同的净化条件），为 0 时不显示。
+
+**证据**
+- 线上验证：/genres/science-fiction 显示 "New & upcoming in science fiction (4)" → /new 过滤视图；/genres/fantasy 无新作故无链接（正确）。
+- 部署 89adff10；typecheck 通过。
+
+## Round 44 — 2026-08-05
+
+**发现（五驱动）**
+- 安全审计复检：全站响应头缺 Strict-Transport-Security 与 Permissions-Policy（CSP/XCTO/Referrer/XFO 均在位）。
+
+**修复（P1）**
+- 安全头中间件补 HSTS（max-age=31536000; includeSubDomains）与 Permissions-Policy（禁 camera/microphone/geolocation/payment）。
+
+**证据**
+- 线上验证：响应头含两项新头；其余安全头不变。
+- 部署 3852c8c5；typecheck 通过。
+
+## Round 45 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品/UX：系列页有「Copy list」一键分享，但作者页的各系列区块没有，作者页读者要多跳一次才能复制阅读顺序。
+
+**修复（P2）**
+- 作者页每个系列区块标题行新增「Copy list」按钮（复用 data-copylist 处理器，复制编号书单+回链 /series/{slug}；Standalone books 区块不加，因无系列落地页）。
+
+**证据**
+- 线上验证：/authors/brandon-sanderson 6 个系列各有按钮；/authors/martha-wells 1 个（Standalone 区块正确无按钮）。
+- 部署 7256351c；typecheck 通过。
+
+## Round 46 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品/UX：读者最常问「这个系列最近出新书了吗」，R35 的行内 New 徽章要滚动到列表里才看到；页首无醒目提示。
+
+**修复（P2）**
+- 系列页 H1 下新增新作横幅：最新一本出版年 ≥ 今年时显示「New in {year} “{title}” is the newest … book — it's in the list below」；年份 > 今年显示 Upcoming 变体。复用 .year-chip 高对比配色。
+
+**证据**
+- 线上验证：/series/the-murderbot-diaries 显示 New in 2026 + Platform Decay 横幅；/series/discworld（无今年新作）正确不显示。
+- 部署 71cab39b；typecheck + css 重建通过。
+
+## Round 47 — 2026-08-05
+
+**发现（五驱动）**
+- UX 走查：新访客首次打开 /shelf 只有一个「Browse series」按钮，空状态缺少具体起步建议，跳出成本高。
+
+**修复（P2）**
+- 空书架状态新增「Popular starts」行：Discworld / Mistborn / The Murderbot Diaries / New releases 四个直达链接（纯客户端，不影响已有进度用户）。
+
+**证据**
+- 线上验证：app.js 已含 Popular starts（部署 7d0cf7d3）；node --check 语法通过。
+
+## Round 48 — 2026-08-05
+
+**发现（五驱动）**
+- UX 走查：搜索零结果页只有一行提示，访客到此即流失（数据驱动亦显示 /search 有零结果访问）。
+
+**修复（P2）**
+- 零结果状态补充：增加 genres 浏览链接，并渲染 6 个「Popular series」卡片（与首页同口径的净化查询），把死胡同变成继续探索的入口。
+
+**证据**
+- 线上验证：/search?q=zzzzqqqq 显示 Popular series 卡片区；/search?q=discworld（有结果）不显示。
+- 部署 77944115；typecheck 通过。
+
+## Round 49 — 2026-08-05
+
+**发现（五驱动）**
+- UX/分发：R29 RSS、R39 OpenSearch、R40 可安装 PWA 等分发通道对用户不可见，/about 未提及任何跟进新书的方式。
+
+**修复（P2）**
+- /about 新增「Ways to follow new releases」板块：/new + 流派过滤、RSS 订阅、浏览器地址栏搜索引擎（OpenSearch）、移动端 Add to Home Screen 四条路径。
+
+**证据**
+- 线上验证：/about 显示新板块（部署 5b4bb009）；typecheck 通过。
+
+## Round 50 — 2026-08-05
+
+**发现（五驱动）**
+- QA/分发：R43–49 改动了系列页、/about、搜索页等大批页面，需要全站健康检查并向搜索引擎重新宣告。
+
+**修复（P1/例行）**
+- 16 个关键端点线上健康检查全部 200（含 sitemap/robots/opensearch/manifest/RSS）。
+- IndexNow 全量重提交 25,647 个 URL（4 批，全部 HTTP 200）。
+
+**证据**
+- 健康检查与 IndexNow 输出记录于会话；无回归。
+
+## Round 51 — 2026-08-05
+
+**发现（五驱动）**
+- 竞品调研（BSIO 复访）：BSIO 靠「suggestion box + email us」形成用户纠错/补录闭环；Shelfmark 仅 /about 深处有一处报错邮箱，系列页无就地反馈入口。BSIO 另有 Book Release Calendar（月度粒度）——我方数据只有年份粒度，为不伪造数据暂不做日历视图。
+
+**修复（P2）**
+- 系列页追踪说明行新增「Spotted a wrong or missing book? Report it」mailto 链接，主题自动带系列名（Shelfmark data issue: {series}），建立数据纠错闭环。
+
+**证据**
+- 线上验证：/series/discworld 含预填主题的 mailto 链接（部署 f09dee2c）；typecheck 通过。
+
+## Round 52 — 2026-08-05
+
+**发现（五驱动）**
+- 数据分析：2,590 个有书系列中 1,516 个缺 genre（其中 709 个有作者），被排除在 /genres 浏览、/new 净化查询与流派内链之外。
+
+**修复（P1，数据扩容）**
+- 新增 scripts/backfill_genres.py（系列实体 P136 回填，仅命中 2）与 scripts/backfill_genres_books.py（按系列各书 P136 多数投票回填，≥2 本一致或 2 本系列 1 本即采纳）。
+- 扫描 7,124 本书的 Wikidata 声明，370 个系列新增 genre（74 个不同流派），fantasy 272→379、science fiction→287。
+
+**证据**
+- 线上验证：/genres/fantasy 显示 379 series；新入流派样本 Fitz and the Fool（Robin Hobb）归入 fantasy 正确。
+- 未伪造数据：全部取自 Wikidata P136；无多数一致者保持 NULL（余 1,145 个）。
