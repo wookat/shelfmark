@@ -125,7 +125,7 @@ app.get("/series", async (c) => {
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
   const rawLetter = (c.req.query("letter") ?? "").toUpperCase();
   const letter = /^[A-Z]$/.test(rawLetter) ? rawLetter : null;
-  const where = letter ? `WHERE UPPER(s.name) LIKE ?` : "";
+  const where = letter ? `WHERE s.book_count > 0 AND UPPER(s.name) LIKE ?` : "WHERE s.book_count > 0";
   const listSql = `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id ${where} ORDER BY ${letter ? "s.name" : "s.book_count DESC"} LIMIT ? OFFSET ?`;
   const listArgs = letter ? [`${letter}%`, PAGE_SIZE, (page - 1) * PAGE_SIZE] : [PAGE_SIZE, (page - 1) * PAGE_SIZE];
   const { results } = await c.env.DB.prepare(listSql).bind(...listArgs).all<Series>();
@@ -433,11 +433,11 @@ app.get("/genres/:slug", async (c) => {
   const genre = genres.find((g) => gslug(g.genre) === slug)?.genre;
   if (!genre) return notFound(c);
   const page = Math.max(1, parseInt(c.req.query("page") ?? "1") || 1);
-  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series WHERE genre=?`).bind(genre).all()).results as any[]);
+  const [{ n }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS n FROM series WHERE genre=? AND book_count > 0`).bind(genre).all()).results as any[]);
   const total = Number(n);
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const { results } = await c.env.DB.prepare(
-    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT ? OFFSET ?`
   ).bind(genre, PAGE_SIZE, (page - 1) * PAGE_SIZE).all<Series>();
   const body = `
 ${crumbs([["Genres", "/genres"], [genre, ""]])}
@@ -466,7 +466,7 @@ app.get("/search", async (c) => {
   } else {
     const like = `%${q.replace(/[%_]/g, " ")}%`;
     let { results: series } = await c.env.DB.prepare(
-      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? ORDER BY s.book_count DESC LIMIT 30`
+      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 30`
     ).bind(like).all<Series>();
     let { results: authors } = await c.env.DB.prepare(
       `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
@@ -480,7 +480,7 @@ app.get("/search", async (c) => {
       closeMatches = true;
       const binds = tokens.map((t) => `%${t}%`);
       ({ results: series } = await c.env.DB.prepare(
-        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${tokens.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 12`
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count > 0 AND (${tokens.map(() => "s.name LIKE ?").join(" OR ")}) ORDER BY s.book_count DESC LIMIT 12`
       ).bind(...binds).all<Series>());
       ({ results: authors } = await c.env.DB.prepare(
         `SELECT * FROM authors WHERE ${tokens.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 12`
@@ -725,7 +725,7 @@ async function seriesSuggestions(c: any, slug: string): Promise<{ href: string; 
   const words = slugWords(slug);
   if (!words.length) return [];
   const { results } = await c.env.DB.prepare(
-    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${words.map(() => "s.name LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 5`
+    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count > 0 AND (${words.map(() => "s.name LIKE ?").join(" OR ")}) ORDER BY s.book_count DESC LIMIT 5`
   ).bind(...words).all();
   return (results as { slug: string; name: string; author_name: string | null }[]).map((s) => ({ href: `/series/${s.slug}`, label: s.name + (s.author_name ? ` by ${s.author_name}` : "") }));
 }
