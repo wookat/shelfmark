@@ -1271,6 +1271,7 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **修复/动作**
 - 14 个核心端点全 200；IndexNow 提交 /pricing 等 5 个关键 URL（HTTP 200）；部署 5bd481b2。
+- QA 抓到 P1：移动端 375px 头部导航溢出（`.beta-badge` 自定义 CSS 的 display 覆盖了 `hidden` 工具类导致 Beta 徽章在小屏可见 + 首页 New&upcoming 卡 grid 项缺 min-w-0 撑宽页面 + 导航本身预存溢出）。修复：Beta 徽章 `hidden sm:inline-block`、Genres/New 分别 ≥360/380px 才显示、导航间距与 logo 尺寸移动端收紧、卡片加 min-w-0。Playwright 实测 360–768px 全部无横向溢出（320px 罕见宽度仍略溢出，遗留 P3）。部署 736b827e。
 
 ---
 

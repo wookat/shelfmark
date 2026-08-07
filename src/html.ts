@@ -62,19 +62,19 @@ ${ld}
 <body class="bg-ink-50 text-ink-800 font-sans antialiased min-h-screen flex flex-col">
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-3 focus:py-1.5 focus:rounded-full focus:text-sm focus:shadow">Skip to content</a>
 <header class="border-b border-ink-200 bg-ink-50/90 backdrop-blur sticky top-0 z-20">
-  <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
-    <a href="/" class="font-display font-bold text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
-    <a href="/pricing" class="beta-badge shrink-0" title="Free while in beta — see planned pricing">Beta</a>
+  <div class="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-4">
+    <a href="/" class="font-display font-bold text-lg sm:text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
+    <a href="/pricing" class="beta-badge shrink-0 hidden sm:inline-block" title="Free while in beta — see planned pricing">Beta</a>
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
       <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
-    <nav aria-label="Primary" class="ml-auto flex items-center gap-4 text-sm font-medium">
+    <nav aria-label="Primary" class="ml-auto flex items-center gap-2 sm:gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
-      <a href="/genres" class="hover:text-amber-accent">Genres</a>
-      <a href="/new" class="hover:text-amber-accent">New</a>
+      <a href="/genres" class="hover:text-amber-accent hidden min-[360px]:inline">Genres</a>
+      <a href="/new" class="hover:text-amber-accent hidden min-[380px]:inline">New</a>
       <a href="/pricing" class="hover:text-amber-accent hidden sm:inline">Pricing</a>
-      <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3.5 py-1.5 hover:bg-ink-700">My Shelf</a>
+      <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3 sm:px-3.5 py-1.5 hover:bg-ink-700 whitespace-nowrap">My Shelf</a>
     </nav>
   </div>
   <form action="/search" method="get" class="sm:hidden px-4 pb-3">

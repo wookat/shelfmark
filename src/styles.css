@@ -31,7 +31,6 @@
 }
 
 .beta-badge {
-  display: inline-block;
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;
   border: 1px solid var(--color-amber-accent);

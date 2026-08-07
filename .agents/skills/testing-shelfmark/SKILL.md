@@ -42,6 +42,9 @@ Series-card `data-progress-bar` fills ONLY when the same page contains that seri
 ## Static asset caching applies to app.js too
 css/js are cached 1h at the Cloudflare **edge** (not just the browser) — even a fresh incognito profile can get a stale app.js. After a deploy, hard reload (Ctrl+Shift+R) or verify the served md5 against workers.dev before judging client-rendered features.
 
+## External retailer links & mobile-overflow probes
+bookshop.org (per-book "Find a copy" links) Cloudflare-blocks this box's datacenter IP, and the instrumented browser strips `target="_blank"` from the live DOM — verify external-link attributes via curl of the served HTML, not by clicking. For mobile layout, a Playwright `document.documentElement.scrollWidth > innerWidth` probe at 360–420px widths is the fastest overflow check (site is expected clean ≥360px; 320px has a known small overflow). Note: custom component classes in src/styles.css must not set `display` or they override Tailwind's `hidden` utility (caused the Beta-badge mobile bug).
+
 ## localStorage-section render failures: check var hoisting
 If a localStorage-driven section silently fails to render, check helper-definition order in app.js — helpers like `loadSaved` defined below their first call see `SAVED_KEY` as `undefined`. Also `shelfmark_mig_v2` is re-created on every page load, so "all shelfmark keys removed" checks should exempt it.
 
