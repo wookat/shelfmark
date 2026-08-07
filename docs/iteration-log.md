@@ -1331,3 +1331,20 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 溢出扫描 360–640px × 首页/系列/pricing 全清；375px 首页实测无横向溢出。
 - 暗色模式像素级验证（body 计算色 rgb(22,20,15)，实测像素 (26,23,19)）。
 - 素材许可：全部自研 SVG + Google Fonts（OFL），无受版权第三方素材。
+
+## Round 112 — 2026-08-07（Resend 发信链路接入）
+
+**背景**：老板提供 Resend API key（org secret RESEND_API_KEY，send-only 权限）。此前 emails 表只收集意向（double opt-in 未闭环，发信停用）。
+
+**修复/动作**
+- DNS/域名验证：zalize.com 在 Resend 已验证（resend._domainkey DKIM、send.zalize.com SPF/MX、_dmarc 均在）；发件地址 no-reply@zalize.com（send.zalize.com 与 leads.zalize.com 子域未在 Resend 单独验证，403）。
+- 双确认闭环：/api/subscribe 现发送确认邮件（含 /confirm?t= 链接）；已确认者不重复发送；退订后重新订阅会重置 token 并重新走确认。
+- 退订：新增 /unsubscribe（GET 页面 + POST one-click）；所有邮件带 List-Unsubscribe + List-Unsubscribe-Post: One-Click 头与正文退订链接。
+- 产品邮件：每周一 09:00 UTC cron（wrangler triggers）跑新书 digest——与 /new 同口径查询，KV(digest:sent) 做增量 diff，只发新增条目（≤20 条），首跑只记基线不发送、无订阅者只更新基线；发送对象仅 confirmed=1 且 unsubscribed=0。
+- DB 迁移：emails 表加 unsubscribed 列（wrangler d1 execute 报 7403，改用 Cloudflare 原生 D1 query API 执行成功）。
+- 文案：footer 订阅提示改「check your inbox to confirm」；/privacy 补 double opt-in + one-click 退订披露。
+
+**回归（线上，部署 e2347551）**
+- 真实 E2E（mail.tm 临时邮箱）：订阅→确认邮件送达（Resend 接受+实收）→点击确认 confirmed=1→one-click POST 退订 unsubscribed=1→GET 退订页 200；原始信头实测含折行 List-Unsubscribe URL + One-Click 头。测试记录已从 emails 表清理。
+- 直发测试信 contact@zalize.com 已发出（id 返回成功）供老板核收。
+- 注意：确认邮件在部署后首个请求未送达（疑似边缘版本传播窗口），重试后正常；已复验。

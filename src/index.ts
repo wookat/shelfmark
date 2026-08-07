@@ -6,6 +6,7 @@ type Env = {
   CACHE: KVNamespace;
   ASSETS: Fetcher;
   SITE_URL: string;
+  RESEND_API_KEY?: string;
 };
 
 type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number; photo_url: string | null };
@@ -1035,7 +1036,7 @@ app.get("/privacy", (c) =>
 <div class="mt-6 max-w-2xl text-ink-700 space-y-4">
 <p><strong>Reading progress</strong> is stored only in your browser's localStorage. It is never transmitted to our servers.</p>
 <p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). When you arrive from another website we also count the referring site's hostname (e.g. "google.com" — never the full URL, page, or search query). No IP addresses, user agents, fingerprints, or identifiers are stored.</p>
-<p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. One-click unsubscribe by replying or emailing <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
+<p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. Subscriptions are double opt-in (nothing is sent until you confirm) and every email includes a one-click unsubscribe link; you can also email <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
 <p><strong>Cookies</strong>: none.</p>
 <p>Contact: contact@zalize.com · Operated by Zalize.</p>
 </div>`,
@@ -1141,16 +1142,80 @@ app.get("/api/authors/:file", async (c) => {
   });
 });
 
+async function sendEmail(env: Env, to: string, subject: string, html: string, text: string, unsubToken?: string): Promise<boolean> {
+  if (!env.RESEND_API_KEY) return false;
+  const headers: Record<string, string> = {};
+  if (unsubToken) {
+    headers["List-Unsubscribe"] = `<${env.SITE_URL}/unsubscribe?t=${unsubToken}>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  const res = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: "Shelfmark <no-reply@zalize.com>", to: [to], subject, html, text, headers }),
+  });
+  return res.ok;
+}
+
+function emailShell(inner: string): string {
+  return `<div style="font-family:Georgia,serif;max-width:540px;margin:0 auto;padding:24px;color:#292722;background:#f7f6f3"><p style="font-size:18px;font-weight:bold;margin:0 0 16px">Shelfmark</p>${inner}<p style="font-size:12px;color:#6b675c;margin-top:28px">Shelfmark · shelfmark.zalize.com · You can unsubscribe any time via the link in this email.</p></div>`;
+}
+
 app.post("/api/subscribe", async (c) => {
   if (await rateLimited(c, "sub", 5)) return c.json({ ok: false, error: "Too many requests" }, 429);
   const { email, source } = await c.req.json<{ email?: string; source?: string }>().catch(() => ({}) as any);
   if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) || email.length > 200) {
     return c.json({ ok: false, error: "Invalid email" }, 400);
   }
+  const addr = email.toLowerCase();
   const token = crypto.randomUUID().replace(/-/g, "");
   await c.env.DB.prepare(`INSERT OR IGNORE INTO emails (email, source, token) VALUES (?, ?, ?)`)
-    .bind(email.toLowerCase(), (source ?? "footer").slice(0, 100), token).run();
+    .bind(addr, (source ?? "footer").slice(0, 100), token).run();
+  const row = await c.env.DB.prepare(`SELECT token, confirmed, unsubscribed FROM emails WHERE email=?`)
+    .bind(addr).first<{ token: string; confirmed: number; unsubscribed: number }>();
+  if (!row) return c.json({ ok: true });
+  if (row.confirmed && !row.unsubscribed) return c.json({ ok: true, confirmed: true });
+  let t = row.token;
+  if (row.unsubscribed) {
+    t = token;
+    await c.env.DB.prepare(`UPDATE emails SET unsubscribed=0, confirmed=0, token=? WHERE email=?`).bind(t, addr).run();
+  }
+  const link = `${c.env.SITE_URL}/confirm?t=${t}`;
+  await sendEmail(
+    c.env,
+    addr,
+    "Confirm your Shelfmark new-release alerts",
+    emailShell(`<p>Someone (hopefully you) asked for new-release alerts from Shelfmark.</p><p style="margin:20px 0"><a href="${link}" style="background:#1a1916;color:#f7f6f3;padding:10px 20px;border-radius:999px;text-decoration:none">Confirm subscription</a></p><p>If that wasn’t you, just ignore this email — you won’t be subscribed.</p>`),
+    `Confirm your Shelfmark new-release alerts: ${link}\nIf that wasn’t you, ignore this email — you won’t be subscribed.`,
+    t
+  );
   return c.json({ ok: true });
+});
+
+async function unsubscribe(c: { env: Env }, token: string): Promise<boolean> {
+  if (!/^[a-f0-9]{32}$/.test(token)) return false;
+  const r = await c.env.DB.prepare(`UPDATE emails SET unsubscribed=1 WHERE token=?`).bind(token).run();
+  return (r.meta.changes ?? 0) > 0;
+}
+
+app.post("/unsubscribe", async (c) => {
+  await unsubscribe(c, (c.req.query("t") ?? "").slice(0, 64));
+  return c.body(null, 200);
+});
+
+app.get("/unsubscribe", async (c) => {
+  const ok = await unsubscribe(c, (c.req.query("t") ?? "").slice(0, 64));
+  return c.html(
+    layout({
+      title: "Unsubscribe | Shelfmark",
+      description: "Unsubscribe from Shelfmark email alerts.",
+      path: "/unsubscribe",
+      siteUrl: c.env.SITE_URL,
+      noindex: true,
+      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-3xl text-ink-900">${ok ? "You’re unsubscribed" : "Link invalid or already used"}</h1><p class="mt-3 text-ink-700">${ok ? "You won’t receive any more emails from Shelfmark. You can re-subscribe from the footer of any page." : "If you keep getting emails, contact contact@zalize.com and we’ll remove you manually."}</p></div>`,
+    }),
+    ok ? 200 : 400
+  );
 });
 
 app.post("/api/migrate-ids", async (c) => {
@@ -1192,7 +1257,7 @@ app.get("/confirm", async (c) => {
   const token = (c.req.query("t") ?? "").slice(0, 64);
   let ok = false;
   if (/^[a-f0-9]{32}$/.test(token)) {
-    const r = await c.env.DB.prepare(`UPDATE emails SET confirmed=1 WHERE token=?`).bind(token).run();
+    const r = await c.env.DB.prepare(`UPDATE emails SET confirmed=1, unsubscribed=0 WHERE token=?`).bind(token).run();
     ok = (r.meta.changes ?? 0) > 0;
   }
   return c.html(
@@ -1324,4 +1389,48 @@ async function authorSuggestions(c: any, slug: string): Promise<{ href: string; 
 
 app.notFound(notFound);
 
-export default app;
+const DIGEST_QUERY = `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`;
+
+async function runDigest(env: Env): Promise<void> {
+  if (!env.RESEND_API_KEY) return;
+  const year = new Date().getFullYear();
+  const { results } = await env.DB.prepare(DIGEST_QUERY).bind(year, year + 1)
+    .all<{ title: string; year: number; series_slug: string; series_name: string; author_name: string | null }>();
+  const keys = results.map((b) => `${b.series_slug}|${b.title}`);
+  const sentRaw = await env.CACHE.get("digest:sent");
+  if (sentRaw === null) {
+    // First run: record the baseline without emailing the whole backlog.
+    await env.CACHE.put("digest:sent", JSON.stringify(keys));
+    return;
+  }
+  const sent = new Set(JSON.parse(sentRaw) as string[]);
+  const fresh = results.filter((b) => !sent.has(`${b.series_slug}|${b.title}`)).slice(0, 20);
+  if (!fresh.length) return;
+  const subs = await env.DB.prepare(`SELECT email, token FROM emails WHERE confirmed=1 AND unsubscribed=0`)
+    .all<{ email: string; token: string }>();
+  if (!subs.results.length) {
+    await env.CACHE.put("digest:sent", JSON.stringify(keys));
+    return;
+  }
+  const itemsHtml = fresh.map((b) => `<li style="margin:6px 0"><strong>${esc(b.title)}</strong> (${b.year}) — <a href="${env.SITE_URL}/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</li>`).join("");
+  const itemsText = fresh.map((b) => `- ${b.title} (${b.year}) — ${b.series_name}${b.author_name ? ` by ${b.author_name}` : ""}: ${env.SITE_URL}/series/${b.series_slug}`).join("\n");
+  const subject = `New series releases on Shelfmark (${fresh.length})`;
+  for (const s of subs.results) {
+    await sendEmail(
+      env,
+      s.email,
+      subject,
+      emailShell(`<p>New series installments just landed in the Shelfmark catalog:</p><ul style="padding-left:18px">${itemsHtml}</ul><p><a href="${env.SITE_URL}/new">See all new &amp; upcoming releases</a></p><p style="font-size:12px;color:#6b675c"><a href="${env.SITE_URL}/unsubscribe?t=${s.token}">Unsubscribe</a></p>`),
+      `New series installments on Shelfmark:\n${itemsText}\n\nAll new & upcoming: ${env.SITE_URL}/new\nUnsubscribe: ${env.SITE_URL}/unsubscribe?t=${s.token}`,
+      s.token
+    );
+  }
+  await env.CACHE.put("digest:sent", JSON.stringify(keys));
+}
+
+export default {
+  fetch: app.fetch,
+  scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): void {
+    ctx.waitUntil(runDigest(env));
+  },
+};

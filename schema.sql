@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS emails (
   source TEXT,
   token TEXT,
   confirmed INTEGER DEFAULT 0,
+  unsubscribed INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS hits (

@@ -19,5 +19,8 @@ database_id = "199bce20-bde4-4875-b8e1-fbc339b020b5"
 binding = "CACHE"
 id = "03101c6f44d2479296611bff30ebcb43"
 
+[triggers]
+crons = ["0 9 * * 1"]
+
 [vars]
 SITE_URL = "https://shelfmark.zalize.com"

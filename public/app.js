@@ -350,7 +350,7 @@
           input.value = "";
           var note = document.createElement("p");
           note.className = "text-xs text-amber-accent mt-1 w-full";
-          note.textContent = "Thanks! We\u2019ll email you when tracked series get new releases.";
+          note.textContent = "Almost done \u2014 check your inbox and click the confirmation link.";
           form.appendChild(note);
         }
       }).catch(function () { btn.textContent = "Try again"; });
