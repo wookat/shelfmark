@@ -1223,4 +1223,55 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ---
 
+## Round 101 — 2026-08-05
+
+**发现（五驱动·竞品调研专项）**
+- 老板专项指令：扩大竞品面深度调研 + 优点整合复刻。实测抓取 10+ 竞品源码与截图（research/comp/），产出 docs/competitor-teardown.md：访问矩阵、逐家功能/交互/技术反推（BSIO=WordPress、booksinorder.io=Next.js+完整 JSON-LD 三件套+每书 Book 节点、Goodreads 系列页 shelving 交互等）、P0/P1/P2 整合清单。StoryGraph/Hardcover/FictionDB/LibraryThing/FantasticFiction 均被 Turnstile/人机验证拦截，按红线不绕过，标注为受限来源。
+- 技术栈评估（专项任务 3）：对比竞品（WordPress vs Next.js 预渲染），当前 Workers+Hono+D1/KV+Tailwind v4 边缘 SSR 在 TTFB 与 JS 体积上均占优；Next/Astro 迁移无用户可见收益。结论：保持现栈，依赖保持更新。详见 teardown 文档"Tech-stack assessment"。
+
+**修复/动作**
+- docs/competitor-teardown.md 落库；原始证据 research/comp/*.html+png（不入库仓库，仅本地留存）。
+
+## Round 102 — 2026-08-05
+
+**发现（老板 P0 指令·定价改造）**
+- 产品不再定位为"免费"，改「Beta 免费试用」口径并展示正式付费方案。
+
+**修复**
+- 新增 /pricing：Reader（$0）与 Shelfmark Plus（$2.99/mo 或 $24/yr，planned）双档卡片、"Free during beta" 徽章、Pricing FAQ（beta 期间全功能开放、不收款、数据永可导出）；BreadcrumbList JSON-LD；入 sitemap。
+- 头部 Beta 徽章（链接 /pricing）+ 导航/页脚 Pricing 链接；全站 "free tracker" 文案改为 "no-signup tracker / free while in beta"（首页 title、series/authors/genres/popular 描述、OpenSearch、llms.txt）。CTA "Start free beta trial"。不接入任何收款。
+
+**证据**：https://shelfmark.zalize.com/pricing 200；部署 5bd481b2。
+
+## Round 103 — 2026-08-05
+
+**发现（竞品复刻·booksinorder.io）**
+- 其系列页首屏 "Quick Order Summary / Start with X" 盒子直接回答核心查询，利于 featured snippet；其面包屑为 4 级（含作者层）。
+
+**修复**
+- 系列页新增 "Where to start" 引导卡（首本书名+年份+封面缩略图+出版顺序说明，纯目录数据推导，无捏造）。
+- 系列页面包屑升级为 Home/Series/作者/系列 4 级（可见导航 + BreadcrumbList JSON-LD 同步）。
+
+**证据**：https://shelfmark.zalize.com/series/mistborn 实测含 Where to start 卡与 4 级面包屑 LD。
+
+## Round 104 — 2026-08-05
+
+**发现（竞品复刻·BSIO/booksinorder.io）**
+- 竞品每本书均有购买出口（BSIO 一页 149 个 Amazon 链接）；我们完全没有获取图书的出口。
+
+**修复**
+- 每本书行新增 "Find a copy" 外链 → Bookshop.org 搜索（书名+作者，rel="nofollow noopener"，无联盟代码、诚实搜索链接，打印时隐藏）。作者页 standalone 区同样生效。
+
+**证据**：/series/mistborn 实测 8 处 bookshop.org/search 链接。
+
+## Round 105 — 2026-08-05
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R101–104 上线后核心路由健康检查 + 新页面 IndexNow 提交。
+
+**修复/动作**
+- 14 个核心端点全 200；IndexNow 提交 /pricing 等 5 个关键 URL（HTTP 200）；部署 5bd481b2。
+
+---
+
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。

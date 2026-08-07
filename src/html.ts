@@ -64,6 +64,7 @@ ${ld}
 <header class="border-b border-ink-200 bg-ink-50/90 backdrop-blur sticky top-0 z-20">
   <div class="max-w-5xl mx-auto px-4 h-14 flex items-center gap-4">
     <a href="/" class="font-display font-bold text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
+    <a href="/pricing" class="beta-badge shrink-0" title="Free while in beta — see planned pricing">Beta</a>
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
       <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
@@ -72,6 +73,7 @@ ${ld}
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
       <a href="/genres" class="hover:text-amber-accent">Genres</a>
       <a href="/new" class="hover:text-amber-accent">New</a>
+      <a href="/pricing" class="hover:text-amber-accent hidden sm:inline">Pricing</a>
       <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3.5 py-1.5 hover:bg-ink-700">My Shelf</a>
     </nav>
   </div>
@@ -98,6 +100,7 @@ ${o.body}
         <li><a class="hover:text-amber-accent" href="/genres">Genres</a></li>
         <li><a class="hover:text-amber-accent" href="/new">New releases</a></li>
         <li><a class="hover:text-amber-accent" href="/shelf">My shelf</a></li>
+        <li><a class="hover:text-amber-accent" href="/pricing">Pricing</a></li>
         <li><a class="hover:text-amber-accent" href="/about">About &amp; methodology</a></li>
         <li><a class="hover:text-amber-accent" href="/privacy">Privacy</a></li>
       </ul>

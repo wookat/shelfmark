@@ -11,7 +11,7 @@ type Env = {
 type Author = { id: number; slug: string; name: string; bio: string | null; series_count: number; book_count: number; photo_url: string | null };
 type Series = { id: number; slug: string; name: string; author_id: number | null; description: string | null; genre: string | null; book_count: number; first_year: number | null; last_year: number | null; cover_url?: string | null; author_name?: string; author_slug?: string; parent_id?: number | null };
 type Book = { id: number; series_id: number | null; author_id: number | null; title: string; year: number | null; position: number | null; cover_url: string | null; description: string | null };
-type TrackList = { slug: string; name: string };
+type TrackList = { slug: string; name: string; author_name?: string | null };
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -126,7 +126,7 @@ ${fresh.length ? `<section class="mt-12">
 </section>`;
   return c.html(
     layout({
-      title: "Shelfmark — Book Series in Order + Free Reading Tracker",
+      title: "Shelfmark — Book Series in Order + No-Signup Reading Tracker",
       description: `Find the correct reading order for ${Number(ns).toLocaleString()} book series and track your progress privately. No signup required.`,
       path: "/",
       siteUrl: c.env.SITE_URL,
@@ -178,7 +178,7 @@ ${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}`;
   return c.html(
     layout({
       title: `${letter ? `Book Series Starting With ${letter}` : "All Book Series in Order"} — Page ${page} | Shelfmark`,
-      description: `Browse ${Number(n).toLocaleString()} book series${letter ? ` starting with ${letter}` : ""} with complete reading orders and a free progress tracker.`,
+      description: `Browse ${Number(n).toLocaleString()} book series${letter ? ` starting with ${letter}` : ""} with complete reading orders and a built-in no-signup progress tracker.`,
       path: letter ? `/series?letter=${letter}${page > 1 ? `&page=${page}` : ""}` : page > 1 ? `/series?page=${page}` : "/series",
       siteUrl: c.env.SITE_URL,
       body,
@@ -194,12 +194,12 @@ app.get("/popular", async (c) => {
   const body = `
 <nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Popular</span></nav>
 <h1 class="font-display font-bold text-3xl text-ink-900">The 100 most popular book series</h1>
-<p class="mt-2 text-ink-700 max-w-2xl">The biggest, best-documented series in the Shelfmark catalog — every one with a complete reading order and a free, no-signup progress tracker.</p>
+<p class="mt-2 text-ink-700 max-w-2xl">The biggest, best-documented series in the Shelfmark catalog — every one with a complete reading order and a built-in no-signup progress tracker.</p>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
   return c.html(
     layout({
       title: "100 Most Popular Book Series in Order | Shelfmark",
-      description: "The 100 biggest book series with complete reading orders — track your progress for free, no account needed.",
+      description: "The 100 biggest book series with complete reading orders — track your progress with no account needed (free while in beta).",
       path: "/popular",
       image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
       siteUrl: c.env.SITE_URL,
@@ -219,6 +219,60 @@ app.get("/popular", async (c) => {
           })),
         },
       ],
+    })
+  );
+});
+
+// ---------- Pricing ----------
+app.get("/pricing", (c) => {
+  const check = `<svg class="w-4 h-4 shrink-0 mt-0.5" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3.5 3.5L13 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+  const li = (t: string) => `<li class="flex gap-2 text-sm text-ink-700"><span class="text-amber-accent">${check}</span>${t}</li>`;
+  const body = `
+<nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Pricing</span></nav>
+<h1 class="font-display font-bold text-3xl text-ink-900">Pricing</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Shelfmark is in <strong>open beta</strong>: every feature below is unlocked for everyone, no payment required. These are the plans we intend to charge for once the beta ends — beta users will get generous notice before anything changes.</p>
+<div class="grid gap-4 sm:grid-cols-2 mt-8 max-w-3xl">
+  <section class="rounded-2xl bg-white border border-ink-200 p-6 flex flex-col">
+    <h2 class="font-display font-semibold text-xl text-ink-900">Reader</h2>
+    <p class="mt-1 text-3xl font-display font-bold text-ink-900">$0<span class="text-base font-sans font-normal text-ink-700/80"> forever</span></p>
+    <ul class="mt-4 space-y-2 flex-1">
+      ${li("Every reading-order page — 2,500+ series, 22,000+ authors")}
+      ${li("No-signup progress tracker (stays in your browser)")}
+      ${li("Search, genres, new &amp; upcoming, RSS feeds")}
+      ${li("Save for later list")}
+    </ul>
+    <a href="/series" class="mt-6 rounded-full border border-ink-200 bg-white px-5 py-2.5 text-sm font-semibold text-center hover:border-amber-accent">Browse series</a>
+  </section>
+  <section class="rounded-2xl bg-white border-2 border-amber-accent p-6 flex flex-col relative">
+    <span class="absolute -top-3 right-4 rounded-full bg-amber-accent text-white text-xs font-semibold px-3 py-1">Free during beta</span>
+    <h2 class="font-display font-semibold text-xl text-ink-900">Shelfmark Plus</h2>
+    <p class="mt-1 text-3xl font-display font-bold text-ink-900">$2.99<span class="text-base font-sans font-normal text-ink-700/80">/month</span></p>
+    <p class="text-sm text-ink-700/80">or $24/year — planned pricing, not charged during beta</p>
+    <ul class="mt-4 space-y-2 flex-1">
+      ${li("Everything in Reader")}
+      ${li("Reading stats, yearly goals &amp; 12-month pace chart")}
+      ${li("Shareable reading cards (PNG)")}
+      ${li("JSON &amp; CSV backup export / import")}
+      ${li("Up-next badges &amp; bulk tracker actions")}
+      ${li("Priority access to the open data API")}
+    </ul>
+    <a href="/shelf" class="mt-6 rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold text-center hover:bg-ink-700">Start free beta trial</a>
+  </section>
+</div>
+<div class="mt-10 max-w-3xl space-y-4">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">Pricing FAQ</h2>
+  <div><h3 class="font-semibold text-ink-900">Do I need to pay anything today?</h3><p class="text-ink-700 mt-1">No. While Shelfmark is in beta, every Plus feature is unlocked for all visitors and we do not collect any payment.</p></div>
+  <div><h3 class="font-semibold text-ink-900">Will my reading data be locked behind the paywall later?</h3><p class="text-ink-700 mt-1">Never. Your progress lives in your own browser and the export tools will always let you take it with you.</p></div>
+  <div><h3 class="font-semibold text-ink-900">When does the beta end?</h3><p class="text-ink-700 mt-1">No date is set. Beta users will get clear notice on this page before any plan starts charging.</p></div>
+</div>`;
+  return c.html(
+    layout({
+      title: "Pricing — Free During Beta | Shelfmark",
+      description: "Shelfmark plans: Reader ($0) and Shelfmark Plus ($2.99/mo, planned). Everything is unlocked free while we're in open beta.",
+      path: "/pricing",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Pricing", "/pricing"]])],
     })
   );
 });
@@ -342,7 +396,7 @@ ${standalone.length ? `<section class="mt-10" id="standalone">
     <span class="text-sm text-ink-700/75">${bookNoun(standalone.length)}</span>
     <span class="text-sm font-medium text-amber-accent" data-progress-label="standalone-${slug}"></span>
   </div>
-  ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone` })}
+  ${bookList(standalone, { slug: `standalone-${slug}`, name: `${author.name} — standalone`, author_name: author.name })}
 </section>` : ""}
 ${authorFaqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(author.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${authorFaqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}
 ${similar.length ? `<section class="mt-12 print:hidden">
@@ -355,7 +409,7 @@ ${similar.length ? `<section class="mt-12 print:hidden">
   return c.html(
     layout({
       title: `${author.name} Books in Order (Complete Series List) | Shelfmark`,
-      description: `Complete list of ${author.name} books in order: ${series.slice(0, 3).map((s) => s.name).join(", ")}${series.length > 3 ? " and more" : ""}. Reading order + free progress tracker.`,
+      description: `Complete list of ${author.name} books in order: ${series.slice(0, 3).map((s) => s.name).join(", ")}${series.length > 3 ? " and more" : ""}. Reading order + no-signup progress tracker.`,
       path: `/authors/${slug}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [
@@ -431,7 +485,7 @@ app.get("/series/:slug", async (c) => {
   const thisYear = new Date().getFullYear();
   const recentRelease = latest && latest.year != null && latest.year >= thisYear ? latest : null;
   const body = `
-${crumbs([["Series", "/series"], [series.name, ""]])}
+${crumbs(series.author_name ? [["Series", "/series"], [series.author_name, `/authors/${series.author_slug}`], [series.name, ""]] : [["Series", "/series"], [series.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
 ${recentRelease ? `<p class="mt-3 rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm max-w-2xl"><span class="year-chip !ml-0">${recentRelease.year! > thisYear ? "Upcoming" : `New in ${recentRelease.year}`}</span> <span class="text-ink-700 ml-1">“${esc(recentRelease.title)}”${recentRelease.year! > thisYear ? ` arrives in ${recentRelease.year}` : ` is the newest ${esc(series.name)} book`} — it's in the list below.</span></p>` : ""}
 ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a different ${esc(series.name)}? ${sameName.map((o) => `<a class="text-amber-accent underline" href="/series/${o.slug}">${esc(o.name)}${o.author_name ? ` by ${esc(o.author_name)}` : ""}</a>`).join(" · ")}</p>` : ""}
@@ -448,6 +502,14 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
+${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-accent bg-white border border-ink-200 px-5 py-4 max-w-2xl" aria-label="Where to start">
+  ${first.cover_url ? `<img src="${esc(first.cover_url)}" alt="" width="56" height="84" loading="lazy" class="w-14 h-[84px] rounded object-cover border border-ink-200 bg-ink-100 shrink-0 self-center">` : ""}
+  <div class="min-w-0">
+  <p class="text-xs font-semibold uppercase tracking-wide text-amber-accent">Where to start</p>
+  <p class="mt-1 font-display font-semibold text-lg text-ink-900">Start with “${esc(first.title)}”${first.year ? ` (${first.year})` : ""}</p>
+  <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in publication order — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
+  </div>
+</aside>` : ""}
 ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <p class="mt-4 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
@@ -457,7 +519,7 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
   return c.html(
     layout({
       title: `${series.name} Books in Order (${series.book_count} Books)${series.author_name ? " — " + series.author_name : ""} | Shelfmark`,
-      description: `${series.name} reading order: all ${bookNoun(series.book_count)}${series.author_name ? ` by ${series.author_name}` : ""} listed in publication order${first ? `, starting with ${first.title}` : ""}. Track your progress free.`,
+      description: `${series.name} reading order: all ${bookNoun(series.book_count)}${series.author_name ? ` by ${series.author_name}` : ""} listed in publication order${first ? `, starting with ${first.title}` : ""}. Track your progress, no signup needed.`,
       path: `/series/${slug}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [
@@ -479,7 +541,12 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
             })),
           } : {}),
         },
-        breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${slug}`]]),
+        breadcrumbLd(
+          c.env.SITE_URL,
+          series.author_name
+            ? [["Series", "/series"], [series.author_name, `/authors/${series.author_slug}`], [series.name, `/series/${slug}`]]
+            : [["Series", "/series"], [series.name, `/series/${slug}`]]
+        ),
         ...(faqs.length
           ? [{
               "@context": "https://schema.org",
@@ -510,6 +577,7 @@ ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white bo
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
     <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
+  <a href="https://bookshop.org/search?keywords=${encodeURIComponent(b.title + (s.author_name ? " " + s.author_name : ""))}" rel="nofollow noopener" target="_blank" class="shrink-0 text-xs text-ink-700/75 hover:text-amber-accent underline print:hidden" aria-label="Find a copy of ${esc(b.title)} on Bookshop.org">Find a copy</a>
 </li>`).join("\n")}
 </ol>`;
 }
@@ -630,7 +698,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
     layout({
       title: `${gtitle(genre)} Book Series in Order (${total} Series) | Shelfmark`,
-      description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a free progress tracker.`,
+      description: `All ${genre.toLowerCase()} book series on Shelfmark with reading orders and a built-in no-signup progress tracker.`,
       path: `/genres/${slug}${page > 1 ? `?page=${page}` : ""}`,
       siteUrl: c.env.SITE_URL,
       rss: `/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}`,
@@ -818,7 +886,7 @@ app.get("/opensearch.xml", (c) => {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
 <ShortName>Shelfmark</ShortName>
-<Description>Search book series and authors on Shelfmark — reading orders and a free tracker.</Description>
+<Description>Search book series and authors on Shelfmark — reading orders and a no-signup tracker.</Description>
 <InputEncoding>UTF-8</InputEncoding>
 <Image width="16" height="16" type="image/svg+xml">${site}/favicon.svg</Image>
 <Url type="text/html" method="get" template="${site}/search?q={searchTerms}"/>
@@ -1063,7 +1131,7 @@ app.get("/llms.txt", (c) => {
   c.header("Cache-Control", "public, max-age=86400");
   return c.text(`# Shelfmark
 
-> Shelfmark (${c.env.SITE_URL}) lists the correct reading order for tens of thousands of book series, with a free no-signup reading tracker (progress stays in the reader's browser). Data is derived from Wikidata (CC0) and Open Library.
+> Shelfmark (${c.env.SITE_URL}) lists the correct reading order for tens of thousands of book series, with a no-signup reading tracker (progress stays in the reader's browser; the product is in open beta — planned paid plans at ${c.env.SITE_URL}/pricing). Data is derived from Wikidata (CC0) and Open Library.
 
 ## Key pages
 
@@ -1073,6 +1141,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
+- [Pricing](${c.env.SITE_URL}/pricing): plans and beta status (everything free during beta).
 
 ## API
 
@@ -1110,7 +1179,7 @@ app.get("/sitemaps/:file", async (c) => {
     urls = results.map((r) => `/series/${r.slug}`);
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/pricing", "/about", "/new");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
