@@ -1299,3 +1299,35 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 ---
 
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
+
+## Round 108 — 2026-08-05（视觉/品牌专项·调研）
+
+**发现（视觉专项·竞品调研）**
+- Playwright 抓取 10 家阅读类标杆站（literal.club、oku.club、standardebooks.org、italictype.com、press.stripe.com、readwise、bookshop、NYT Books、basmo、beanstalk）完整 HTML+截图+computed 排版参数，落库 docs/visual-teardown.md 与 research/visual/。
+- 共性优点：serif 标题+温暖纸感底色、倾斜真实书封拼贴 hero（Literal）、手绘线稿插画（Oku）、纸张 grain 质感（SE/Stripe Press）、克制微动效。
+- 技术栈评估：shadcn/ui 需 React（引入为负收益，采纳其令牌纪律不迁栈）；Motion/GSAP 对本站动效量级过重（CSS+30 行 IO 即覆盖）；Tailwind 已 v4 保持。
+
+## Round 109 — 2026-08-05（全局质感+动效）
+
+**修复/动作**
+- 纸张 grain 纹理：内联 feTurbulence SVG data-URI 平铺于 body（4.5% 不透明度，light/dark 通用），零请求成本。
+- 交互令牌：卡片 hover 抬升+封面微倾（.card-lift）、勾选 check-pop 反馈、滚动淡入（data-reveal + IntersectionObserver）；全部动效包在 prefers-reduced-motion: no-preference 内，降级为静态。
+- 构建瘦身：Tailwind v4 此前自动扫描 research/*.html 竞品捕获文件导致产物污染（含竞品类名）；改 source(none)+显式 @source，styles.css 75.6KB→27.9KB（-63%）。
+
+## Round 110 — 2026-08-05（hero 复刻升级）
+
+**修复/动作**
+- 首页 hero：标题升 text-6xl，强调词改 Fraunces italic（字体加载 ital 轴）；新增倾斜真实书封拼贴条（Literal 式自研实现：popular 系列封面、交替 ±3–6° 旋转、hover/focus 直立微升、可点击直达系列页；375px 显示 4 张、桌面 7 张）。
+
+## Round 111 — 2026-08-05（品牌素材）
+
+**修复/动作**
+- favicon 重绘：摊开书页+琥珀书签绸带（延续 ink/amber 品牌色，manifest 同源引用）。
+- OG 分享图重制（public/og.png，1200×630）：纸感底+Fraunces 标题+italic 强调+品牌 mark+四本倾斜书脊插画，模板存 research/visual/og/。
+- /shelf 空状态新增自研 SVG 线稿插画（书架+斜书+琥珀书签，Oku 式人文温度）。
+
+**回归（线上，部署 0c3ded07）**
+- axe 4.10.2 light/dark × 首页//series/discworld//shelf 全部 0 违规。
+- 溢出扫描 360–640px × 首页/系列/pricing 全清；375px 首页实测无横向溢出。
+- 暗色模式像素级验证（body 计算色 rgb(22,20,15)，实测像素 (26,23,19)）。
+- 素材许可：全部自研 SVG + Google Fonts（OFL），无受版权第三方素材。
