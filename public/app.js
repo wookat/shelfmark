@@ -362,7 +362,7 @@
   if (root) {
     var entries = Object.keys(data).map(function (k) { var e = data[k]; e.id = k; return e; });
     if (!entries.length) {
-      root.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center"><p class="font-display font-semibold text-xl text-ink-900">Your shelf is empty</p><p class="mt-2 text-ink-700">Find a series and tick off the books you\u2019ve read \u2014 they\u2019ll show up here.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p><p class="mt-5 text-sm text-ink-700/75">Popular starts: <a class="text-amber-accent underline" href="/series/discworld">Discworld</a> \u00b7 <a class="text-amber-accent underline" href="/series/mistborn">Mistborn</a> \u00b7 <a class="text-amber-accent underline" href="/series/the-murderbot-diaries">The Murderbot Diaries</a> \u00b7 <a class="text-amber-accent underline" href="/new">New releases</a></p></div>';
+      root.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center"><svg viewBox="0 0 120 64" width="150" height="80" aria-hidden="true" class="mx-auto mb-3 text-ink-700/60"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 54h100"/><rect x="20" y="22" width="9" height="32" rx="1.5"/><rect x="31" y="16" width="9" height="38" rx="1.5"/><path d="M44 54l6-36 9 1.6-6 34.7z"/><rect x="62" y="20" width="9" height="34" rx="1.5"/><rect x="73" y="26" width="9" height="28" rx="1.5"/></g><path d="M89 24h10v22l-5-4.6-5 4.6z" fill="#c98a2e" opacity="0.85"/></svg><p class="font-display font-semibold text-xl text-ink-900">Your shelf is empty</p><p class="mt-2 text-ink-700">Find a series and tick off the books you\u2019ve read \u2014 they\u2019ll show up here.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p><p class="mt-5 text-sm text-ink-700/75">Popular starts: <a class="text-amber-accent underline" href="/series/discworld">Discworld</a> \u00b7 <a class="text-amber-accent underline" href="/series/mistborn">Mistborn</a> \u00b7 <a class="text-amber-accent underline" href="/series/the-murderbot-diaries">The Murderbot Diaries</a> \u00b7 <a class="text-amber-accent underline" href="/new">New releases</a></p></div>';
     } else {
       var bySeries = {};
       entries.forEach(function (e) {
@@ -664,6 +664,23 @@
       box.focus();
     }
   });
+
+  // Scroll reveal: fade-up sections marked data-reveal (motion-safe users only)
+  if (window.matchMedia("(prefers-reduced-motion: no-preference)").matches && "IntersectionObserver" in window) {
+    var revealEls = document.querySelectorAll("[data-reveal]");
+    if (revealEls.length) {
+      document.documentElement.classList.add("js-reveal");
+      var ro = new IntersectionObserver(function (entries) {
+        entries.forEach(function (en) {
+          if (en.isIntersecting) {
+            en.target.classList.add("revealed");
+            ro.unobserve(en.target);
+          }
+        });
+      }, { rootMargin: "0px 0px -10% 0px" });
+      revealEls.forEach(function (el) { ro.observe(el); });
+    }
+  }
 
   function escapeHtml(s) {
     return String(s).replace(/[&<>"']/g, function (c) {

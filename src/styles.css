@@ -1,4 +1,6 @@
-@import "tailwindcss";
+@import "tailwindcss" source(none);
+@source "../src";
+@source "../public/app.js";
 
 @theme {
   --font-display: "Fraunces", Georgia, serif;
@@ -15,6 +17,59 @@
 /* Amber accent needs to be lighter on dark surfaces to keep ≥4.5:1 contrast. */
 .bg-ink-900 .text-amber-accent {
   color: #e8b05f;
+}
+
+/* Paper grain: a faint tiled fractal-noise SVG gives page backgrounds a printed-paper feel. */
+body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+}
+
+/* Interaction tokens: card lift, cover tilt, checkbox pop, scroll reveal — all motion
+   is gated behind prefers-reduced-motion: no-preference. */
+.card-lift {
+  transition: border-color 0.15s ease, box-shadow 0.2s ease;
+}
+.card-lift img,
+.card-lift > span[aria-hidden] {
+  transition: transform 0.25s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .card-lift {
+    transition: border-color 0.15s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px -6px rgba(26, 25, 22, 0.18);
+  }
+  .card-lift:hover img,
+  .card-lift:hover > span[aria-hidden] {
+    transform: rotate(-2deg) scale(1.05);
+  }
+  input[type="checkbox"]:checked {
+    animation: check-pop 0.25s ease;
+  }
+  @keyframes check-pop {
+    50% { transform: scale(1.25); }
+  }
+  .js-reveal [data-reveal] {
+    opacity: 0;
+    transform: translateY(14px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+  }
+  .js-reveal [data-reveal].revealed {
+    opacity: 1;
+    transform: none;
+  }
+  .hero-covers a {
+    transition: transform 0.25s ease;
+  }
+  .hero-covers a:hover,
+  .hero-covers a:focus-visible {
+    transform: rotate(0deg) translateY(-4px) scale(1.05) !important;
+  }
+}
+a, button {
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
 }
 
 .year-chip {

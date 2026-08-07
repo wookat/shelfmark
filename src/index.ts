@@ -50,7 +50,7 @@ function yearsSpan(s: Series) {
 }
 
 function seriesCard(s: Series): string {
-  return `<a href="/series/${s.slug}" class="flex gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent hover:shadow-sm transition">
+  return `<a href="/series/${s.slug}" class="card-lift flex gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent">
     ${s.cover_url ? `<img src="${esc(s.cover_url)}" alt="" width="40" height="56" loading="lazy" class="w-10 h-14 rounded object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-10 h-14 rounded bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/60">${esc((s.name[0] ?? "?").toUpperCase())}</span>`}
     <div class="min-w-0 flex-1">
     <p class="font-display font-semibold text-ink-900">${esc(s.name)}</p>
@@ -61,7 +61,7 @@ function seriesCard(s: Series): string {
 }
 
 function authorCard(a: Author): string {
-  return `<a href="/authors/${a.slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition">${a.photo_url ? `<img src="${esc(a.photo_url.replace("width=256", "width=96"))}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-12 h-12 rounded-full bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((a.name[0] ?? "?").toUpperCase())}</span>`}<div class="min-w-0"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-0.5">${a.series_count} series · ${bookNoun(a.book_count)}</p></div></a>`;
+  return `<a href="/authors/${a.slug}" class="card-lift flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent">${a.photo_url ? `<img src="${esc(a.photo_url.replace("width=256", "width=96"))}" alt="" width="48" height="48" loading="lazy" class="w-12 h-12 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-12 h-12 rounded-full bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((a.name[0] ?? "?").toUpperCase())}</span>`}<div class="min-w-0"><p class="font-display font-semibold text-ink-900">${esc(a.name)}</p><p class="text-sm text-ink-700/80 mt-0.5">${a.series_count} series · ${bookNoun(a.book_count)}</p></div></a>`;
 }
 
 // ---------- Random series discovery ----------
@@ -91,15 +91,19 @@ app.get("/", async (c) => {
   const { results: topGenres } = await c.env.DB.prepare(
     `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 10 ORDER BY n DESC LIMIT 12`
   ).all<{ genre: string; n: number }>();
+  const heroCovers = popular.filter((s) => s.cover_url).slice(0, 7);
   const body = `
 <section class="text-center py-10">
-  <h1 class="font-display font-bold text-4xl sm:text-5xl text-ink-900 leading-tight">Read every series<br>in the <span class="text-amber-accent">right order</span>.</h1>
+  <h1 class="font-display font-bold text-4xl sm:text-6xl text-ink-900 leading-tight">Read every series<br>in the <em class="text-amber-accent">right order</em>.</h1>
   <p class="mt-4 text-lg text-ink-700 max-w-xl mx-auto">Publication order for ${Number(nb).toLocaleString()} books across ${Number(ns).toLocaleString()} series — with a private reading tracker built in. No account needed.</p>
   <form action="/search" method="get" class="mt-6 max-w-lg mx-auto flex gap-2">
     <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 min-w-0 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
   <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>
+  ${heroCovers.length >= 5 ? `<div class="hero-covers mt-10 flex justify-center items-end gap-3 sm:gap-5">
+    ${heroCovers.map((s, i) => `<a href="/series/${s.slug}" title="${esc(s.name)} reading order" style="transform:rotate(${[-6, 4, -3, 5, -5, 3, -4, 6][i % 8]}deg)" class="shrink-0${i > 3 ? " hidden md:block" : i > 2 ? " hidden sm:block" : ""}"><img src="${esc(s.cover_url!)}" alt="${esc(s.name)}" width="88" height="132" loading="lazy" class="w-16 sm:w-[88px] aspect-[2/3] object-cover rounded-md shadow-md border border-ink-200 bg-ink-100"></a>`).join("")}
+  </div>` : ""}
 </section>
 <div id="continue-reading"></div>
 <section class="mt-8">
@@ -108,7 +112,7 @@ app.get("/", async (c) => {
 </section>
 ${fresh.length ? `<section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">New &amp; upcoming</h2><a href="/new" class="text-sm text-amber-accent font-medium">All new releases →</a></div>
-  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li class="min-w-0"><a href="/series/${b.series_slug}" class="flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent transition min-w-0">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li class="min-w-0"><a href="/series/${b.series_slug}" class="card-lift flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent min-w-0">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
 </section>` : ""}
 <section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Browse by genre</h2><a href="/genres" class="text-sm text-amber-accent font-medium">All genres →</a></div>
@@ -120,7 +124,7 @@ ${fresh.length ? `<section class="mt-12">
     ${authors.map(authorCard).join("")}
   </div>
 </section>
-<section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10">
+<section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10" data-reveal>
   <h2 class="font-display font-semibold text-2xl">Your shelf lives in your browser.</h2>
   <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place and share a reading card.</p>
 </section>`;
