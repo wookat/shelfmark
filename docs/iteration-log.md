@@ -1273,6 +1273,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 14 个核心端点全 200；IndexNow 提交 /pricing 等 5 个关键 URL（HTTP 200）；部署 5bd481b2。
 - QA 抓到 P1：移动端 375px 头部导航溢出（`.beta-badge` 自定义 CSS 的 display 覆盖了 `hidden` 工具类导致 Beta 徽章在小屏可见 + 首页 New&upcoming 卡 grid 项缺 min-w-0 撑宽页面 + 导航本身预存溢出）。修复：Beta 徽章 `hidden sm:inline-block`、Genres/New 分别 ≥360/380px 才显示、导航间距与 logo 尺寸移动端收紧、卡片加 min-w-0。Playwright 实测 360–768px 全部无横向溢出（320px 罕见宽度仍略溢出，遗留 P3）。部署 736b827e。
 
+## Round 106 — 2026-08-05
+
+**发现（竞品复刻·booksinorder.io/Goodreads/BSIO P2 项）**
+- 竞品均有 book 详情层承接书名长尾搜索（Goodreads book 页、booksinorder.io 每书 Book JSON-LD）；我们的书只存在于系列列表行内。
+
+**修复**
+- 新增 `/book/{id}-{slug}` 详情页（质量门槛：有简介的 in-series 书才入 sitemap/index，无简介 noindex,follow）：大封面、作者/年份、"Book N of M in {series}"、简介、Full reading order + Find a copy CTA、上一本/下一本导航、Book JSON-LD（isPartOf BookSeries + position）+ BreadcrumbList；slug 不匹配 301 到规范 URL。系列/作者页书名变为详情页链接（勾选区不受影响）。sitemap 新增 book 分片（~21K 有简介书目，索引 6→11 个分片）。
+
+**证据**：/book/134080-mistborn-the-final-empire 200（Book LD、prev/next、301 规范化实测）；sitemaps/11.xml 输出 book URL；移动端 360/375px 无横向溢出。部署 79221be4。
+
 ---
 
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。

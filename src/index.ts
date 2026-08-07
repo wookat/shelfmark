@@ -565,6 +565,83 @@ ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold te
   );
 });
 
+const bslug = (t: string) => t.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60);
+
+// ---------- Book detail page ----------
+app.get("/book/:key", async (c) => {
+  const m = /^(\d+)(?:-.*)?$/.exec(c.req.param("key"));
+  if (!m) return notFound(c);
+  const id = parseInt(m[1]);
+  const book = await c.env.DB.prepare(
+    `SELECT b.*, s.slug AS series_slug, s.name AS series_name, s.book_count AS series_count, a.name AS author_name, a.slug AS author_slug
+     FROM books b LEFT JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=COALESCE(b.author_id, s.author_id) WHERE b.id=?`
+  ).bind(id).first<Book & { series_slug: string | null; series_name: string | null; series_count: number | null; author_name: string | null; author_slug: string | null }>();
+  if (!book) return notFound(c);
+  const canonicalKey = `${id}-${bslug(book.title)}`;
+  if (c.req.param("key") !== canonicalKey) return c.redirect(`/book/${canonicalKey}`, 301);
+  let prev: Book | null = null, next: Book | null = null, ordinal: number | null = null;
+  if (book.series_id) {
+    const { results: sibs } = await c.env.DB.prepare(
+      `SELECT id, title, year, position FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+    ).bind(book.series_id).all<Book>();
+    const i = sibs.findIndex((b) => b.id === id);
+    if (i >= 0) { ordinal = i + 1; prev = sibs[i - 1] ?? null; next = sibs[i + 1] ?? null; }
+  }
+  const buy = `https://bookshop.org/search?keywords=${encodeURIComponent(book.title + (book.author_name ? " " + book.author_name : ""))}`;
+  const navLink = (b: Book, label: string) => `<a href="/book/${b.id}-${bslug(b.title)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 text-sm hover:border-amber-accent">${label} ${esc(b.title.length > 34 ? b.title.slice(0, 32) + "…" : b.title)}</a>`;
+  const body = `
+${crumbs([
+    ...(book.series_slug ? ([["Series", "/series"]] as [string, string][]) : []),
+    ...(book.author_name && book.author_slug ? ([[book.author_name, `/authors/${book.author_slug}`]] as [string, string][]) : []),
+    ...(book.series_slug && book.series_name ? ([[book.series_name, `/series/${book.series_slug}`]] as [string, string][]) : []),
+    [book.title, ""],
+  ])}
+<div class="flex flex-col sm:flex-row gap-6">
+  ${book.cover_url ? `<img src="${esc(book.cover_url.replace("-M.jpg", "-L.jpg"))}" alt="Cover of ${esc(book.title)}" width="160" height="240" class="w-40 rounded-lg shadow object-cover bg-ink-100 border border-ink-200 shrink-0 self-start">` : ""}
+  <div class="min-w-0">
+    <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900 break-words">${esc(book.title)}</h1>
+    <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent hover:underline">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
+    ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent hover:underline">${esc(book.series_name)}</a></p>` : ""}
+    ${book.description ? `<p class="mt-4 text-ink-700 max-w-2xl">${esc(book.description)}</p>` : ""}
+    <div class="mt-5 flex flex-wrap gap-3">
+      ${book.series_slug ? `<a href="/series/${book.series_slug}" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Full reading order</a>` : ""}
+      <a href="${buy}" rel="nofollow noopener" target="_blank" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Find a copy</a>
+    </div>
+    ${prev || next ? `<div class="mt-5 flex flex-wrap gap-2">${prev ? navLink(prev, "←") : ""}${next ? navLink(next, "Next:") : ""}</div>` : ""}
+  </div>
+</div>`;
+  return c.html(
+    layout({
+      title: `${book.title}${book.series_name ? ` (${book.series_name}${ordinal ? ` #${ordinal}` : ""})` : ""}${book.author_name ? ` by ${book.author_name}` : ""} | Shelfmark`,
+      description: book.description
+        ? book.description.slice(0, 155)
+        : `${book.title}${book.author_name ? ` by ${book.author_name}` : ""}${book.series_name ? `, part of the ${book.series_name} series` : ""}${book.year ? ` (${book.year})` : ""}. Reading order and details on Shelfmark.`,
+      path: `/book/${canonicalKey}`,
+      siteUrl: c.env.SITE_URL,
+      noindex: !book.description,
+      image: book.cover_url?.replace("-M.jpg", "-L.jpg"),
+      body,
+      jsonLd: [
+        {
+          "@context": "https://schema.org",
+          "@type": "Book",
+          name: book.title,
+          url: `${c.env.SITE_URL}/book/${canonicalKey}`,
+          ...(book.author_name ? { author: { "@type": "Person", name: book.author_name } } : {}),
+          ...(book.year ? { datePublished: String(book.year) } : {}),
+          ...(book.cover_url ? { image: book.cover_url } : {}),
+          ...(book.description ? { description: book.description } : {}),
+          ...(book.series_name ? { isPartOf: { "@type": "BookSeries", name: book.series_name, url: `${c.env.SITE_URL}/series/${book.series_slug}` }, ...(ordinal ? { position: ordinal } : {}) } : {}),
+        },
+        breadcrumbLd(c.env.SITE_URL, [
+          ...(book.series_slug && book.series_name ? ([[book.series_name, `/series/${book.series_slug}`]] as [string, string][]) : []),
+          [book.title, `/book/${canonicalKey}`],
+        ]),
+      ],
+    })
+  );
+});
+
 function bookList(books: Book[], s: TrackList): string {
   if (!books.length) return `<p class="mt-4 text-ink-700/75 text-sm">No books recorded for this series yet.</p>`;
   const positions = books.map((b) => b.position).filter((p): p is number => p != null);
@@ -575,7 +652,7 @@ ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white bo
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><span class="font-medium text-ink-900">${esc(b.title)}</span>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
   <a href="https://bookshop.org/search?keywords=${encodeURIComponent(b.title + (s.author_name ? " " + s.author_name : ""))}" rel="nofollow noopener" target="_blank" class="shrink-0 text-xs text-ink-700/75 hover:text-amber-accent underline print:hidden" aria-label="Find a copy of ${esc(b.title)} on Bookshop.org">Find a copy</a>
 </li>`).join("\n")}
@@ -1156,7 +1233,8 @@ const SM_CHUNK = 5000;
 app.get("/sitemap.xml", async (c) => {
   const [{ na }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
   const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
-  const parts = Math.ceil(Number(na) / SM_CHUNK) + Math.ceil(Number(ns) / SM_CHUNK);
+  const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books WHERE description IS NOT NULL AND series_id IS NOT NULL`).all()).results as any[]);
+  const parts = Math.ceil(Number(na) / SM_CHUNK) + Math.ceil(Number(ns) / SM_CHUNK) + Math.ceil(Number(nb) / SM_CHUNK);
   const items = Array.from({ length: parts }, (_, i) => `<sitemap><loc>${c.env.SITE_URL}/sitemaps/${i + 1}.xml</loc></sitemap>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`, 200, { "content-type": "application/xml" });
 });
@@ -1173,10 +1251,20 @@ app.get("/sitemaps/:file", async (c) => {
       .bind(SM_CHUNK, (n - 1) * SM_CHUNK).all<{ slug: string }>();
     urls = results.map((r) => `/authors/${r.slug}`);
   } else {
+    const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
+    const seriesParts = Math.ceil(Number(ns) / SM_CHUNK);
     const m = n - authorParts;
-    const { results } = await c.env.DB.prepare(`SELECT slug FROM series ORDER BY id LIMIT ? OFFSET ?`)
-      .bind(SM_CHUNK, (m - 1) * SM_CHUNK).all<{ slug: string }>();
-    urls = results.map((r) => `/series/${r.slug}`);
+    if (m <= seriesParts) {
+      const { results } = await c.env.DB.prepare(`SELECT slug FROM series ORDER BY id LIMIT ? OFFSET ?`)
+        .bind(SM_CHUNK, (m - 1) * SM_CHUNK).all<{ slug: string }>();
+      urls = results.map((r) => `/series/${r.slug}`);
+    } else {
+      const k = m - seriesParts;
+      const { results } = await c.env.DB.prepare(
+        `SELECT id, title FROM books WHERE description IS NOT NULL AND series_id IS NOT NULL ORDER BY id LIMIT ? OFFSET ?`
+      ).bind(SM_CHUNK, (k - 1) * SM_CHUNK).all<{ id: number; title: string }>();
+      urls = results.map((r) => `/book/${r.id}-${bslug(r.title)}`);
+    }
   }
   if (n === 1) {
     urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/pricing", "/about", "/new");
