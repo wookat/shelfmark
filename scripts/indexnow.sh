@@ -3,7 +3,7 @@
 set -e
 HOST=shelfmark.zalize.com
 KEY=2e7b4ccf708e4207beb4cfd1e0c7ddf2
-urls=$(for i in $(seq 1 6); do curl -s "https://$HOST/sitemaps/$i.xml" | grep -oP '(?<=<loc>)[^<]+'; done)
+urls=$(for i in $(seq 1 11); do curl -s "https://$HOST/sitemaps/$i.xml" | grep -oP '(?<=<loc>)[^<]+'; done)
 echo "$urls" | python3 -c "
 import json,sys,urllib.request
 urls=[u.strip() for u in sys.stdin if u.strip()]

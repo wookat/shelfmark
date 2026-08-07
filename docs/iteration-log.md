@@ -1223,4 +1223,79 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ---
 
+## Round 101 — 2026-08-05
+
+**发现（五驱动·竞品调研专项）**
+- 老板专项指令：扩大竞品面深度调研 + 优点整合复刻。实测抓取 10+ 竞品源码与截图（research/comp/），产出 docs/competitor-teardown.md：访问矩阵、逐家功能/交互/技术反推（BSIO=WordPress、booksinorder.io=Next.js+完整 JSON-LD 三件套+每书 Book 节点、Goodreads 系列页 shelving 交互等）、P0/P1/P2 整合清单。StoryGraph/Hardcover/FictionDB/LibraryThing/FantasticFiction 均被 Turnstile/人机验证拦截，按红线不绕过，标注为受限来源。
+- 技术栈评估（专项任务 3）：对比竞品（WordPress vs Next.js 预渲染），当前 Workers+Hono+D1/KV+Tailwind v4 边缘 SSR 在 TTFB 与 JS 体积上均占优；Next/Astro 迁移无用户可见收益。结论：保持现栈，依赖保持更新。详见 teardown 文档"Tech-stack assessment"。
+
+**修复/动作**
+- docs/competitor-teardown.md 落库；原始证据 research/comp/*.html+png（不入库仓库，仅本地留存）。
+
+## Round 102 — 2026-08-05
+
+**发现（老板 P0 指令·定价改造）**
+- 产品不再定位为"免费"，改「Beta 免费试用」口径并展示正式付费方案。
+
+**修复**
+- 新增 /pricing：Reader（$0）与 Shelfmark Plus（$2.99/mo 或 $24/yr，planned）双档卡片、"Free during beta" 徽章、Pricing FAQ（beta 期间全功能开放、不收款、数据永可导出）；BreadcrumbList JSON-LD；入 sitemap。
+- 头部 Beta 徽章（链接 /pricing）+ 导航/页脚 Pricing 链接；全站 "free tracker" 文案改为 "no-signup tracker / free while in beta"（首页 title、series/authors/genres/popular 描述、OpenSearch、llms.txt）。CTA "Start free beta trial"。不接入任何收款。
+
+**证据**：https://shelfmark.zalize.com/pricing 200；部署 5bd481b2。
+
+## Round 103 — 2026-08-05
+
+**发现（竞品复刻·booksinorder.io）**
+- 其系列页首屏 "Quick Order Summary / Start with X" 盒子直接回答核心查询，利于 featured snippet；其面包屑为 4 级（含作者层）。
+
+**修复**
+- 系列页新增 "Where to start" 引导卡（首本书名+年份+封面缩略图+出版顺序说明，纯目录数据推导，无捏造）。
+- 系列页面包屑升级为 Home/Series/作者/系列 4 级（可见导航 + BreadcrumbList JSON-LD 同步）。
+
+**证据**：https://shelfmark.zalize.com/series/mistborn 实测含 Where to start 卡与 4 级面包屑 LD。
+
+## Round 104 — 2026-08-05
+
+**发现（竞品复刻·BSIO/booksinorder.io）**
+- 竞品每本书均有购买出口（BSIO 一页 149 个 Amazon 链接）；我们完全没有获取图书的出口。
+
+**修复**
+- 每本书行新增 "Find a copy" 外链 → Bookshop.org 搜索（书名+作者，rel="nofollow noopener"，无联盟代码、诚实搜索链接，打印时隐藏）。作者页 standalone 区同样生效。
+
+**证据**：/series/mistborn 实测 8 处 bookshop.org/search 链接。
+
+## Round 105 — 2026-08-05
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R101–104 上线后核心路由健康检查 + 新页面 IndexNow 提交。
+
+**修复/动作**
+- 14 个核心端点全 200；IndexNow 提交 /pricing 等 5 个关键 URL（HTTP 200）；部署 5bd481b2。
+- QA 抓到 P1：移动端 375px 头部导航溢出（`.beta-badge` 自定义 CSS 的 display 覆盖了 `hidden` 工具类导致 Beta 徽章在小屏可见 + 首页 New&upcoming 卡 grid 项缺 min-w-0 撑宽页面 + 导航本身预存溢出）。修复：Beta 徽章 `hidden sm:inline-block`、Genres/New 分别 ≥360/380px 才显示、导航间距与 logo 尺寸移动端收紧、卡片加 min-w-0。Playwright 实测 360–768px 全部无横向溢出（320px 罕见宽度仍略溢出，遗留 P3）。部署 736b827e。
+
+## Round 106 — 2026-08-05
+
+**发现（竞品复刻·booksinorder.io/Goodreads/BSIO P2 项）**
+- 竞品均有 book 详情层承接书名长尾搜索（Goodreads book 页、booksinorder.io 每书 Book JSON-LD）；我们的书只存在于系列列表行内。
+
+**修复**
+- 新增 `/book/{id}-{slug}` 详情页（质量门槛：有简介的 in-series 书才入 sitemap/index，无简介 noindex,follow）：大封面、作者/年份、"Book N of M in {series}"、简介、Full reading order + Find a copy CTA、上一本/下一本导航、Book JSON-LD（isPartOf BookSeries + position）+ BreadcrumbList；slug 不匹配 301 到规范 URL。系列/作者页书名变为详情页链接（勾选区不受影响）。sitemap 新增 book 分片（~21K 有简介书目，索引 6→11 个分片）。
+
+**证据**：/book/134080-mistborn-the-final-empire 200（Book LD、prev/next、301 规范化实测）；sitemaps/11.xml 输出 book URL；移动端 360/375px 无横向溢出。部署 79221be4。
+
+**QA 回归（三项发现均已修复，部署 404b05c1）**
+- 360px 仍溢出 3px + 380px 处 New 出现即溢出 → Genres/New 断点改 ≥400/460px；首页 hero 搜索输入加 min-w-0。溢出扫描 320–640px（含断点边缘）除 320px 首页已知 P3 外全清。
+- book 页正文内联链接（作者/系列）axe link-in-text-block serious → 改常显 underline，light/dark 均 0 违规。
+- 年份重排系列（如 Discworld 重复 position）book 页 "Book N of M" 序号与可见列表不一致 → book 路由复用 bookList 同款重排逻辑，Mort 实测 Book 2 of 55 与列表一致。
+
+## Round 107 — 2026-08-05
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R106 book 详情层上线后全站健康检查 + 全量 IndexNow（含新 book 分片）。
+
+**修复/动作**
+- 16 个核心端点全 200（含 /book/ 与 sitemaps/11.xml）；IndexNow 全量重提交 46,267 URL（sitemap 1–11 分片，6×HTTP 200，其中新增 ~21K book URL）；scripts/indexnow.sh 分片数 6→11。
+
+---
+
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
