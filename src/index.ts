@@ -96,7 +96,7 @@ app.get("/", async (c) => {
   <h1 class="font-display font-bold text-4xl sm:text-5xl text-ink-900 leading-tight">Read every series<br>in the <span class="text-amber-accent">right order</span>.</h1>
   <p class="mt-4 text-lg text-ink-700 max-w-xl mx-auto">Publication order for ${Number(nb).toLocaleString()} books across ${Number(ns).toLocaleString()} series — with a private reading tracker built in. No account needed.</p>
   <form action="/search" method="get" class="mt-6 max-w-lg mx-auto flex gap-2">
-    <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
+    <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 min-w-0 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
   <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>
@@ -581,9 +581,13 @@ app.get("/book/:key", async (c) => {
   if (c.req.param("key") !== canonicalKey) return c.redirect(`/book/${canonicalKey}`, 301);
   let prev: Book | null = null, next: Book | null = null, ordinal: number | null = null;
   if (book.series_id) {
-    const { results: sibs } = await c.env.DB.prepare(
+    const { results } = await c.env.DB.prepare(
       `SELECT id, title, year, position FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
     ).bind(book.series_id).all<Book>();
+    let sibs = results;
+    const positions = sibs.map((b) => b.position).filter((p): p is number => p != null);
+    if (new Set(positions).size !== positions.length)
+      sibs = [...sibs].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0));
     const i = sibs.findIndex((b) => b.id === id);
     if (i >= 0) { ordinal = i + 1; prev = sibs[i - 1] ?? null; next = sibs[i + 1] ?? null; }
   }
@@ -600,8 +604,8 @@ ${crumbs([
   ${book.cover_url ? `<img src="${esc(book.cover_url.replace("-M.jpg", "-L.jpg"))}" alt="Cover of ${esc(book.title)}" width="160" height="240" class="w-40 rounded-lg shadow object-cover bg-ink-100 border border-ink-200 shrink-0 self-start">` : ""}
   <div class="min-w-0">
     <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900 break-words">${esc(book.title)}</h1>
-    <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent hover:underline">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
-    ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent hover:underline">${esc(book.series_name)}</a></p>` : ""}
+    <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
+    ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.series_name)}</a></p>` : ""}
     ${book.description ? `<p class="mt-4 text-ink-700 max-w-2xl">${esc(book.description)}</p>` : ""}
     <div class="mt-5 flex flex-wrap gap-3">
       ${book.series_slug ? `<a href="/series/${book.series_slug}" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Full reading order</a>` : ""}

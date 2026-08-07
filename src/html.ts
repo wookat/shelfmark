@@ -71,8 +71,8 @@ ${ld}
     <nav aria-label="Primary" class="ml-auto flex items-center gap-2 sm:gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
       <a href="/authors" class="hover:text-amber-accent">Authors</a>
-      <a href="/genres" class="hover:text-amber-accent hidden min-[360px]:inline">Genres</a>
-      <a href="/new" class="hover:text-amber-accent hidden min-[380px]:inline">New</a>
+      <a href="/genres" class="hover:text-amber-accent hidden min-[400px]:inline">Genres</a>
+      <a href="/new" class="hover:text-amber-accent hidden min-[460px]:inline">New</a>
       <a href="/pricing" class="hover:text-amber-accent hidden sm:inline">Pricing</a>
       <a href="/shelf" class="rounded-full bg-ink-900 text-ink-50 px-3 sm:px-3.5 py-1.5 hover:bg-ink-700 whitespace-nowrap">My Shelf</a>
     </nav>

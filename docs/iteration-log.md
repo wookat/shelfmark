@@ -1283,6 +1283,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **证据**：/book/134080-mistborn-the-final-empire 200（Book LD、prev/next、301 规范化实测）；sitemaps/11.xml 输出 book URL；移动端 360/375px 无横向溢出。部署 79221be4。
 
+**QA 回归（三项发现均已修复，部署 404b05c1）**
+- 360px 仍溢出 3px + 380px 处 New 出现即溢出 → Genres/New 断点改 ≥400/460px；首页 hero 搜索输入加 min-w-0。溢出扫描 320–640px（含断点边缘）除 320px 首页已知 P3 外全清。
+- book 页正文内联链接（作者/系列）axe link-in-text-block serious → 改常显 underline，light/dark 均 0 违规。
+- 年份重排系列（如 Discworld 重复 position）book 页 "Book N of M" 序号与可见列表不一致 → book 路由复用 bookList 同款重排逻辑，Mort 实测 Book 2 of 55 与列表一致。
+
 ---
 
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
