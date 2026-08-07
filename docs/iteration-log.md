@@ -1288,6 +1288,14 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - book 页正文内联链接（作者/系列）axe link-in-text-block serious → 改常显 underline，light/dark 均 0 违规。
 - 年份重排系列（如 Discworld 重复 position）book 页 "Book N of M" 序号与可见列表不一致 → book 路由复用 bookList 同款重排逻辑，Mort 实测 Book 2 of 55 与列表一致。
 
+## Round 107 — 2026-08-05
+
+**发现（五驱动·测试/数据）**
+- 批尾例行：R106 book 详情层上线后全站健康检查 + 全量 IndexNow（含新 book 分片）。
+
+**修复/动作**
+- 16 个核心端点全 200（含 /book/ 与 sitemaps/11.xml）；IndexNow 全量重提交 46,267 URL（sitemap 1–11 分片，6×HTTP 200，其中新增 ~21K book URL）；scripts/indexnow.sh 分片数 6→11。
+
 ---
 
 **100 轮迭代收官（R1–R100）**：五驱动流程共修复/新增 100+ 项，覆盖安全（CSP/HSTS/限流）、无障碍（axe 205→0 违规并保持）、pSEO（25,638 URL、FAQ/ItemList/BookSeries/Person JSON-LD、/popular、llms.txt）、分发（RSS/OpenSearch/PWA/IndexNow/开放 API）、追踪器（up-next、批量操作、目标、节奏图、想读清单、备份导入导出、清除数据）、深色模式与第一方无 Cookie 统计（day/path + referrer hostname）。遗留：自然流量待观察（referrers 表已就位）、Resend key 缺失致邮件提醒停用、约 1,145 系列无可靠流派证据、核心封面覆盖 ~41%。
