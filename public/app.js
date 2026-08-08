@@ -92,7 +92,7 @@
   // ---- first-visit coach mark on series pages (one-time, dismissible) ----
   var TIP_KEY = "shelfmark_tip_track_v1";
   var firstList = document.querySelector("ol[data-series]");
-  if (firstList && !Object.keys(data).length && !localStorage.getItem(TIP_KEY)) {
+  if (firstList && firstList.querySelectorAll("input[data-book]").length > 1 && !Object.keys(data).length && !localStorage.getItem(TIP_KEY)) {
     var tip = document.createElement("div");
     tip.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 mb-3 print:hidden";
     tip.setAttribute("role", "note");
