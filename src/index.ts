@@ -686,24 +686,30 @@ app.get("/book/:key", async (c) => {
   if (!m) return notFound(c);
   const id = parseInt(m[1]);
   const book = await c.env.DB.prepare(
-    `SELECT b.*, s.slug AS series_slug, s.name AS series_name, s.book_count AS series_count, a.name AS author_name, a.slug AS author_slug
+    `SELECT b.*, s.slug AS series_slug, s.name AS series_name, s.book_count AS series_count, s.genre AS series_genre, s.author_id AS series_author_id, a.name AS author_name, a.slug AS author_slug, a.bio AS author_bio, a.photo_url AS author_photo
      FROM books b LEFT JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=COALESCE(b.author_id, s.author_id) WHERE b.id=?`
-  ).bind(id).first<Book & { series_slug: string | null; series_name: string | null; series_count: number | null; author_name: string | null; author_slug: string | null }>();
+  ).bind(id).first<Book & { series_slug: string | null; series_name: string | null; series_count: number | null; series_genre: string | null; series_author_id: number | null; author_name: string | null; author_slug: string | null; author_bio: string | null; author_photo: string | null }>();
   if (!book) return notFound(c);
   const canonicalKey = `${id}-${bslug(book.title)}`;
   if (c.req.param("key") !== canonicalKey) return c.redirect(`/book/${canonicalKey}`, 301);
   let prev: Book | null = null, next: Book | null = null, ordinal: number | null = null;
+  let sibs: Book[] = [];
   if (book.series_id) {
     const { results } = await c.env.DB.prepare(
-      `SELECT id, title, year, position FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+      `SELECT id, title, year, position, cover_url FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
     ).bind(book.series_id).all<Book>();
-    let sibs = results;
+    sibs = results;
     const positions = sibs.map((b) => b.position).filter((p): p is number => p != null);
     if (new Set(positions).size !== positions.length)
       sibs = [...sibs].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0));
     const i = sibs.findIndex((b) => b.id === id);
     if (i >= 0) { ordinal = i + 1; prev = sibs[i - 1] ?? null; next = sibs[i + 1] ?? null; }
   }
+  const { results: alsoEnjoy } = book.series_genre
+    ? await c.env.DB.prepare(
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.id<>? AND (s.author_id IS NULL OR s.author_id<>?) AND s.book_count BETWEEN 3 AND 60 ORDER BY s.book_count DESC LIMIT 3`
+      ).bind(book.series_genre, book.series_id, book.series_author_id ?? -1).all<Series>()
+    : { results: [] as Series[] };
   const buy = `https://bookshop.org/search?keywords=${encodeURIComponent(book.title + (book.author_name ? " " + book.author_name : ""))}`;
   const navLink = (b: Book, label: string) => `<a href="/book/${b.id}-${bslug(b.title)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 text-sm hover:border-amber-accent">${label} ${esc(b.title.length > 34 ? b.title.slice(0, 32) + "…" : b.title)}</a>`;
   const body = `
@@ -718,15 +724,41 @@ ${crumbs([
   <div class="min-w-0">
     <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900 break-words">${esc(book.title)}</h1>
     <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
-    ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.series_name)}</a></p>` : ""}
+    ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.series_name)}</a>${book.series_genre ? ` · <a href="/genres/${gslug(book.series_genre)}" class="text-amber-accent underline underline-offset-2">${esc(gtitle(book.series_genre))}</a>` : ""}</p>` : ""}
     ${book.description ? `<p class="mt-4 text-ink-700 max-w-2xl">${esc(book.description)}</p>` : ""}
+    ${book.series_slug ? `<ol class="mt-4 print:hidden" data-series="${book.series_slug}" data-series-name="${esc(book.series_name ?? "")}"><li><label class="inline-flex items-center gap-2.5 cursor-pointer rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${book.id}" data-title="${esc(book.title)}"><span class="font-medium text-ink-900">I’ve read this</span><span class="text-ink-700/75">— saves privately in your browser</span></label></li></ol>` : ""}
     <div class="mt-5 flex flex-wrap gap-3">
       ${book.series_slug ? `<a href="/series/${book.series_slug}" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Full reading order</a>` : ""}
       <a href="${buy}" rel="nofollow noopener" target="_blank" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Find a copy</a>
     </div>
     ${prev || next ? `<div class="mt-5 flex flex-wrap gap-2">${prev ? navLink(prev, "←") : ""}${next ? navLink(next, "Next:") : ""}</div>` : ""}
   </div>
-</div>`;
+</div>
+${sibs.length > 1 && book.series_name ? `<section class="mt-12">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">All ${sibs.length} books in ${esc(book.series_name)}</h2>
+  <div class="mt-4 flex gap-4 overflow-x-auto pb-2">
+    ${sibs.map((b, i) => `<a href="/book/${b.id}-${bslug(b.title)}" class="shrink-0 w-24 group ${b.id === id ? "opacity-100" : ""}" ${b.id === id ? 'aria-current="page"' : ""}>
+      ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="96" height="144" class="w-24 h-36 object-cover rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} group-hover:border-amber-accent">` : `<span aria-hidden="true" class="w-24 h-36 rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} flex items-center justify-center font-display font-semibold text-2xl text-ink-700/75 group-hover:border-amber-accent">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
+      <span class="block mt-1.5 text-xs text-ink-700 leading-snug"><span class="tabular-nums text-ink-700/75">${i + 1}.</span> ${esc(b.title.length > 42 ? b.title.slice(0, 40) + "…" : b.title)}</span>
+    </a>`).join("")}
+  </div>
+  <a href="/series/${book.series_slug}" class="inline-block mt-2 text-sm text-amber-accent underline underline-offset-2">Full reading order & tracker →</a>
+</section>` : ""}
+${book.author_name && book.author_bio ? `<section class="mt-12">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">About the author</h2>
+  <div class="mt-4 flex items-start gap-4 rounded-2xl bg-white border border-ink-200 p-5 max-w-2xl">
+    ${book.author_photo ? `<img src="${esc(book.author_photo)}" alt="Photo of ${esc(book.author_name)}" loading="lazy" width="64" height="64" class="w-16 h-16 rounded-full object-cover border border-ink-200 bg-ink-100 shrink-0">` : ""}
+    <div class="min-w-0">
+      <p class="font-medium text-ink-900"><a href="/authors/${book.author_slug}" class="hover:text-amber-accent">${esc(book.author_name)}</a></p>
+      <p class="mt-1 text-sm text-ink-700">${esc(book.author_bio)}</p>
+      <a href="/authors/${book.author_slug}" class="inline-block mt-2 text-sm text-amber-accent underline underline-offset-2">All books by ${esc(book.author_name)} →</a>
+    </div>
+  </div>
+</section>` : ""}
+${alsoEnjoy.length ? `<section class="mt-12 print:hidden">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">Readers also enjoyed</h2>
+  <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoEnjoy.map(seriesCard).join("")}</div>
+</section>` : ""}`;
   return c.html(
     layout({
       title: `${book.title}${book.series_name ? ` (${book.series_name}${ordinal ? ` #${ordinal}` : ""})` : ""}${book.author_name ? ` by ${book.author_name}` : ""} | Shelfmark`,
@@ -934,8 +966,8 @@ app.get("/search", async (c) => {
       `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
     ).bind(like).all<Author>();
     const { results: bookHits } = await c.env.DB.prepare(
-      `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
-    ).bind(like).all<{ title: string; year: number | null; series_slug: string; series_name: string; author_name: string | null }>();
+      `SELECT b.id, b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
+    ).bind(like).all<{ id: number; title: string; year: number | null; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
     let closeMatches = false;
     const tokens = q.replace(/[%_]/g, " ").split(/\s+/).filter((t) => t.length > 2);
     if (!series.length && !authors.length && !bookHits.length && tokens.length > 1) {
@@ -957,7 +989,7 @@ app.get("/search", async (c) => {
 ${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
-${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/series/${b.series_slug}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— ${esc(b.series_name)}${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></li>`).join("")}</ul>` : ""}
+${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="32" height="48" class="w-8 h-12 object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-8 h-12 rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/book/${b.id}-${bslug(b.title)}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— <a href="/series/${b.series_slug}" class="hover:text-amber-accent underline underline-offset-2">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul>` : ""}
 ${!series.length && !authors.length && !bookHits.length ? await (async () => {
       const { results: popular } = await c.env.DB.prepare(
         `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC LIMIT 6`

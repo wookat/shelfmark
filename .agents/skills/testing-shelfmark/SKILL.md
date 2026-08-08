@@ -67,3 +67,6 @@ Use the mail.tm API via **curl** (python urllib gets 401s from their WAF). mail.
 
 ## Tap-target scans & minified deployed CSS (R132–138)
 When measuring tap targets with elementFromPoint, measure the *exclusive* hit band per link: in vertical lists, padding+negative-margin enlargements overlap siblings and the later sibling paints on top, so bounding-box height overstates the real target. Also note deployed styles.css is minified — grep without leading zeros or spaces (e.g. `.75rem`, `transition:none`).
+
+## Book-page tracker tick (R137)
+Book pages at `/book/{id}-{slug}` reuse the same tracker via a single-item `ol[data-series]` — ticks there sync with the series page and /shelf through the same localStorage key. The coach mark only renders when a list has >1 `input[data-book]`, so book pages never show it. Horizontal cover strips are `overflow-x-auto` — shift+scroll works for UI demonstration.

@@ -1490,3 +1490,17 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **回归（线上，最终部署 4d51349c）**
 - 首轮回归（ed8c9006）：explainer/typography/布局/axe 8 轮 0 违规/CWV/print/reduced-motion 全绿，但抓到两项：① header/footer tap 区实测 38px/34.6px 未达 44px；② 进度条既有 Tailwind transition-all 0.15s 在 reduced-motion 下残留。
 - 修复轮（c82d9ab4→4d51349c）：header 44px、reduced-motion transition:none、footer 改非重叠方案后 17 链接全部 44px 独占，375/1440 无溢出。全部关闭，见 PR #21 评论。
+
+## Round 137 — 一比一复刻基准打磨专项
+
+**调研**
+- 标杆真实走查：BSIO 7 页 + Goodreads 5 页（Playwright 抓取 HTML+全页截图，落库 research/comp/rep/），逐页逐流程建还原度对照表 docs/replication-benchmark.md（0-100% 评分 + 差距 + 数据边界备注）。
+- 结论：作者页/系列页/新书页/订阅已达标或超越；最大差距 = 图书详情页（vs Goodreads book page）与搜索书目行。评分/评论、编辑长简介、时间线顺序、角色索引无合规数据源，明确不做（不伪造红线）。
+
+**修复/动作（全部 P0/P1 缺口关闭）**
+- /book 页：流派 chip、「I've read this」勾选（单书 ol[data-series] 复用追踪器，与系列页/My Shelf 双向同步）、「All N books in {series}」横向封面条（当前书高亮）、About the author 卡（bio+头像）、Readers also enjoyed 同流派 3 卡。
+- /search 书目行：封面缩略图/首字母占位 + 书名直达 /book。
+- app.js coach mark 限 >1 勾选框列表（书页不再触发）。
+
+**回归（线上，部署 be22d3fe）**
+- 测试代理全绿：书页五区渲染、勾选跨页同步闭环（书页→系列页 1 of 8 read→/shelf→reload 持久→untick 回同步）、coach mark 书页无/系列页有、搜索封面+直达、55 书条横向滚动无页面溢出、375px 双页无溢出、axe 明暗 0 违规、print 正常、追踪器回归。见 PR #22 评论。
