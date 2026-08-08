@@ -58,3 +58,6 @@ No OS dark toggle on this box — use DevTools "Emulate CSS prefers-color-scheme
 
 ## Goal-met card variant (non-destructive)
 Test the reading-card "✓ goal met" branch in incognito: seed `shelfmark_read_v1` with current-year timestamps and set a goal ≤ that count via the UI prompt.
+
+## Onboarding coach mark & first-tick hint (R128–130)
+The first-tick hint ("First book tracked ✓ … My Shelf") auto-removes 12s after the tick — to click its /shelf link in a recorded browser, use a short series (e.g. /series/mistborn, 8 books) and click within ~10s of ticking; on long lists (Discworld, 55 books) scrolling to it usually eats the window. The coach-tip/hint one-time keys are `shelfmark_tip_track_v1` / `shelfmark_hint_shelf_v1` — any prior tick or key in the profile suppresses them, so always use a freshly-reopened incognito window.
