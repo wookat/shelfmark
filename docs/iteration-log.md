@@ -1504,3 +1504,10 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 be22d3fe）**
 - 测试代理全绿：书页五区渲染、勾选跨页同步闭环（书页→系列页 1 of 8 read→/shelf→reload 持久→untick 回同步）、coach mark 书页无/系列页有、搜索封面+直达、55 书条横向滚动无页面溢出、375px 双页无溢出、axe 明暗 0 违规、print 正常、追踪器回归。见 PR #22 评论。
+
+## Round 138 — 复刻升级：页面覆盖率盘点 + 技术标准审计
+
+- **A 覆盖率**：BSIO sitemap_index+robots+导航爬查（14 类）+ Goodreads 公开页面枚举（10 类）→ 对照表新增 E 节。24 类中 19 类已对照/对位；5 类为 deliberate-n/a 或数据边界（角色索引、名人书友会、编辑博客、月日级日历、UGC 社区），逐条注明理由。定位内覆盖率 19/19 = 100%。
+- **B 技术审计**：对照表新增 F 节（12 项：渲染/TTFB/体积/字体/图片/缓存/结构化数据/安全头/无障碍/协议/压缩）。TTFB 实测我们 0.24s vs BSIO 1.0s vs GR 2.4s。唯一未达标项 = 字体管线（第三方 Google Fonts CSS）。
+- **修复**：自托管 latin 子集变量字体（Fraunces roman/italic + Inter，OFL 许可，woff2 共 197KB）+ head preload，CSP 移除 Google 域（style-src/font-src 收紧至 'self'），/fonts/* 1 年 immutable 缓存。修复后 12/12 达标、8 项反超。
+- **回归（生产 9691d0c3）**：测试代理全绿——document.fonts + 宽度对抗测试证实真实 webfont 渲染、全网络捕获零第三方字体请求、console 无 CSP violation、woff2 immutable 头、375px 无溢出、axe 明暗 4 轮 0 违规、LCP 305ms/CLS 0.0013 无回退。
