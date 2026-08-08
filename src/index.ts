@@ -1393,6 +1393,21 @@ async function authorSuggestions(c: any, slug: string): Promise<{ href: string; 
 
 app.notFound(notFound);
 
+app.onError((err, c) => {
+  console.error(`unhandled error on ${c.req.method} ${c.req.path}: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+  return c.html(
+    layout({
+      title: "Something went wrong | Shelfmark",
+      description: "Unexpected error.",
+      path: c.req.path,
+      siteUrl: c.env.SITE_URL,
+      noindex: true,
+      body: `<div class="text-center py-16"><h1 class="font-display font-bold text-4xl text-ink-900">Something went wrong</h1><p class="mt-3 text-ink-700">An unexpected error occurred. Please try again in a moment.</p><p class="mt-6"><a href="/" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Back to home</a></p></div>`,
+    }),
+    500
+  );
+});
+
 const DIGEST_QUERY = `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`;
 
 async function runDigest(env: Env): Promise<void> {

@@ -1357,3 +1357,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 811eb934）**
 - 实测 GET：/ 与 /series/discworld 返回新缓存头；/shelf、/confirm、/unsubscribe、/search 无公共缓存头（符合预期）。
+
+## Round 114 — 2026-08-08（错误处理：全站 500 页）
+
+**修复/动作**
+- 新增 app.onError：未捕获异常返回站点风格 500 页（noindex，Back to home），并 console.error 记录方法/路径/堆栈（wrangler tail 可观测）；此前为 Hono 默认纯文本 "Internal Server Error"。
+
+**回归**
+- 本地 wrangler dev（本地 D1 无表触发真实异常）：/series/discworld 返回 500 + 品牌化页面，验证通过；线上部署 fb53d6e3。
