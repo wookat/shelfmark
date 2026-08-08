@@ -1429,3 +1429,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **动作**
 - 17 端点健康检查全 200（含新 /lists 面）。
 - IndexNow 全量重提交 46,272 URL（6 批 ×HTTP 200，含 /lists 索引与 4 单）。
+
+## Round 123 — 2026-08-08（BCE 年份格式化）
+
+**修复/动作**
+- yearsSpan 对 ≤0 年份输出「N BCE」（proleptic 天文纪年换算），修复 platonic-dialogue / twenty-four-histories 两个系列页 chip 显示「-40–1963」的怪异渲染（仅格式化，不改数据）。
+
+**回归（线上，部署 5f363561）**
+- /series/platonic-dialogue 实测渲染「41 BCE–1963」。

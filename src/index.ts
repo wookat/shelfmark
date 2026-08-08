@@ -49,9 +49,13 @@ const PAGE_SIZE = 60;
 function bookNoun(n: number) {
   return `${n} book${n === 1 ? "" : "s"}`;
 }
+function fmtYear(y: number): string {
+  return y <= 0 ? `${1 - y} BCE` : String(y);
+}
+
 function yearsSpan(s: Series) {
-  if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${s.first_year}–${s.last_year}`;
-  return s.first_year ? String(s.first_year) : "";
+  if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${fmtYear(s.first_year)}–${fmtYear(s.last_year)}`;
+  return s.first_year ? fmtYear(s.first_year) : "";
 }
 
 function seriesCard(s: Series): string {
