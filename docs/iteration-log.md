@@ -1392,3 +1392,26 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 96b77b06）**
 - 实测查询后 searches 表正确落一行（term 小写化、results/count 正确），探针记录已清理。
+
+## Round 118 — 2026-08-08（数据/性能复测：全绿，无需修复）
+
+**五驱动扫描**
+- 数据：hits 近 3 日 ~680 次（仍以自测为主）；referrers 仅 google.com ×3；searches 表管道用一次性探针实测正常（记录后已清理）；emails 3 待确认 0 已确认。
+- 性能：7 个代表路由 TTFB 100–270ms，styles.css 28KB / app.js 34KB，预算内无回归。
+
+## Round 119 — 2026-08-08（竞品复访 → /lists 精选书单层）
+
+**修复/动作**
+- 竞品复访发现 booksinorder.io 新增 /lists、/methodology、/release-calendar 面（methodology 我方 /about 已覆盖；release-calendar 因只有年份粒度数据暂不做）。
+- 采纳 /lists：新增精选书单层（全部纯目录数据推导，不伪造）——trilogies / long-running-epics / new-series-of-the-2020s / classic-series 四单，每单 ≤60 系列 + ItemList JSON-LD + 面包屑；/lists 索引页；footer、首页 Popular 区、sitemap（索引+4 单）、llms.txt 全部接入。
+
+**回归（线上，部署 2685984c）**
+- 双域名 5 个新 URL 全 200；trilogies 单实测 60 张系列卡；未知 slug 404。
+
+## Round 120 — 2026-08-08（backlog P1#5 收尾：系列页年份跨度 chip）
+
+**修复/动作**
+- 系列页 at-a-glance chips 补最后缺项：年份跨度 chip（如 2006–2022），与书数/流派/作者 chips 并列；无年份数据不渲染。
+
+**回归（线上）**
+- /series/mistborn 实测 2006–2022 chip 渲染。

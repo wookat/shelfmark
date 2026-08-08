@@ -112,7 +112,7 @@ app.get("/", async (c) => {
 </section>
 <div id="continue-reading"></div>
 <section class="mt-8">
-  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/lists" class="text-amber-accent font-medium">Lists →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
 </section>
 ${fresh.length ? `<section class="mt-12">
@@ -219,6 +219,96 @@ app.get("/popular", async (c) => {
           "@context": "https://schema.org",
           "@type": "ItemList",
           name: "Most popular book series on Shelfmark",
+          numberOfItems: results.length,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+    })
+  );
+});
+
+// ---------- Curated lists ----------
+const LIST_BASE = `s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%'`;
+const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string; order: string }[] = [
+  {
+    slug: "trilogies",
+    name: "Trilogies to binge",
+    blurb: "Complete three-book series — a beginning, a middle, and an end you can finish in a few weekends.",
+    where: `${LIST_BASE} AND s.book_count = 3`,
+    order: `s.first_year DESC, s.name`,
+  },
+  {
+    slug: "long-running-epics",
+    name: "Long-running epics",
+    blurb: "Series with 15 or more books — enough reading to last a whole year (or three).",
+    where: `${LIST_BASE} AND s.book_count BETWEEN 15 AND 200`,
+    order: `s.book_count DESC, s.name`,
+  },
+  {
+    slug: "new-series-of-the-2020s",
+    name: "New series of the 2020s",
+    blurb: "Series that started in 2020 or later and already have at least two books — get in near the ground floor.",
+    where: `${LIST_BASE} AND s.first_year >= 2020 AND s.book_count >= 2`,
+    order: `s.book_count DESC, s.first_year DESC, s.name`,
+  },
+  {
+    slug: "classic-series",
+    name: "Classic series",
+    blurb: "Series that began before 1980 and are still being read today — three or more books each.",
+    where: `${LIST_BASE} AND s.first_year <= 1980 AND s.book_count >= 3`,
+    order: `s.first_year, s.name`,
+  },
+];
+
+app.get("/lists", (c) => {
+  const body = `
+<nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Lists</span></nav>
+<h1 class="font-display font-bold text-3xl text-ink-900">Reading lists</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Focused slices of the catalog, derived straight from the series data — each list links to complete reading orders with the built-in tracker.</p>
+<div class="grid gap-3 sm:grid-cols-2 mt-6">${CURATED_LISTS.map((l) => `<a href="/lists/${l.slug}" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">${l.name}</h2><p class="mt-1.5 text-sm text-ink-700">${l.blurb}</p></a>`).join("")}</div>`;
+  return c.html(
+    layout({
+      title: "Reading Lists — Curated Book Series | Shelfmark",
+      description: "Curated book-series lists: trilogies to binge, long-running epics, new series of the 2020s, classic series — all with complete reading orders.",
+      path: "/lists",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Lists", "/lists"]])],
+    })
+  );
+});
+
+app.get("/lists/:slug", async (c) => {
+  const list = CURATED_LISTS.find((l) => l.slug === c.req.param("slug"));
+  if (!list) return notFound(c);
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${list.where} ORDER BY ${list.order} LIMIT 60`
+  ).all<Series>();
+  const body = `
+${crumbs([["Lists", "/lists"], [list.name, ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">${list.name}</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">${list.blurb} Showing ${results.length} series — every one with a complete reading order.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+<p class="mt-8 text-sm text-ink-700/80">More lists: ${CURATED_LISTS.filter((l) => l.slug !== list.slug).map((l) => `<a class="text-amber-accent underline" href="/lists/${l.slug}">${l.name}</a>`).join(" · ")}</p>`;
+  return c.html(
+    layout({
+      title: `${list.name} — Book Series in Order | Shelfmark`,
+      description: `${list.blurb} Complete reading orders with a free no-signup tracker (open beta).`,
+      path: `/lists/${list.slug}`,
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Lists", "/lists"], [list.name, `/lists/${list.slug}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `${list.name} on Shelfmark`,
           numberOfItems: results.length,
           itemListElement: results.map((s, i) => ({
             "@type": "ListItem",
@@ -503,6 +593,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  ${yearsSpan(series) ? `<span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${yearsSpan(series)}</span>` : ""}
   ${series.genre ? `<a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent capitalize">${esc(series.genre)}</a>` : ""}
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
@@ -1305,6 +1396,7 @@ app.get("/llms.txt", (c) => {
 
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
 - [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
+- [Reading lists](${c.env.SITE_URL}/lists): curated lists — trilogies, long-running epics, new series of the 2020s, classics.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
@@ -1358,7 +1450,8 @@ app.get("/sitemaps/:file", async (c) => {
     }
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/pricing", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/pricing", "/about", "/new");
+    urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`

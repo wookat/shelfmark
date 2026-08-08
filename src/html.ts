@@ -96,6 +96,7 @@ ${o.body}
       <ul class="space-y-1">
         <li><a class="hover:text-amber-accent" href="/series">All series</a></li>
         <li><a class="hover:text-amber-accent" href="/popular">Popular series</a></li>
+        <li><a class="hover:text-amber-accent" href="/lists">Reading lists</a></li>
         <li><a class="hover:text-amber-accent" href="/authors">All authors</a></li>
         <li><a class="hover:text-amber-accent" href="/genres">Genres</a></li>
         <li><a class="hover:text-amber-accent" href="/new">New releases</a></li>
