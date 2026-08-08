@@ -53,9 +53,8 @@ export function layout(o: PageOpts): string {
 <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#16140f">
 <link rel="search" type="application/opensearchdescription+xml" title="Shelfmark" href="/opensearch.xml">
 <link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + (o.rss ?? "/new.rss"))}">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,600;1,9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/styles.css">
 ${ld}
 </head>
