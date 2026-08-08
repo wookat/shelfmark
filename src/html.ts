@@ -62,7 +62,7 @@ ${ld}
 <body class="bg-ink-50 text-ink-800 font-sans antialiased min-h-screen flex flex-col">
 <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:z-50 focus:bg-white focus:px-3 focus:py-1.5 focus:rounded-full focus:text-sm focus:shadow">Skip to content</a>
 <header class="border-b border-ink-200 bg-ink-50/90 backdrop-blur sticky top-0 z-20">
-  <div class="max-w-5xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-4">
+  <div class="max-w-5xl xl:max-w-6xl mx-auto px-3 sm:px-4 h-14 flex items-center gap-2 sm:gap-4">
     <a href="/" class="font-display font-bold text-lg sm:text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
     <a href="/pricing" class="beta-badge shrink-0 hidden sm:inline-block" title="Free while in beta — see planned pricing">Beta</a>
     <form action="/search" method="get" class="flex-1 max-w-md hidden sm:block">
@@ -81,11 +81,11 @@ ${ld}
     <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
   </form>
 </header>
-<main id="main" class="flex-1 w-full max-w-5xl mx-auto px-4 py-8">
+<main id="main" class="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 py-8">
 ${o.body}
 </main>
 <footer class="border-t border-ink-200 mt-16 py-10 text-sm text-ink-700">
-  <div class="max-w-5xl mx-auto px-4 grid gap-8 sm:grid-cols-3">
+  <div class="max-w-5xl xl:max-w-6xl mx-auto px-4 grid gap-8 sm:grid-cols-3">
     <div>
       <p class="font-display font-bold text-ink-900 text-lg mb-2">Shelfmark</p>
       <p>Every book series in the right order — and a private, no-signup reading tracker built into every page.</p>
@@ -115,7 +115,7 @@ ${o.body}
       </ul>
     </div>
   </div>
-  <div class="max-w-5xl mx-auto px-4 mt-8 flex flex-wrap items-center gap-4 justify-between">
+  <div class="max-w-5xl xl:max-w-6xl mx-auto px-4 mt-8 flex flex-wrap items-center gap-4 justify-between">
     <p>© ${new Date().getFullYear()} Shelfmark · zalize.com</p>
     <form data-subscribe class="flex flex-wrap gap-2">
       <input type="email" name="email" required aria-label="Email for new-release alerts" placeholder="Email for new-release alerts" class="rounded-full border border-ink-200 bg-white px-3 py-1.5 text-xs w-56">
