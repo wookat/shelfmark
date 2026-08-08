@@ -1373,3 +1373,13 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 e1fa7308）**
 - /new（自定义域 + workers.dev）实测订阅卡渲染；表单走既有确认邮件流程（R112 已 E2E 验证，不重复发信）。
+
+## Round 116 — 2026-08-08（QA 修复 + 新面回归）
+
+**修复/动作**
+- QA 抓到 R113 排除缺口：/search 无自有缓存头导致误得 5 分钟公共缓存；route 内显式 no-store（每查询 HTML 不缓存）。
+- 测试 skill 补充：缓存头须用 GET（curl -D -）检查，HEAD 不触发中间件会误报。
+
+**回归（线上，部署 16899a50）**
+- /search?q= 实测 no-store（自定义域+workers.dev）。
+- 测试代理独立回归：axe light/dark × /new + /unsubscribe(400) 4 轮 0 违规；/new 320/375px 无溢出、订阅卡完整；卡片无效输入被原生校验拦截（0 网络请求）；/ 缓存头正确、/shelf 无公共缓存头。

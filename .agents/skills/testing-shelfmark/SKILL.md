@@ -5,6 +5,8 @@ description: How to test the Shelfmark live site (shelfmark.zalize.com) — key 
 
 # Testing Shelfmark
 
+> Cache-header checks: use `curl -s -D - -o /dev/null` (GET), NOT `curl -I` — the worker's HTML Cache-Control middleware only fires for GET, so HEAD shows no Cache-Control and gives false negatives.
+
 > Note: the main QA browser profile contains synthetic Discworld localStorage entries (ids `999901`/`999902`, seeded during R92 pace-chart testing) that don't map to real book rows — homepage "Continue reading" counts them (shows 3 read) while /series/discworld only ticks 1. Expected artifact, not a bug.
 
 - Production: https://shelfmark.zalize.com (Cloudflare Worker + D1, SSR via Hono; code in `src/index.ts`, ~440 lines). No login or local setup needed to test the live site.

@@ -816,6 +816,7 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
 
 // ---------- Search ----------
 app.get("/search", async (c) => {
+  c.header("Cache-Control", "no-store");
   const q = (c.req.query("q") ?? "").trim().slice(0, 100);
   let body: string;
   if (!q) {
