@@ -259,8 +259,8 @@ const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string;
   {
     slug: "classic-series",
     name: "Classic series",
-    blurb: "Series that began before 1980 and are still being read today — three or more books each.",
-    where: `${LIST_BASE} AND s.first_year <= 1980 AND s.book_count >= 3`,
+    blurb: "Series that began between 1850 and 1980 and are still being read today — three or more books each.",
+    where: `${LIST_BASE} AND s.first_year BETWEEN 1850 AND 1980 AND s.book_count >= 3`,
     order: `s.first_year, s.name`,
   },
 ];

@@ -1415,3 +1415,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上）**
 - /series/mistborn 实测 2006–2022 chip 渲染。
+
+## Round 121 — 2026-08-08（QA 数据修正：classic-series 年份下限）
+
+**修复/动作**
+- QA 发现 classic-series 首条为 Plato「Platonic dialogue · -40–1963」（负年份渲染怪异且非本意的"经典系列"）；下限改为 first_year BETWEEN 1850 AND 1980，文案同步。
+
+**回归（线上）**
+- /lists/classic-series 首条不再是 Plato，无负年份条目。
