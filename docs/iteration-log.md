@@ -1423,3 +1423,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上）**
 - /lists/classic-series 首条不再是 Plato，无负年份条目。
+
+## Round 122 — 2026-08-08（批尾维护）
+
+**动作**
+- 17 端点健康检查全 200（含新 /lists 面）。
+- IndexNow 全量重提交 46,272 URL（6 批 ×HTTP 200，含 /lists 索引与 4 单）。
