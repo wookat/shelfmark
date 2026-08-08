@@ -89,6 +89,46 @@
     }
   }
 
+  // ---- first-visit coach mark on series pages (one-time, dismissible) ----
+  var TIP_KEY = "shelfmark_tip_track_v1";
+  var firstList = document.querySelector("ol[data-series]");
+  if (firstList && !Object.keys(data).length && !localStorage.getItem(TIP_KEY)) {
+    var tip = document.createElement("div");
+    tip.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 mb-3 print:hidden";
+    tip.setAttribute("role", "note");
+    var tipText = document.createElement("p");
+    tipText.className = "min-w-0 flex-1";
+    tipText.innerHTML = '<span class="font-medium text-ink-900">New here?</span> Tick the books you\u2019ve read \u2014 your progress is saved privately in this browser, no account needed.';
+    var tipClose = document.createElement("button");
+    tipClose.type = "button";
+    tipClose.className = "shrink-0 text-ink-700/75 hover:text-ink-900 cursor-pointer font-medium";
+    tipClose.textContent = "Got it";
+    tipClose.setAttribute("aria-label", "Dismiss tip");
+    tipClose.addEventListener("click", function () {
+      try { localStorage.setItem(TIP_KEY, "1"); } catch (e) {}
+      tip.remove();
+    });
+    tip.appendChild(tipText);
+    tip.appendChild(tipClose);
+    firstList.insertAdjacentElement("beforebegin", tip);
+  }
+
+  // ---- one-time "see it on My Shelf" hint after the very first tick ----
+  var HINT_KEY = "shelfmark_hint_shelf_v1";
+  function maybeShelfHint(nearEl) {
+    if (localStorage.getItem(HINT_KEY)) return;
+    try { localStorage.setItem(HINT_KEY, "1"); } catch (e) {}
+    try { localStorage.setItem(TIP_KEY, "1"); } catch (e) {}
+    var tipEl = document.querySelector(".coach-tip");
+    if (tipEl) tipEl.remove();
+    var hint = document.createElement("p");
+    hint.className = "coach-tip rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm text-ink-700 mt-3 print:hidden";
+    hint.setAttribute("role", "status");
+    hint.innerHTML = 'First book tracked \u2713 See all your progress on <a href="/shelf" class="text-amber-accent underline font-medium">My Shelf</a>.';
+    nearEl.insertAdjacentElement("afterend", hint);
+    setTimeout(function () { hint.remove(); }, 12000);
+  }
+
   document.querySelectorAll("ol[data-series]").forEach(function (list) {
     var slug = list.getAttribute("data-series");
     var seriesName = list.getAttribute("data-series-name") || slug;
@@ -97,6 +137,7 @@
       if (data[id]) box.checked = true;
       box.addEventListener("change", function () {
         var d = load();
+        var wasEmpty = !Object.keys(d).length;
         if (box.checked) {
           d[id] = { t: Date.now(), title: box.getAttribute("data-title"), series: seriesName, slug: slug };
         } else {
@@ -105,6 +146,7 @@
         save(d);
         data = d;
         updateSeriesUI(slug);
+        if (box.checked && wasEmpty) maybeShelfHint(list);
       });
     });
     updateSeriesUI(slug);

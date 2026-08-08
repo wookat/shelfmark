@@ -1453,3 +1453,13 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 377c3fb0）**
 - /year-in-books、/saved 双双 200；/saved noindex 确认。测试代理全量回归见 PR 评论。
+
+## Round 128–130 — 2026-08-09（用户引导/Onboarding 专项）
+
+**修复/动作**
+- R128 首访引导：首页 hero 下新增「How Shelfmark works」三步叙事卡（1 找系列 → 2 勾选已读 → 3 My Shelf/Year in Books），服务端渲染、静态克制、data-reveal 动效随 reduced-motion 降级。
+- R129 系列页首次 coach mark：无任何追踪数据且未关闭过时，书单上方显示一次性提示「New here? Tick the books…」，Got it 关闭（localStorage shelfmark_tip_track_v1），打印隐藏。
+- R130 新功能发现：首次勾选任意书后显示一次性「First book tracked ✓ See all your progress on My Shelf」提示（12s 自动消失，localStorage shelfmark_hint_shelf_v1，并同时视为 coach mark 已读）；首页深色板块文案补 Year in Books/书单分享入口；空状态审计（/shelf、/year-in-books、/saved、搜索零结果均已有 CTA，无缺口）。
+
+**回归（线上，部署 c565b465）**
+- 首页三步卡上线；app.js coach-tip 逻辑上线。测试代理新用户视角走查见 PR 评论。

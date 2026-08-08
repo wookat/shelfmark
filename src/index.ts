@@ -114,6 +114,14 @@ app.get("/", async (c) => {
     ${heroCovers.map((s, i) => `<a href="/series/${s.slug}" title="${esc(s.name)} reading order" style="transform:rotate(${[-6, 4, -3, 5, -5, 3, -4, 6][i % 8]}deg)" class="shrink-0${i > 3 ? " hidden md:block" : i > 2 ? " hidden sm:block" : ""}"><img src="${esc(s.cover_url!)}" alt="${esc(s.name)}" width="88" height="132" loading="lazy" class="w-16 sm:w-[88px] aspect-[2/3] object-cover rounded-md shadow-md border border-ink-200 bg-ink-100"></a>`).join("")}
   </div>` : ""}
 </section>
+<section class="mt-2" aria-labelledby="how-heading" data-reveal>
+  <h2 id="how-heading" class="sr-only">How Shelfmark works</h2>
+  <ol class="grid gap-3 sm:grid-cols-3">
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">1</span><p class="mt-1.5 font-display font-semibold text-ink-900">Find your series</p><p class="mt-1 text-sm text-ink-700">Search any series or author, or <a href="/popular" class="text-amber-accent underline">browse the most popular</a> — every page shows the books in publication order.</p></li>
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">2</span><p class="mt-1.5 font-display font-semibold text-ink-900">Tick books as you read</p><p class="mt-1 text-sm text-ink-700">Check off each book right on the series page. Progress is saved privately in this browser — no account, ever.</p></li>
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">3</span><p class="mt-1.5 font-display font-semibold text-ink-900">See it all on My Shelf</p><p class="mt-1 text-sm text-ink-700"><a href="/shelf" class="text-amber-accent underline">My Shelf</a> gathers every series, goal and stat — plus a shareable <a href="/year-in-books" class="text-amber-accent underline">Year in Books</a> report.</p></li>
+  </ol>
+</section>
 <div id="continue-reading"></div>
 <section class="mt-8">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/lists" class="text-amber-accent font-medium">Lists →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
@@ -135,7 +143,7 @@ ${fresh.length ? `<section class="mt-12">
 </section>
 <section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10" data-reveal>
   <h2 class="font-display font-semibold text-2xl">Your shelf lives in your browser.</h2>
-  <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place and share a reading card.</p>
+  <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place, share your saved list with a link, or generate your <a href="/year-in-books" class="underline text-amber-accent">Year in Books</a> report.</p>
 </section>`;
   return c.html(
     layout({
