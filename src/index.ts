@@ -49,9 +49,13 @@ const PAGE_SIZE = 60;
 function bookNoun(n: number) {
   return `${n} book${n === 1 ? "" : "s"}`;
 }
+function fmtYear(y: number): string {
+  return y <= 0 ? `${1 - y} BCE` : String(y);
+}
+
 function yearsSpan(s: Series) {
-  if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${s.first_year}–${s.last_year}`;
-  return s.first_year ? String(s.first_year) : "";
+  if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${fmtYear(s.first_year)}–${fmtYear(s.last_year)}`;
+  return s.first_year ? fmtYear(s.first_year) : "";
 }
 
 function seriesCard(s: Series): string {
@@ -110,9 +114,17 @@ app.get("/", async (c) => {
     ${heroCovers.map((s, i) => `<a href="/series/${s.slug}" title="${esc(s.name)} reading order" style="transform:rotate(${[-6, 4, -3, 5, -5, 3, -4, 6][i % 8]}deg)" class="shrink-0${i > 3 ? " hidden md:block" : i > 2 ? " hidden sm:block" : ""}"><img src="${esc(s.cover_url!)}" alt="${esc(s.name)}" width="88" height="132" loading="lazy" class="w-16 sm:w-[88px] aspect-[2/3] object-cover rounded-md shadow-md border border-ink-200 bg-ink-100"></a>`).join("")}
   </div>` : ""}
 </section>
+<section class="mt-2" aria-labelledby="how-heading" data-reveal>
+  <h2 id="how-heading" class="sr-only">How Shelfmark works</h2>
+  <ol class="grid gap-3 sm:grid-cols-3">
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">1</span><p class="mt-1.5 font-display font-semibold text-ink-900">Find your series</p><p class="mt-1 text-sm text-ink-700">Search any series or author, or <a href="/popular" class="text-amber-accent underline">browse the most popular</a> — every page shows the books in publication order.</p></li>
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">2</span><p class="mt-1.5 font-display font-semibold text-ink-900">Tick books as you read</p><p class="mt-1 text-sm text-ink-700">Check off each book right on the series page. Progress is saved privately in this browser — no account, ever.</p></li>
+    <li class="rounded-2xl bg-white border border-ink-200 p-5"><span class="font-display font-bold text-2xl text-amber-accent">3</span><p class="mt-1.5 font-display font-semibold text-ink-900">See it all on My Shelf</p><p class="mt-1 text-sm text-ink-700"><a href="/shelf" class="text-amber-accent underline">My Shelf</a> gathers every series, goal and stat — plus a shareable <a href="/year-in-books" class="text-amber-accent underline">Year in Books</a> report.</p></li>
+  </ol>
+</section>
 <div id="continue-reading"></div>
 <section class="mt-8">
-  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
+  <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Popular series</h2><span class="text-sm"><a href="/popular" class="text-amber-accent font-medium">Top 100 →</a> · <a href="/lists" class="text-amber-accent font-medium">Lists →</a> · <a href="/series" class="text-amber-accent font-medium">All series →</a></span></div>
   <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${popular.map(seriesCard).join("")}</div>
 </section>
 ${fresh.length ? `<section class="mt-12">
@@ -131,7 +143,7 @@ ${fresh.length ? `<section class="mt-12">
 </section>
 <section class="mt-14 rounded-3xl bg-ink-900 text-ink-50 p-8 sm:p-10" data-reveal>
   <h2 class="font-display font-semibold text-2xl">Your shelf lives in your browser.</h2>
-  <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place and share a reading card.</p>
+  <p class="mt-2 text-ink-50/80 max-w-2xl">Tick off books as you read them on any series page. Your progress is saved privately on your device — no account, no tracking, no social feed. Visit <a href="/shelf" class="underline text-amber-accent">My Shelf</a> to see everything in one place, share your saved list with a link, or generate your <a href="/year-in-books" class="underline text-amber-accent">Year in Books</a> report.</p>
 </section>`;
   return c.html(
     layout({
@@ -219,6 +231,96 @@ app.get("/popular", async (c) => {
           "@context": "https://schema.org",
           "@type": "ItemList",
           name: "Most popular book series on Shelfmark",
+          numberOfItems: results.length,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+    })
+  );
+});
+
+// ---------- Curated lists ----------
+const LIST_BASE = `s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%'`;
+const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string; order: string }[] = [
+  {
+    slug: "trilogies",
+    name: "Trilogies to binge",
+    blurb: "Complete three-book series — a beginning, a middle, and an end you can finish in a few weekends.",
+    where: `${LIST_BASE} AND s.book_count = 3`,
+    order: `s.first_year DESC, s.name`,
+  },
+  {
+    slug: "long-running-epics",
+    name: "Long-running epics",
+    blurb: "Series with 15 or more books — enough reading to last a whole year (or three).",
+    where: `${LIST_BASE} AND s.book_count BETWEEN 15 AND 200`,
+    order: `s.book_count DESC, s.name`,
+  },
+  {
+    slug: "new-series-of-the-2020s",
+    name: "New series of the 2020s",
+    blurb: "Series that started in 2020 or later and already have at least two books — get in near the ground floor.",
+    where: `${LIST_BASE} AND s.first_year >= 2020 AND s.book_count >= 2`,
+    order: `s.book_count DESC, s.first_year DESC, s.name`,
+  },
+  {
+    slug: "classic-series",
+    name: "Classic series",
+    blurb: "Series that began between 1850 and 1980 and are still being read today — three or more books each.",
+    where: `${LIST_BASE} AND s.first_year BETWEEN 1850 AND 1980 AND s.book_count >= 3`,
+    order: `s.first_year, s.name`,
+  },
+];
+
+app.get("/lists", (c) => {
+  const body = `
+<nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Lists</span></nav>
+<h1 class="font-display font-bold text-3xl text-ink-900">Reading lists</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Focused slices of the catalog, derived straight from the series data — each list links to complete reading orders with the built-in tracker.</p>
+<div class="grid gap-3 sm:grid-cols-2 mt-6">${CURATED_LISTS.map((l) => `<a href="/lists/${l.slug}" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">${l.name}</h2><p class="mt-1.5 text-sm text-ink-700">${l.blurb}</p></a>`).join("")}</div>`;
+  return c.html(
+    layout({
+      title: "Reading Lists — Curated Book Series | Shelfmark",
+      description: "Curated book-series lists: trilogies to binge, long-running epics, new series of the 2020s, classic series — all with complete reading orders.",
+      path: "/lists",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Lists", "/lists"]])],
+    })
+  );
+});
+
+app.get("/lists/:slug", async (c) => {
+  const list = CURATED_LISTS.find((l) => l.slug === c.req.param("slug"));
+  if (!list) return notFound(c);
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${list.where} ORDER BY ${list.order} LIMIT 60`
+  ).all<Series>();
+  const body = `
+${crumbs([["Lists", "/lists"], [list.name, ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">${list.name}</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">${list.blurb} Showing ${results.length} series — every one with a complete reading order.</p>
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+<p class="mt-8 text-sm text-ink-700/80">More lists: ${CURATED_LISTS.filter((l) => l.slug !== list.slug).map((l) => `<a class="text-amber-accent underline" href="/lists/${l.slug}">${l.name}</a>`).join(" · ")}</p>`;
+  return c.html(
+    layout({
+      title: `${list.name} — Book Series in Order | Shelfmark`,
+      description: `${list.blurb} Complete reading orders with a free no-signup tracker (open beta).`,
+      path: `/lists/${list.slug}`,
+      image: results.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Lists", "/lists"], [list.name, `/lists/${list.slug}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `${list.name} on Shelfmark`,
           numberOfItems: results.length,
           itemListElement: results.map((s, i) => ({
             "@type": "ListItem",
@@ -503,6 +605,7 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
   <span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${bookNoun(series.book_count)}</span>
+  ${yearsSpan(series) ? `<span class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5">${yearsSpan(series)}</span>` : ""}
   ${series.genre ? `<a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent capitalize">${esc(series.genre)}</a>` : ""}
   <button type="button" data-share data-share-title="${esc(series.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent print:hidden cursor-pointer">Print list</button>
@@ -883,6 +986,7 @@ app.get("/shelf", (c) => {
 <div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
 <div id="saved-root" class="mt-10"></div>
 <div class="mt-10 flex flex-wrap gap-3">
+  <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
   <button id="export-csv-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export CSV</button>
@@ -899,6 +1003,45 @@ app.get("/shelf", (c) => {
       description: "Your private, no-signup reading progress across every series you follow on Shelfmark.",
       path: "/shelf",
       siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Year in Books (client-rendered) ----------
+app.get("/year-in-books", (c) => {
+  const y = new Date().getFullYear();
+  const body = `
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">Your Year in Books</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">A personal reading report built entirely in your browser from your Shelfmark tracker — books read, top series, busiest months, goal progress. Nothing leaves your device.</p>
+<div id="year-root" class="mt-8"><p class="text-ink-700/75">Building your report…</p></div>
+<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">The Year in Books report is generated from your browser's local reading data and needs JavaScript. Your progress is tracked on each <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript>
+<canvas id="year-canvas" width="1080" height="1350" class="hidden"></canvas>`;
+  return c.html(
+    layout({
+      title: `Year in Books ${y} — Your Reading Report | Shelfmark`,
+      description: `Your ${y} reading wrapped: books read, top series, busiest months, and a shareable report card — generated privately in your browser, no account needed.`,
+      path: "/year-in-books",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Shared saved-list viewer (client-rendered from URL fragment) ----------
+app.get("/saved", (c) => {
+  const body = `
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">A shared reading list</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Someone shared their Shelfmark reading list with you. The list travels inside the link itself — it never touches our servers.</p>
+<div id="shared-root" class="mt-8"><p class="text-ink-700/75">Reading the list from the link…</p></div>
+<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">Viewing a shared list needs JavaScript (the list is encoded in the link and decoded in your browser).</p></noscript>`;
+  return c.html(
+    layout({
+      title: "Shared Reading List | Shelfmark",
+      description: "View a reading list shared from someone's Shelfmark shelf.",
+      path: "/saved",
+      siteUrl: c.env.SITE_URL,
+      noindex: true,
       body,
     })
   );
@@ -1305,6 +1448,8 @@ app.get("/llms.txt", (c) => {
 
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
 - [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
+- [Reading lists](${c.env.SITE_URL}/lists): curated lists — trilogies, long-running epics, new series of the 2020s, classics.
+- [Year in Books](${c.env.SITE_URL}/year-in-books): personal reading report generated privately in the browser from the no-signup tracker.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
@@ -1358,7 +1503,8 @@ app.get("/sitemaps/:file", async (c) => {
     }
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/shelf", "/pricing", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/new");
+    urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`

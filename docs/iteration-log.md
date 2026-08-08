@@ -1392,3 +1392,74 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 96b77b06）**
 - 实测查询后 searches 表正确落一行（term 小写化、results/count 正确），探针记录已清理。
+
+## Round 118 — 2026-08-08（数据/性能复测：全绿，无需修复）
+
+**五驱动扫描**
+- 数据：hits 近 3 日 ~680 次（仍以自测为主）；referrers 仅 google.com ×3；searches 表管道用一次性探针实测正常（记录后已清理）；emails 3 待确认 0 已确认。
+- 性能：7 个代表路由 TTFB 100–270ms，styles.css 28KB / app.js 34KB，预算内无回归。
+
+## Round 119 — 2026-08-08（竞品复访 → /lists 精选书单层）
+
+**修复/动作**
+- 竞品复访发现 booksinorder.io 新增 /lists、/methodology、/release-calendar 面（methodology 我方 /about 已覆盖；release-calendar 因只有年份粒度数据暂不做）。
+- 采纳 /lists：新增精选书单层（全部纯目录数据推导，不伪造）——trilogies / long-running-epics / new-series-of-the-2020s / classic-series 四单，每单 ≤60 系列 + ItemList JSON-LD + 面包屑；/lists 索引页；footer、首页 Popular 区、sitemap（索引+4 单）、llms.txt 全部接入。
+
+**回归（线上，部署 2685984c）**
+- 双域名 5 个新 URL 全 200；trilogies 单实测 60 张系列卡；未知 slug 404。
+
+## Round 120 — 2026-08-08（backlog P1#5 收尾：系列页年份跨度 chip）
+
+**修复/动作**
+- 系列页 at-a-glance chips 补最后缺项：年份跨度 chip（如 2006–2022），与书数/流派/作者 chips 并列；无年份数据不渲染。
+
+**回归（线上）**
+- /series/mistborn 实测 2006–2022 chip 渲染。
+
+## Round 121 — 2026-08-08（QA 数据修正：classic-series 年份下限）
+
+**修复/动作**
+- QA 发现 classic-series 首条为 Plato「Platonic dialogue · -40–1963」（负年份渲染怪异且非本意的"经典系列"）；下限改为 first_year BETWEEN 1850 AND 1980，文案同步。
+
+**回归（线上）**
+- /lists/classic-series 首条不再是 Plato，无负年份条目。
+
+## Round 122 — 2026-08-08（批尾维护）
+
+**动作**
+- 17 端点健康检查全 200（含新 /lists 面）。
+- IndexNow 全量重提交 46,272 URL（6 批 ×HTTP 200，含 /lists 索引与 4 单）。
+
+## Round 123 — 2026-08-08（BCE 年份格式化）
+
+**修复/动作**
+- yearsSpan 对 ≤0 年份输出「N BCE」（proleptic 天文纪年换算），修复 platonic-dialogue / twenty-four-histories 两个系列页 chip 显示「-40–1963」的怪异渲染（仅格式化，不改数据）。
+
+**回归（线上，部署 5f363561）**
+- /series/platonic-dialogue 实测渲染「41 BCE–1963」。
+
+## Round 124–125 — 2026-08-08（全面扫描：无 ≥P2 项，转低强度）
+
+**扫描结论**
+- 安全头（HSTS/CSP/Permissions-Policy/nosniff）与缓存头在新 /lists 面全部正确；axe 基线保持 0 违规；性能预算内。
+- 剩余 backlog 均为边际项或数据受限项（release-calendar 需月份粒度数据、chronological order 无可靠来源）；连续两轮未发现 ≥P2 的有价值改进项，按指令转低强度运营。
+- 待观察：周一 09:00 UTC digest cron 首跑基线；searches/referrers 数据继续积累。
+
+## Round 126–127 — 2026-08-08（大功能：Year in Books 年报 + 书单分享链接）
+
+**立项（SOP-01，全面进化指令）**
+- R126 Year in Books：新 /year-in-books 页，全部在浏览器端由 localStorage 生成（隐私模型不变）——年度已读数/系列数/最忙月份/目标完成率四统计卡、月度条形图、Top 5 系列、首尾完成书目、跨年份切换、1080×1350 分享 PNG 年报卡。入口：/shelf 主按钮 + footer + sitemap + llms.txt。对标 Spotify Wrapped / Goodreads Year in Books，竞品 SEO 站均无。
+- R127 书单分享链接：My Shelf 的 Saved for later 区新增「Share this list」——清单（slug+名称，≤100 条）base64url 编码进 URL fragment（# 后内容不发往服务器），新 /saved 查看页（noindex）解析渲染 + 「Add all to my saved list」一键导入；无效/空链接有引导性空状态。
+
+**回归（线上，部署 377c3fb0）**
+- /year-in-books、/saved 双双 200；/saved noindex 确认。测试代理全量回归见 PR 评论。
+
+## Round 128–130 — 2026-08-09（用户引导/Onboarding 专项）
+
+**修复/动作**
+- R128 首访引导：首页 hero 下新增「How Shelfmark works」三步叙事卡（1 找系列 → 2 勾选已读 → 3 My Shelf/Year in Books），服务端渲染、静态克制、data-reveal 动效随 reduced-motion 降级。
+- R129 系列页首次 coach mark：无任何追踪数据且未关闭过时，书单上方显示一次性提示「New here? Tick the books…」，Got it 关闭（localStorage shelfmark_tip_track_v1），打印隐藏。
+- R130 新功能发现：首次勾选任意书后显示一次性「First book tracked ✓ See all your progress on My Shelf」提示（12s 自动消失，localStorage shelfmark_hint_shelf_v1，并同时视为 coach mark 已读）；首页深色板块文案补 Year in Books/书单分享入口；空状态审计（/shelf、/year-in-books、/saved、搜索零结果均已有 CTA，无缺口）。
+
+**回归（线上，部署 c565b465）**
+- 首页三步卡上线；app.js coach-tip 逻辑上线。测试代理新用户视角走查见 PR 评论。
