@@ -158,9 +158,15 @@ details.explainer > div {
 }
 
 /* ---- Touch targets: pad tappable header/footer links to ≥44px without moving layout ---- */
-header nav a:not(.rounded-full), footer ul a {
+header nav a:not(.rounded-full) {
   padding-block: 0.75rem;
   margin-block: -0.75rem;
+}
+
+footer ul a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
 }
 
 @media (prefers-reduced-motion: reduce) {
