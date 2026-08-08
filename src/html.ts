@@ -101,6 +101,7 @@ ${o.body}
         <li><a class="hover:text-amber-accent" href="/genres">Genres</a></li>
         <li><a class="hover:text-amber-accent" href="/new">New releases</a></li>
         <li><a class="hover:text-amber-accent" href="/shelf">My shelf</a></li>
+        <li><a class="hover:text-amber-accent" href="/year-in-books">Year in Books</a></li>
         <li><a class="hover:text-amber-accent" href="/pricing">Pricing</a></li>
         <li><a class="hover:text-amber-accent" href="/about">About &amp; methodology</a></li>
         <li><a class="hover:text-amber-accent" href="/privacy">Privacy</a></li>

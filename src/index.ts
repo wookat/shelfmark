@@ -978,6 +978,7 @@ app.get("/shelf", (c) => {
 <div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
 <div id="saved-root" class="mt-10"></div>
 <div class="mt-10 flex flex-wrap gap-3">
+  <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
   <button id="export-csv-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export CSV</button>
@@ -994,6 +995,45 @@ app.get("/shelf", (c) => {
       description: "Your private, no-signup reading progress across every series you follow on Shelfmark.",
       path: "/shelf",
       siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Year in Books (client-rendered) ----------
+app.get("/year-in-books", (c) => {
+  const y = new Date().getFullYear();
+  const body = `
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">Your Year in Books</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">A personal reading report built entirely in your browser from your Shelfmark tracker — books read, top series, busiest months, goal progress. Nothing leaves your device.</p>
+<div id="year-root" class="mt-8"><p class="text-ink-700/75">Building your report…</p></div>
+<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">The Year in Books report is generated from your browser's local reading data and needs JavaScript. Your progress is tracked on each <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript>
+<canvas id="year-canvas" width="1080" height="1350" class="hidden"></canvas>`;
+  return c.html(
+    layout({
+      title: `Year in Books ${y} — Your Reading Report | Shelfmark`,
+      description: `Your ${y} reading wrapped: books read, top series, busiest months, and a shareable report card — generated privately in your browser, no account needed.`,
+      path: "/year-in-books",
+      siteUrl: c.env.SITE_URL,
+      body,
+    })
+  );
+});
+
+// ---------- Shared saved-list viewer (client-rendered from URL fragment) ----------
+app.get("/saved", (c) => {
+  const body = `
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">A shared reading list</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Someone shared their Shelfmark reading list with you. The list travels inside the link itself — it never touches our servers.</p>
+<div id="shared-root" class="mt-8"><p class="text-ink-700/75">Reading the list from the link…</p></div>
+<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">Viewing a shared list needs JavaScript (the list is encoded in the link and decoded in your browser).</p></noscript>`;
+  return c.html(
+    layout({
+      title: "Shared Reading List | Shelfmark",
+      description: "View a reading list shared from someone's Shelfmark shelf.",
+      path: "/saved",
+      siteUrl: c.env.SITE_URL,
+      noindex: true,
       body,
     })
   );
@@ -1401,6 +1441,7 @@ app.get("/llms.txt", (c) => {
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
 - [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
 - [Reading lists](${c.env.SITE_URL}/lists): curated lists — trilogies, long-running epics, new series of the 2020s, classics.
+- [Year in Books](${c.env.SITE_URL}/year-in-books): personal reading report generated privately in the browser from the no-signup tracker.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
@@ -1454,7 +1495,7 @@ app.get("/sitemaps/:file", async (c) => {
     }
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/pricing", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/new");
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(

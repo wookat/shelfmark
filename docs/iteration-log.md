@@ -1444,3 +1444,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 安全头（HSTS/CSP/Permissions-Policy/nosniff）与缓存头在新 /lists 面全部正确；axe 基线保持 0 违规；性能预算内。
 - 剩余 backlog 均为边际项或数据受限项（release-calendar 需月份粒度数据、chronological order 无可靠来源）；连续两轮未发现 ≥P2 的有价值改进项，按指令转低强度运营。
 - 待观察：周一 09:00 UTC digest cron 首跑基线；searches/referrers 数据继续积累。
+
+## Round 126–127 — 2026-08-08（大功能：Year in Books 年报 + 书单分享链接）
+
+**立项（SOP-01，全面进化指令）**
+- R126 Year in Books：新 /year-in-books 页，全部在浏览器端由 localStorage 生成（隐私模型不变）——年度已读数/系列数/最忙月份/目标完成率四统计卡、月度条形图、Top 5 系列、首尾完成书目、跨年份切换、1080×1350 分享 PNG 年报卡。入口：/shelf 主按钮 + footer + sitemap + llms.txt。对标 Spotify Wrapped / Goodreads Year in Books，竞品 SEO 站均无。
+- R127 书单分享链接：My Shelf 的 Saved for later 区新增「Share this list」——清单（slug+名称，≤100 条）base64url 编码进 URL fragment（# 后内容不发往服务器），新 /saved 查看页（noindex）解析渲染 + 「Add all to my saved list」一键导入；无效/空链接有引导性空状态。
+
+**回归（线上，部署 377c3fb0）**
+- /year-in-books、/saved 双双 200；/saved noindex 确认。测试代理全量回归见 PR 评论。

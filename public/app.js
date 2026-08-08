@@ -653,6 +653,193 @@
     }
   }
 
+  // ---- Year in Books report (client-only, /year-in-books) ----
+  var yearRoot = document.getElementById("year-root");
+  if (yearRoot) {
+    var allEntries = Object.keys(data).map(function (k) { var e = data[k]; e.id = k; return e; });
+    var dated2 = allEntries.filter(function (e) { return e && e.t > 1e12; });
+    var yearsSet = {};
+    dated2.forEach(function (e) { yearsSet[new Date(e.t).getFullYear()] = true; });
+    var years = Object.keys(yearsSet).map(Number).sort(function (a, b) { return b - a; });
+    if (!years.length) {
+      yearRoot.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center max-w-xl"><p class="font-display font-semibold text-xl text-ink-900">No dated reads yet</p><p class="mt-2 text-ink-700">Tick books off on any series page and come back — your report builds itself as you read.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p></div>';
+    } else {
+      var reportYear = years[0];
+      function renderYearReport(yr) {
+        var ye = dated2.filter(function (e) { return new Date(e.t).getFullYear() === yr; });
+        var bySer = {};
+        ye.forEach(function (e) { var k = e.series || "Standalone"; bySer[k] = (bySer[k] || 0) + 1; });
+        var topSer = Object.keys(bySer).map(function (k) { return [k, bySer[k]]; }).sort(function (a, b) { return b[1] - a[1]; }).slice(0, 5);
+        var monthly = [];
+        for (var mm = 0; mm < 12; mm++) monthly.push(0);
+        ye.forEach(function (e) { monthly[new Date(e.t).getMonth()]++; });
+        var busiest = -1, busyN = 0;
+        monthly.forEach(function (n, i) { if (n > busyN) { busyN = n; busiest = i; } });
+        var monthNames = [];
+        for (var mn = 0; mn < 12; mn++) monthNames.push(new Date(2000, mn, 1).toLocaleDateString(undefined, { month: "short" }));
+        var goalY = parseInt(localStorage.getItem("shelfmark:goal:" + yr), 10) || 0;
+        var sorted = ye.slice().sort(function (a, b) { return a.t - b.t; });
+        var first = sorted[0], last = sorted[sorted.length - 1];
+        function stat(num, label) {
+          return '<div class="rounded-2xl bg-white border border-ink-200 p-5 text-center" data-reveal><p class="font-display font-bold text-3xl text-ink-900">' + num + '</p><p class="text-xs text-ink-700/80 mt-1">' + label + "</p></div>";
+        }
+        var html = "";
+        if (years.length > 1) {
+          html += '<div class="mb-6 flex flex-wrap gap-2 text-sm" role="group" aria-label="Choose report year">' + years.map(function (y2) {
+            return '<button type="button" data-year-pick="' + y2 + '" aria-pressed="' + (y2 === yr) + '" class="rounded-full px-4 py-1.5 border cursor-pointer ' + (y2 === yr ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent") + '">' + y2 + "</button>";
+          }).join("") + "</div>";
+        }
+        html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
+          stat(ye.length, "books read in " + yr) +
+          stat(Object.keys(bySer).length, "series") +
+          stat(busiest >= 0 && busyN ? monthNames[busiest] : "—", "busiest month" + (busyN ? " (" + busyN + " books)" : "")) +
+          stat(goalY ? Math.min(100, Math.round((ye.length / goalY) * 100)) + "%" : "—", goalY ? "of your " + goalY + "-book goal" : "no goal set") +
+          "</div>";
+        html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4" data-reveal><p class="text-sm font-medium text-ink-900">' + yr + ' month by month</p><div class="mt-3 flex items-end gap-1.5 h-28" role="img" aria-label="Books read per month in ' + yr + '">' +
+          monthly.map(function (n, i) {
+            var mx = Math.max.apply(null, monthly.concat([1]));
+            var hpx = n ? Math.max(6, Math.round((n / mx) * 96)) : 2;
+            return '<div class="flex-1 flex flex-col items-center gap-1 min-w-0"><span class="text-[10px] tabular-nums text-ink-700/75">' + (n || "") + '</span><div class="w-full rounded-t ' + (n ? "bg-amber-accent" : "bg-ink-100") + '" style="height:' + hpx + 'px"></div><span class="text-[10px] text-ink-700/75 truncate">' + monthNames[i] + "</span></div>";
+          }).join("") + "</div></div>";
+        if (topSer.length) {
+          html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4" data-reveal><p class="text-sm font-medium text-ink-900">Top series of ' + yr + '</p><ol class="mt-3 space-y-2">' +
+            topSer.map(function (t, i) {
+              return '<li class="flex items-baseline gap-3 text-sm"><span class="font-display font-bold text-amber-accent w-5 text-right shrink-0">' + (i + 1) + '</span><span class="font-medium text-ink-900 min-w-0 truncate">' + escapeHtml(t[0]) + '</span><span class="text-ink-700/75 shrink-0">' + t[1] + " book" + (t[1] === 1 ? "" : "s") + "</span></li>";
+            }).join("") + "</ol></div>";
+        }
+        if (first) {
+          html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4 text-sm text-ink-700" data-reveal><p><span class="font-medium text-ink-900">First finish:</span> ' + escapeHtml(first.title || "") + " (" + new Date(first.t).toLocaleDateString() + ')</p>' +
+            (last && last !== first ? '<p class="mt-1.5"><span class="font-medium text-ink-900">Latest finish:</span> ' + escapeHtml(last.title || "") + " (" + new Date(last.t).toLocaleDateString() + ")</p>" : "") + "</div>";
+        }
+        html += '<div class="mt-6 flex flex-wrap gap-3"><button type="button" id="year-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700 cursor-pointer">Download ' + yr + ' report card</button><a href="/shelf" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Back to My Shelf</a></div>';
+        yearRoot.innerHTML = html;
+        yearRoot.querySelectorAll("[data-year-pick]").forEach(function (b) {
+          b.addEventListener("click", function () { renderYearReport(parseInt(b.getAttribute("data-year-pick"), 10)); });
+        });
+        var cardBtn = document.getElementById("year-card-btn");
+        if (cardBtn) cardBtn.addEventListener("click", function () {
+          drawYearCard(yr, ye.length, Object.keys(bySer).length, topSer, goalY, busiest >= 0 && busyN ? new Date(2000, busiest, 1).toLocaleDateString(undefined, { month: "long" }) : "");
+        });
+      }
+      renderYearReport(reportYear);
+    }
+  }
+
+  function drawYearCard(yr, nBooks, nSeries, topSer, goalY, busyMonth) {
+    var canvas = document.getElementById("year-canvas");
+    if (!canvas) return;
+    var ctx = canvas.getContext("2d");
+    var W = canvas.width, H = canvas.height;
+    ctx.fillStyle = "#1a1916"; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = "#c8842c"; ctx.fillRect(0, 0, W, 14);
+    ctx.fillStyle = "#c8842c";
+    ctx.font = "500 46px Georgia, serif";
+    ctx.fillText("Year in Books", 80, 170);
+    ctx.fillStyle = "#f7f6f3";
+    ctx.font = "700 150px Georgia, serif";
+    ctx.fillText(String(yr), 80, 320);
+    ctx.font = "700 190px Georgia, serif";
+    ctx.fillText(String(nBooks), 80, 570);
+    ctx.font = "400 44px Arial, sans-serif";
+    ctx.fillStyle = "#d9d5c8";
+    var sub = "book" + (nBooks === 1 ? "" : "s") + " read \u00b7 " + nSeries + " series";
+    if (goalY) sub += " \u00b7 goal " + Math.min(100, Math.round((nBooks / goalY) * 100)) + "%";
+    ctx.fillText(sub, 80, 650);
+    if (busyMonth) ctx.fillText("Busiest month: " + busyMonth, 80, 715);
+    var y = 830;
+    ctx.font = "400 40px Arial, sans-serif";
+    topSer.slice(0, 5).forEach(function (t, i) {
+      ctx.fillStyle = "#c8842c"; ctx.fillText(String(i + 1) + ".", 80, y);
+      ctx.fillStyle = "#f7f6f3";
+      var name = t[0].length > 32 ? t[0].slice(0, 31) + "\u2026" : t[0];
+      ctx.fillText(name + "  \u00b7  " + t[1], 150, y);
+      y += 78;
+    });
+    ctx.fillStyle = "#d9d5c8";
+    ctx.font = "400 36px Arial, sans-serif";
+    ctx.fillText("shelfmark.zalize.com/year-in-books", 80, H - 80);
+    var a = document.createElement("a");
+    a.href = canvas.toDataURL("image/png");
+    a.download = "shelfmark-year-in-books-" + yr + ".png";
+    a.click();
+  }
+
+  // ---- shared saved-list link (encode in URL fragment; nothing hits the server) ----
+  function b64urlEncode(s) {
+    return btoa(unescape(encodeURIComponent(s))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+  function b64urlDecode(s) {
+    s = s.replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    return decodeURIComponent(escape(atob(s)));
+  }
+
+  var sharedRoot = document.getElementById("shared-root");
+  if (sharedRoot) {
+    var items2 = null;
+    try {
+      var frag = location.hash.replace(/^#/, "");
+      if (frag) {
+        var parsed = JSON.parse(b64urlDecode(frag));
+        if (Array.isArray(parsed)) {
+          items2 = parsed.filter(function (it) {
+            return Array.isArray(it) && typeof it[0] === "string" && /^[a-z0-9-]{1,80}$/.test(it[0]) && typeof it[1] === "string" && it[1].length <= 120;
+          }).slice(0, 100);
+        }
+      }
+    } catch (e) {}
+    if (!items2 || !items2.length) {
+      sharedRoot.innerHTML = '<div class="rounded-2xl bg-white border border-ink-200 p-8 text-center max-w-xl"><p class="font-display font-semibold text-xl text-ink-900">This link doesn\u2019t contain a list</p><p class="mt-2 text-ink-700">The share link may be incomplete \u2014 ask for it again, or start your own list.</p><p class="mt-4"><a href="/series" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold">Browse series</a></p></div>';
+    } else {
+      var shtml = '<ul class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">' + items2.map(function (it) {
+        return '<li><a href="/series/' + encodeURIComponent(it[0]) + '" class="card-lift block rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent"><span class="font-display font-semibold text-ink-900">' + escapeHtml(it[1] || it[0]) + '</span><span class="block text-xs text-ink-700/75 mt-1">view reading order \u2192</span></a></li>';
+      }).join("") + "</ul>";
+      shtml += '<div class="mt-6 flex flex-wrap gap-3 items-center"><button type="button" id="import-shared-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700 cursor-pointer">Add all to my saved list</button><span id="import-shared-status" role="status" class="text-sm text-amber-accent"></span></div>';
+      sharedRoot.innerHTML = shtml;
+      var impBtn = document.getElementById("import-shared-btn");
+      if (impBtn) impBtn.addEventListener("click", function () {
+        var m = loadSaved();
+        var added = 0;
+        items2.forEach(function (it) {
+          if (!m[it[0]]) { m[it[0]] = { name: it[1] || it[0], t: Date.now() }; added++; }
+        });
+        storeSaved(m);
+        var st = document.getElementById("import-shared-status");
+        if (st) st.textContent = added ? "Added " + added + " to your saved list \u2713" : "Already all on your list \u2713";
+      });
+    }
+  }
+
+  // "Share list" button on My Shelf saved section
+  if (savedRoot) {
+    var savedMapForShare = loadSaved();
+    var shareSlugs = Object.keys(savedMapForShare);
+    if (shareSlugs.length) {
+      var shareWrap = document.createElement("p");
+      shareWrap.className = "mt-4";
+      var shareListBtn = document.createElement("button");
+      shareListBtn.type = "button";
+      shareListBtn.className = "rounded-full bg-white border border-ink-200 px-4 py-2 text-sm font-semibold hover:border-amber-accent cursor-pointer";
+      shareListBtn.textContent = "Share this list";
+      shareListBtn.addEventListener("click", function () {
+        var payload = shareSlugs.sort(function (a, b) { return savedMapForShare[b].t - savedMapForShare[a].t; })
+          .slice(0, 100).map(function (slug) { return [slug, String(savedMapForShare[slug].name || slug).slice(0, 120)]; });
+        var url = location.origin + "/saved#" + b64urlEncode(JSON.stringify(payload));
+        if (navigator.share) {
+          navigator.share({ title: "My Shelfmark reading list", url: url }).catch(function () {});
+        } else if (navigator.clipboard) {
+          navigator.clipboard.writeText(url).then(function () {
+            var old = shareListBtn.textContent;
+            shareListBtn.textContent = "Link copied \u2713";
+            setTimeout(function () { shareListBtn.textContent = old; }, 2000);
+          }).catch(function () {});
+        }
+      });
+      shareWrap.appendChild(shareListBtn);
+      savedRoot.appendChild(shareWrap);
+    }
+  }
+
   // "/" focuses the header search box (unless typing in a field)
   document.addEventListener("keydown", function (e) {
     if (e.key !== "/" || e.ctrlKey || e.metaKey || e.altKey) return;
