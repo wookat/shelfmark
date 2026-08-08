@@ -58,3 +58,9 @@ No OS dark toggle on this box — use DevTools "Emulate CSS prefers-color-scheme
 
 ## Goal-met card variant (non-destructive)
 Test the reading-card "✓ goal met" branch in incognito: seed `shelfmark_read_v1` with current-year timestamps and set a goal ≤ that count via the UI prompt.
+
+## Onboarding coach mark & first-tick hint (R128–130)
+The first-tick hint ("First book tracked ✓ … My Shelf") auto-removes 12s after the tick — to click its /shelf link in a recorded browser, use a short series (e.g. /series/mistborn, 8 books) and click within ~10s of ticking; on long lists (Discworld, 55 books) scrolling to it usually eats the window. The coach-tip/hint one-time keys are `shelfmark_tip_track_v1` / `shelfmark_hint_shelf_v1` — any prior tick or key in the profile suppresses them, so always use a freshly-reopened incognito window.
+
+## Email-loop E2E (disposable inbox)
+Use the mail.tm API via **curl** (python urllib gets 401s from their WAF). mail.tm silently strips dots from the local part of new addresses (`qa131.x@…` → `qa131x@…`) — always use the address returned by POST /accounts. Shelfmark's `List-Unsubscribe` header is RFC-2822 folded (value on the continuation line), so grep raw headers with `-A1`.
