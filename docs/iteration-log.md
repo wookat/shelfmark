@@ -1383,3 +1383,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **回归（线上，部署 16899a50）**
 - /search?q= 实测 no-store（自定义域+workers.dev）。
 - 测试代理独立回归：axe light/dark × /new + /unsubscribe(400) 4 轮 0 违规；/new 320/375px 无溢出、订阅卡完整；卡片无效输入被原生校验拦截（0 网络请求）；/ 缓存头正确、/shelf 无公共缓存头。
+
+## Round 117 — 2026-08-08（搜索词统计回归数据驱动）
+
+**修复/动作**
+- 新增 searches 表（day+term 聚合：结果数+次数，无任何用户标识），/search 有词查询即记录；为后续零结果缺口分析与目录补齐提供数据。
+- /privacy 同步披露站内搜索聚合统计。
+
+**回归（线上，部署 96b77b06）**
+- 实测查询后 searches 表正确落一行（term 小写化、results/count 正确），探针记录已清理。

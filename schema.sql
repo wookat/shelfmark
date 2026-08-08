@@ -56,6 +56,14 @@ CREATE TABLE IF NOT EXISTS hits (
   PRIMARY KEY (day, path)
 );
 
+CREATE TABLE IF NOT EXISTS searches (
+  day TEXT NOT NULL,
+  term TEXT NOT NULL,
+  results INTEGER DEFAULT 0,
+  count INTEGER DEFAULT 0,
+  PRIMARY KEY (day, term)
+);
+
 CREATE TABLE IF NOT EXISTS referrers (
   day TEXT NOT NULL,
   host TEXT NOT NULL,

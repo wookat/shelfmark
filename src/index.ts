@@ -844,6 +844,11 @@ app.get("/search", async (c) => {
         `SELECT * FROM authors WHERE ${tokens.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 12`
       ).bind(...binds).all<Author>());
     }
+    const day = new Date().toISOString().slice(0, 10);
+    const nResults = series.length + authors.length + bookHits.length;
+    await c.env.DB.prepare(
+      `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
+    ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
 ${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
@@ -1048,7 +1053,7 @@ app.get("/privacy", (c) =>
       body: `<h1 class="font-display font-bold text-3xl text-ink-900">Privacy Policy</h1>
 <div class="mt-6 max-w-2xl text-ink-700 space-y-4">
 <p><strong>Reading progress</strong> is stored only in your browser's localStorage. It is never transmitted to our servers.</p>
-<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). When you arrive from another website we also count the referring site's hostname (e.g. "google.com" — never the full URL, page, or search query). No IP addresses, user agents, fingerprints, or identifiers are stored.</p>
+<p><strong>Analytics</strong>: we count page views with a first-party, cookie-less counter (URL path + day only). When you arrive from another website we also count the referring site's hostname (e.g. "google.com" — never the full URL, page, or search query). On-site searches are counted in aggregate (search term + day + result count) to improve the catalog; they are never linked to you. No IP addresses, user agents, fingerprints, or identifiers are stored.</p>
 <p><strong>Email</strong>: if you subscribe for alerts we store your email address for that purpose only. Subscriptions are double opt-in (nothing is sent until you confirm) and every email includes a one-click unsubscribe link; you can also email <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We never sell or share it.</p>
 <p><strong>Cookies</strong>: none.</p>
 <p>Contact: contact@zalize.com · Operated by Zalize.</p>
