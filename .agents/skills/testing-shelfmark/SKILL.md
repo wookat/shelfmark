@@ -64,3 +64,6 @@ The first-tick hint ("First book tracked ✓ … My Shelf") auto-removes 12s aft
 
 ## Email-loop E2E (disposable inbox)
 Use the mail.tm API via **curl** (python urllib gets 401s from their WAF). mail.tm silently strips dots from the local part of new addresses (`qa131.x@…` → `qa131x@…`) — always use the address returned by POST /accounts. Shelfmark's `List-Unsubscribe` header is RFC-2822 folded (value on the continuation line), so grep raw headers with `-A1`.
+
+## Tap-target scans & minified deployed CSS (R132–138)
+When measuring tap targets with elementFromPoint, measure the *exclusive* hit band per link: in vertical lists, padding+negative-margin enlargements overlap siblings and the later sibling paints on top, so bounding-box height overstates the real target. Also note deployed styles.css is minified — grep without leading zeros or spaces (e.g. `.75rem`, `transition:none`).

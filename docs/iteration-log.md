@@ -1483,9 +1483,10 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 **修复/动作**
 - R132 字体排版：h1-h3 text-wrap:balance、display 字体 -0.01em 字距、进度标签/progressbar 统一 tabular-nums（Google Fonts 已有 display=swap，无新增请求）。
 - R133 组件精修：白卡统一 1px 微阴影层级、搜索/邮件输入 hover 边框态、按钮/胶囊 :active 按压反馈（motion-gated）、进度条宽度过渡动效。
-- R134 全设备：主容器/头尾 xl 档拓宽 max-w-5xl→6xl（桌面宽屏利用）；头部导航与 footer 链接 tap 区扩至 ≥44px（padding+负 margin，不动布局）；系列复选框整行 label 本已 ≥44px。
+- R134 全设备：主容器/头尾 xl 档拓宽 max-w-5xl→6xl（桌面宽屏利用）；头部导航 tap 区 padding+负 margin 扩至 44px（不动布局）；footer 链接首版 padding 方案在纵向列表中相互重叠（QA 实测独占点击区仅 24px），改为 min-height:44px inline-flex 非重叠方案后实测 17 条链接全部 44px 独占；系列复选框整行 label 本已 ≥44px。
 - R135 特效：进度条 0.4s 填充过渡、explainer 展开箭头旋转，全部 prefers-reduced-motion 降级，零 JS 零新请求（CWV 不受影响）。
 - R136 用户心智：系列页新增「What's "publication order"?」人话 explainer（details/summary，克制、打印隐藏）；/shelf 阅读节奏图补一句话说明（「每根柱 = 当月读完本数」）。
 
-**回归（线上，部署 ed8c9006）**
-- 系列页 explainer 上线、styles.css 服务端 md5 与本地一致。测试代理回归见 PR 评论。
+**回归（线上，最终部署 4d51349c）**
+- 首轮回归（ed8c9006）：explainer/typography/布局/axe 8 轮 0 违规/CWV/print/reduced-motion 全绿，但抓到两项：① header/footer tap 区实测 38px/34.6px 未达 44px；② 进度条既有 Tailwind transition-all 0.15s 在 reduced-motion 下残留。
+- 修复轮（c82d9ab4→4d51349c）：header 44px、reduced-motion transition:none、footer 改非重叠方案后 17 链接全部 44px 独占，375/1440 无溢出。全部关闭，见 PR #21 评论。
