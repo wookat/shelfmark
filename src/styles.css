@@ -159,8 +159,14 @@ details.explainer > div {
 
 /* ---- Touch targets: pad tappable header/footer links to ≥44px without moving layout ---- */
 header nav a:not(.rounded-full), footer ul a {
-  padding-block: 0.55rem;
-  margin-block: -0.55rem;
+  padding-block: 0.75rem;
+  margin-block: -0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-progress-bar], [role="progressbar"] > div {
+    transition: none;
+  }
 }
 
 .year-chip {
