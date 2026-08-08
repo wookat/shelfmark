@@ -1463,3 +1463,17 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 c565b465）**
 - 首页三步卡上线；app.js coach-tip 逻辑上线。测试代理新用户视角走查见 PR 评论。
+
+## Round 131 — 2026-08-09（品牌化 + 全活动运营专项）
+
+**A. 品牌体系（docs/brand/）**
+- brand-guide.md v1：品牌故事与一句话定位、命名/口径规范（含禁用词：free forever、sign up、we track 等）、tone of voice、视觉规范（logo 用法/色板/字体/纹理动效/图像原则）、canonical boilerplate、品牌触点清单。
+- 站内一致性巡检：全站 title/meta/OG/邮件署名/口径已一致；修复 footer「My shelf」→「My Shelf」大小写。
+
+**B. 产品外活动（docs/marketing/ + 站内）**
+- 新 /press 页：品牌介绍 + boilerplate + fast facts + 品牌素材下载（logo SVG/OG PNG）+ 媒体联系方式；footer/sitemap/llms.txt 接入。
+- R131 欢迎信上线：首次确认订阅后自动发送一封欢迎邮件（仅 double opt-in 确认后、带 unsubscribe，重复确认不重发）。
+- 素材包落库：directory-submissions.md（目录站清单+粘贴文案，全部需真人账号，未自动注册）、producthunt-launch-kit.md（tagline/gallery/maker comment/FAQ/当日清单）、social-calendar-14d.md（14 天 Reddit/X/HN 逐日文案）、content-plan.md（5 篇 guide 选题+内链规则）、email-lifecycle.md（生命周期现状+win-back 模板待触发条件）。
+
+**回归（线上）**
+- /press 200 + footer 链接；欢迎信链路待测试代理 E2E。
