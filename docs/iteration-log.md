@@ -1348,3 +1348,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 真实 E2E（mail.tm 临时邮箱）：订阅→确认邮件送达（Resend 接受+实收）→点击确认 confirmed=1→one-click POST 退订 unsubscribed=1→GET 退订页 200；原始信头实测含折行 List-Unsubscribe URL + One-Click 头。测试记录已从 emails 表清理。
 - 直发测试信 contact@zalize.com 已发出（id 返回成功）供老板核收。
 - 注意：确认邮件在部署后首个请求未送达（疑似边缘版本传播窗口），重试后正常；已复验。
+
+## Round 113 — 2026-08-08（性能：HTML 缓存头 + 数据信号）
+
+**修复/动作**
+- 全站 HTML GET 200 响应补 `Cache-Control: public, max-age=300, stale-while-revalidate=3600`（此前 HTML 无任何缓存头）；排除 /confirm、/unsubscribe（GET 有状态变更）与 /shelf，已有显式缓存头的路由（search no-store、sitemap 等）不覆盖。
+- 数据分析：referrers 表出现首个自然流量信号——google.com 引荐 ×3（站上线以来首次非自测来源）。hits 仍以自测为主。
+
+**回归（线上，部署 811eb934）**
+- 实测 GET：/ 与 /series/discworld 返回新缓存头；/shelf、/confirm、/unsubscribe、/search 无公共缓存头（符合预期）。

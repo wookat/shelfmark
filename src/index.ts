@@ -25,6 +25,10 @@ app.use("*", async (c, next) => {
   h.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   h.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
   if ((h.get("content-type") ?? "").includes("text/html")) {
+    const p = new URL(c.req.url).pathname;
+    if (c.req.method === "GET" && c.res.status === 200 && !h.has("Cache-Control") && p !== "/confirm" && p !== "/unsubscribe" && p !== "/shelf") {
+      h.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
+    }
     h.set(
       "Content-Security-Policy",
       "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org https://commons.wikimedia.org https://upload.wikimedia.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
