@@ -1186,6 +1186,41 @@ app.get("/about", (c) =>
   )
 );
 
+app.get("/press", (c) =>
+  c.html(
+    layout({
+      title: "Press Kit & Media Resources | Shelfmark",
+      description: "Shelfmark press kit: what the product is, boilerplate copy, brand assets and facts for journalists and bloggers.",
+      path: "/press",
+      siteUrl: c.env.SITE_URL,
+      body: `${crumbs([["Press kit", ""]])}<h1 class="font-display font-bold text-3xl text-ink-900">Press kit</h1>
+<div class="mt-6 max-w-2xl text-ink-700 space-y-4">
+<p><strong>Shelfmark</strong> is a reading-order reference and private reading tracker: it lists the correct publication order for tens of thousands of book series and lets readers tick books off as they read — with no account, ever.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Boilerplate</h2>
+<p class="rounded-2xl bg-white border border-ink-200 p-5 text-sm">Shelfmark is a reading-order reference and private reading tracker. It lists the correct publication order for tens of thousands of book series — built from open data (Wikidata, Open Library) — and lets readers tick books off as they read. Progress is stored only in the reader's browser: no account, no cookies, no social feed. Currently in open beta with all features unlocked.</p>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Fast facts</h2>
+<ul class="list-disc pl-5 space-y-1.5">
+<li>Tens of thousands of series and author bibliographies with documented publication order.</li>
+<li>Tracking is 100% device-local (browser localStorage) — nothing is sent to our servers.</li>
+<li>Open, no-key JSON API for every reading order (<a class="text-amber-accent underline" href="/about">docs on the About page</a>).</li>
+<li>Data derived from Wikidata (CC0) and Open Library; errors are fixed on report.</li>
+<li>Free while in open beta; planned plans are published at <a class="text-amber-accent underline" href="/pricing">/pricing</a>.</li>
+<li>Part of the Zalize product family (zalize.com).</li>
+</ul>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Brand assets</h2>
+<ul class="list-disc pl-5 space-y-1.5">
+<li><a class="text-amber-accent underline" href="/favicon.svg" download="shelfmark-logo.svg">Logo mark (SVG)</a> — open book with amber bookmark; please don't recolor or distort.</li>
+<li><a class="text-amber-accent underline" href="/og.png" download="shelfmark-og.png">Social/share image (PNG, 1200×630)</a></li>
+<li>Logotype: “Shelfmark” set in Fraunces Bold, “mark” in amber (#9a6414).</li>
+<li>Screenshots: any page may be screenshotted and republished with attribution.</li>
+</ul>
+<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Contact</h2>
+<p>Press and partnership enquiries: <a class="text-amber-accent underline" href="mailto:contact@zalize.com">contact@zalize.com</a>. We're happy to provide data pulls, custom screenshots, or background on methodology.</p>
+</div>`,
+    })
+  )
+);
+
 app.get("/privacy", (c) =>
   c.html(
     layout({
@@ -1418,8 +1453,21 @@ app.get("/confirm", async (c) => {
   const token = (c.req.query("t") ?? "").slice(0, 64);
   let ok = false;
   if (/^[a-f0-9]{32}$/.test(token)) {
-    const r = await c.env.DB.prepare(`UPDATE emails SET confirmed=1, unsubscribed=0 WHERE token=?`).bind(token).run();
-    ok = (r.meta.changes ?? 0) > 0;
+    const row = await c.env.DB.prepare(`SELECT email, confirmed FROM emails WHERE token=?`).bind(token).first<{ email: string; confirmed: number }>();
+    if (row) {
+      const r = await c.env.DB.prepare(`UPDATE emails SET confirmed=1, unsubscribed=0 WHERE token=?`).bind(token).run();
+      ok = (r.meta.changes ?? 0) > 0;
+      if (ok && !row.confirmed) {
+        await sendEmail(
+          c.env,
+          row.email,
+          "Welcome to Shelfmark new-release alerts",
+          emailShell(`<p>You’re confirmed — we’ll email you when new series installments land in the catalog (roughly weekly, only when there’s something new).</p><p>In the meantime:</p><ul style="padding-left:18px"><li><a href="${c.env.SITE_URL}/popular">Browse the 100 most popular series</a></li><li><a href="${c.env.SITE_URL}/new">See what’s new &amp; upcoming</a> (also as an <a href="${c.env.SITE_URL}/new.rss">RSS feed</a>)</li><li>Tick books on any series page — progress is saved privately in your browser, no account needed. It all shows up on <a href="${c.env.SITE_URL}/shelf">My Shelf</a>.</li></ul><p style="font-size:12px;color:#6b675c"><a href="${c.env.SITE_URL}/unsubscribe?t=${token}">Unsubscribe</a></p>`),
+          `You're confirmed — we'll email you when new series installments land in the catalog.\n\nPopular series: ${c.env.SITE_URL}/popular\nNew & upcoming: ${c.env.SITE_URL}/new (RSS: ${c.env.SITE_URL}/new.rss)\nMy Shelf: ${c.env.SITE_URL}/shelf\n\nUnsubscribe: ${c.env.SITE_URL}/unsubscribe?t=${token}`,
+          token
+        );
+      }
+    }
   }
   return c.html(
     layout({
@@ -1454,6 +1502,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
+- [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
 - [Pricing](${c.env.SITE_URL}/pricing): plans and beta status (everything free during beta).
 
 ## API
@@ -1503,7 +1552,7 @@ app.get("/sitemaps/:file", async (c) => {
     }
   }
   if (n === 1) {
-    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/new");
+    urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/press", "/new");
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
