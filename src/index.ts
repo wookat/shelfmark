@@ -924,7 +924,15 @@ ${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-w
   ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(g)} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
 </nav>` : ""}
 ${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
-${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}`;
+${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}
+<section class="mt-12 rounded-2xl bg-white border border-ink-200 p-6 max-w-xl print:hidden" data-reveal>
+  <h2 class="font-display font-semibold text-xl text-ink-900">Get new releases by email</h2>
+  <p class="mt-1.5 text-sm text-ink-700">A short digest when new series installments land in the catalog. Double opt-in, one-click unsubscribe, never shared.</p>
+  <form data-subscribe class="mt-4 flex flex-wrap gap-2">
+    <input type="email" name="email" required aria-label="Email for new-release alerts" placeholder="you@example.com" class="rounded-full border border-ink-200 bg-white px-3.5 py-2 text-sm w-64 max-w-full">
+    <button class="rounded-full bg-ink-900 text-ink-50 px-4 py-2 text-sm font-semibold hover:opacity-90">Notify me</button>
+  </form>
+</section>`;
   const noindex = Boolean(activeGenre);
   return c.html(
     layout({

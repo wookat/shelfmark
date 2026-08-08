@@ -1365,3 +1365,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归**
 - 本地 wrangler dev（本地 D1 无表触发真实异常）：/series/discworld 返回 500 + 品牌化页面，验证通过；线上部署 fb53d6e3。
+
+## Round 115 — 2026-08-08（场景化邮件订阅入口）
+
+**修复/动作**
+- /new 页底部新增「Get new releases by email」订阅卡（高意图场景；复用 data-subscribe 处理器与 double opt-in 链路；print 隐藏、data-reveal 动效、reduced-motion 降级随全局）。
+
+**回归（线上，部署 e1fa7308）**
+- /new（自定义域 + workers.dev）实测订阅卡渲染；表单走既有确认邮件流程（R112 已 E2E 验证，不重复发信）。
