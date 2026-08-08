@@ -1437,3 +1437,10 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上，部署 5f363561）**
 - /series/platonic-dialogue 实测渲染「41 BCE–1963」。
+
+## Round 124–125 — 2026-08-08（全面扫描：无 ≥P2 项，转低强度）
+
+**扫描结论**
+- 安全头（HSTS/CSP/Permissions-Policy/nosniff）与缓存头在新 /lists 面全部正确；axe 基线保持 0 违规；性能预算内。
+- 剩余 backlog 均为边际项或数据受限项（release-calendar 需月份粒度数据、chronological order 无可靠来源）；连续两轮未发现 ≥P2 的有价值改进项，按指令转低强度运营。
+- 待观察：周一 09:00 UTC digest cron 首跑基线；searches/referrers 数据继续积累。
