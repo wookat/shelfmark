@@ -70,3 +70,6 @@ When measuring tap targets with elementFromPoint, measure the *exclusive* hit ba
 
 ## Book-page tracker tick (R137)
 Book pages at `/book/{id}-{slug}` reuse the same tracker via a single-item `ol[data-series]` — ticks there sync with the series page and /shelf through the same localStorage key. The coach mark only renders when a list has >1 `input[data-book]`, so book pages never show it. Horizontal cover strips are `overflow-x-auto` — shift+scroll works for UI demonstration.
+
+## Self-hosted fonts (R138)
+Fonts are self-hosted at `/fonts/*.woff2` (immutable 1y cache) since R138. To prove webfonts render (vs fallback), combine `document.fonts.check()` with a text-width comparison against the fallback font (Georgia/Arial) — computed font-family alone passes even when the fallback is drawn. The italic Fraunces face loads lazily only on pages containing italic text (e.g. the homepage hero).

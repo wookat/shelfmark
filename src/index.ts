@@ -31,7 +31,7 @@ app.use("*", async (c, next) => {
     }
     h.set(
       "Content-Security-Policy",
-      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org https://commons.wikimedia.org https://upload.wikimedia.org data:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      "default-src 'self'; img-src 'self' https://covers.openlibrary.org https://archive.org https://*.archive.org https://commons.wikimedia.org https://upload.wikimedia.org data:; style-src 'self' 'unsafe-inline'; font-src 'self'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
     );
   }
 });
