@@ -1477,3 +1477,15 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 **回归（线上）**
 - /press 200 + footer 链接；欢迎信链路待测试代理 E2E。
+
+## Round 132–136 — 2026-08-10（设计系统深度升级专项）
+
+**修复/动作**
+- R132 字体排版：h1-h3 text-wrap:balance、display 字体 -0.01em 字距、进度标签/progressbar 统一 tabular-nums（Google Fonts 已有 display=swap，无新增请求）。
+- R133 组件精修：白卡统一 1px 微阴影层级、搜索/邮件输入 hover 边框态、按钮/胶囊 :active 按压反馈（motion-gated）、进度条宽度过渡动效。
+- R134 全设备：主容器/头尾 xl 档拓宽 max-w-5xl→6xl（桌面宽屏利用）；头部导航与 footer 链接 tap 区扩至 ≥44px（padding+负 margin，不动布局）；系列复选框整行 label 本已 ≥44px。
+- R135 特效：进度条 0.4s 填充过渡、explainer 展开箭头旋转，全部 prefers-reduced-motion 降级，零 JS 零新请求（CWV 不受影响）。
+- R136 用户心智：系列页新增「What's "publication order"?」人话 explainer（details/summary，克制、打印隐藏）；/shelf 阅读节奏图补一句话说明（「每根柱 = 当月读完本数」）。
+
+**回归（线上，部署 ed8c9006）**
+- 系列页 explainer 上线、styles.css 服务端 md5 与本地一致。测试代理回归见 PR 评论。

@@ -452,7 +452,7 @@
       });
       if (dated) {
         var maxN = months.reduce(function (mx, mo) { return Math.max(mx, mo.n); }, 1);
-        html += '<div class="rounded-2xl bg-white border border-ink-200 p-4 mb-8"><p class="text-sm font-medium text-ink-900">Reading pace — last 12 months</p>' +
+        html += '<div class="rounded-2xl bg-white border border-ink-200 p-4 mb-8"><p class="text-sm font-medium text-ink-900">Reading pace — last 12 months</p><p class="text-xs text-ink-700/75 mt-0.5">Each bar is how many books you finished that month — taller bar, busier reading month.</p>' +
           '<div class="mt-3 flex items-end gap-1.5 h-24" role="img" aria-label="Books read per month over the last 12 months">' +
           months.map(function (mo) {
             var hpx = mo.n ? Math.max(6, Math.round((mo.n / maxN) * 84)) : 2;
