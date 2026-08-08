@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS emails (
   source TEXT,
   token TEXT,
   confirmed INTEGER DEFAULT 0,
+  unsubscribed INTEGER DEFAULT 0,
   created_at TEXT DEFAULT (datetime('now'))
 );
 CREATE TABLE IF NOT EXISTS hits (
@@ -53,6 +54,14 @@ CREATE TABLE IF NOT EXISTS hits (
   path TEXT NOT NULL,
   count INTEGER DEFAULT 0,
   PRIMARY KEY (day, path)
+);
+
+CREATE TABLE IF NOT EXISTS searches (
+  day TEXT NOT NULL,
+  term TEXT NOT NULL,
+  results INTEGER DEFAULT 0,
+  count INTEGER DEFAULT 0,
+  PRIMARY KEY (day, term)
 );
 
 CREATE TABLE IF NOT EXISTS referrers (

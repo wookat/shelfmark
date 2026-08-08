@@ -5,6 +5,10 @@ description: How to test the Shelfmark live site (shelfmark.zalize.com) — key 
 
 # Testing Shelfmark
 
+> Cache-header checks: use `curl -s -D - -o /dev/null` (GET), NOT `curl -I` — the worker's HTML Cache-Control middleware only fires for GET, so HEAD shows no Cache-Control and gives false negatives.
+
+> Note: the main QA browser profile contains synthetic Discworld localStorage entries (ids `999901`/`999902`, seeded during R92 pace-chart testing) that don't map to real book rows — homepage "Continue reading" counts them (shows 3 read) while /series/discworld only ticks 1. Expected artifact, not a bug.
+
 - Production: https://shelfmark.zalize.com (Cloudflare Worker + D1, SSR via Hono; code in `src/index.ts`, ~440 lines). No login or local setup needed to test the live site.
 - Key routes: `/` (home), `/search?q=`, `/authors/<slug>` (e.g. brandon-sanderson), `/series/<slug>` (e.g. mistborn, jack-reacher, discworld), `/shelf`, `/genres`, `/genres/<slug>` (e.g. fantasy), `/confirm?t=<token>` (invalid token → HTTP 400 page), `/about`, `/privacy`, `/robots.txt`, `/sitemap.xml`, `/sitemaps/N.xml`. Unknown slugs return HTTP 404 with a styled page.
 - Reading tracker: on series/author pages, checkboxes per book update a "N of M read (X%)" label + progress bar instantly; state is stored in localStorage key `shelfmark_read_v1` keyed by numeric book ID; after any data re-import check for ID drift by comparing stored keys vs page `data-book` attrs (a one-time client migration via `/api/migrate-ids` + `shelfmark_mig_v2` flag remaps old ids); state is stored in localStorage only (never sent to the server), so it persists across reloads but not across browsers/profiles. Author pages also have a "Standalone books" tracked section (shelf slug `standalone-<author-slug>`; its /shelf heading links to the author page).

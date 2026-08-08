@@ -1331,3 +1331,64 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 溢出扫描 360–640px × 首页/系列/pricing 全清；375px 首页实测无横向溢出。
 - 暗色模式像素级验证（body 计算色 rgb(22,20,15)，实测像素 (26,23,19)）。
 - 素材许可：全部自研 SVG + Google Fonts（OFL），无受版权第三方素材。
+
+## Round 112 — 2026-08-07（Resend 发信链路接入）
+
+**背景**：老板提供 Resend API key（org secret RESEND_API_KEY，send-only 权限）。此前 emails 表只收集意向（double opt-in 未闭环，发信停用）。
+
+**修复/动作**
+- DNS/域名验证：zalize.com 在 Resend 已验证（resend._domainkey DKIM、send.zalize.com SPF/MX、_dmarc 均在）；发件地址 no-reply@zalize.com（send.zalize.com 与 leads.zalize.com 子域未在 Resend 单独验证，403）。
+- 双确认闭环：/api/subscribe 现发送确认邮件（含 /confirm?t= 链接）；已确认者不重复发送；退订后重新订阅会重置 token 并重新走确认。
+- 退订：新增 /unsubscribe（GET 页面 + POST one-click）；所有邮件带 List-Unsubscribe + List-Unsubscribe-Post: One-Click 头与正文退订链接。
+- 产品邮件：每周一 09:00 UTC cron（wrangler triggers）跑新书 digest——与 /new 同口径查询，KV(digest:sent) 做增量 diff，只发新增条目（≤20 条），首跑只记基线不发送、无订阅者只更新基线；发送对象仅 confirmed=1 且 unsubscribed=0。
+- DB 迁移：emails 表加 unsubscribed 列（wrangler d1 execute 报 7403，改用 Cloudflare 原生 D1 query API 执行成功）。
+- 文案：footer 订阅提示改「check your inbox to confirm」；/privacy 补 double opt-in + one-click 退订披露。
+
+**回归（线上，部署 e2347551）**
+- 真实 E2E（mail.tm 临时邮箱）：订阅→确认邮件送达（Resend 接受+实收）→点击确认 confirmed=1→one-click POST 退订 unsubscribed=1→GET 退订页 200；原始信头实测含折行 List-Unsubscribe URL + One-Click 头。测试记录已从 emails 表清理。
+- 直发测试信 contact@zalize.com 已发出（id 返回成功）供老板核收。
+- 注意：确认邮件在部署后首个请求未送达（疑似边缘版本传播窗口），重试后正常；已复验。
+
+## Round 113 — 2026-08-08（性能：HTML 缓存头 + 数据信号）
+
+**修复/动作**
+- 全站 HTML GET 200 响应补 `Cache-Control: public, max-age=300, stale-while-revalidate=3600`（此前 HTML 无任何缓存头）；排除 /confirm、/unsubscribe（GET 有状态变更）与 /shelf，已有显式缓存头的路由（search no-store、sitemap 等）不覆盖。
+- 数据分析：referrers 表出现首个自然流量信号——google.com 引荐 ×3（站上线以来首次非自测来源）。hits 仍以自测为主。
+
+**回归（线上，部署 811eb934）**
+- 实测 GET：/ 与 /series/discworld 返回新缓存头；/shelf、/confirm、/unsubscribe、/search 无公共缓存头（符合预期）。
+
+## Round 114 — 2026-08-08（错误处理：全站 500 页）
+
+**修复/动作**
+- 新增 app.onError：未捕获异常返回站点风格 500 页（noindex，Back to home），并 console.error 记录方法/路径/堆栈（wrangler tail 可观测）；此前为 Hono 默认纯文本 "Internal Server Error"。
+
+**回归**
+- 本地 wrangler dev（本地 D1 无表触发真实异常）：/series/discworld 返回 500 + 品牌化页面，验证通过；线上部署 fb53d6e3。
+
+## Round 115 — 2026-08-08（场景化邮件订阅入口）
+
+**修复/动作**
+- /new 页底部新增「Get new releases by email」订阅卡（高意图场景；复用 data-subscribe 处理器与 double opt-in 链路；print 隐藏、data-reveal 动效、reduced-motion 降级随全局）。
+
+**回归（线上，部署 e1fa7308）**
+- /new（自定义域 + workers.dev）实测订阅卡渲染；表单走既有确认邮件流程（R112 已 E2E 验证，不重复发信）。
+
+## Round 116 — 2026-08-08（QA 修复 + 新面回归）
+
+**修复/动作**
+- QA 抓到 R113 排除缺口：/search 无自有缓存头导致误得 5 分钟公共缓存；route 内显式 no-store（每查询 HTML 不缓存）。
+- 测试 skill 补充：缓存头须用 GET（curl -D -）检查，HEAD 不触发中间件会误报。
+
+**回归（线上，部署 16899a50）**
+- /search?q= 实测 no-store（自定义域+workers.dev）。
+- 测试代理独立回归：axe light/dark × /new + /unsubscribe(400) 4 轮 0 违规；/new 320/375px 无溢出、订阅卡完整；卡片无效输入被原生校验拦截（0 网络请求）；/ 缓存头正确、/shelf 无公共缓存头。
+
+## Round 117 — 2026-08-08（搜索词统计回归数据驱动）
+
+**修复/动作**
+- 新增 searches 表（day+term 聚合：结果数+次数，无任何用户标识），/search 有词查询即记录；为后续零结果缺口分析与目录补齐提供数据。
+- /privacy 同步披露站内搜索聚合统计。
+
+**回归（线上，部署 96b77b06）**
+- 实测查询后 searches 表正确落一行（term 小写化、results/count 正确），探针记录已清理。
