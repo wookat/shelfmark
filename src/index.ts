@@ -1030,7 +1030,7 @@ app.get("/shelf", (c) => {
 <div class="mt-4 max-w-2xl rounded-xl border border-amber-accent/40 bg-amber-accent/10 px-4 py-3 text-sm text-ink-800">
   <p><span class="font-medium text-ink-900">Your shelf lives on this device.</span> There's no account — progress and saved lists are stored only in this browser. Clearing browser data or switching devices loses them, so <a href="#backup" class="text-amber-accent underline font-medium">export a backup</a> now and then, or share your saved list as a link.</p>
 </div>
-<div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p><noscript><p class="rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">My Shelf is built from your browser's local reading data and needs JavaScript. Your reading orders are still browsable on every <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript></div>
+<div id="shelf-root" class="mt-8"><p id="shelf-loading" class="text-ink-700/75">Loading your shelf…</p><noscript><style>#shelf-loading{display:none}</style><p class="rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">My Shelf is built from your browser's local reading data and needs JavaScript. Your reading orders are still browsable on every <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript></div>
 <div id="saved-root" class="mt-10"></div>
 <div id="backup" class="mt-10 flex flex-wrap gap-3">
   <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
