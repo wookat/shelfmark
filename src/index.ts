@@ -210,6 +210,54 @@ ${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}`;
 });
 
 // ---------- Popular series ----------
+// ---------- "Series like X" discovery pages ----------
+app.get("/similar/:slug", async (c) => {
+  const slug = c.req.param("slug");
+  const series = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=?`
+  ).bind(slug).all<Series>().then((r) => r.results[0]);
+  if (!series) return notFound(c);
+  if (!series.genre) return c.redirect(`/series/${slug}`, 302);
+  const { results: similar } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.id<>? AND (s.author_id IS NULL OR s.author_id<>?) AND s.book_count BETWEEN 3 AND 60 ORDER BY s.book_count DESC, s.name LIMIT 18`
+  ).bind(series.genre, series.id, series.author_id ?? -1).all<Series>();
+  if (similar.length < 6) c.header("X-Robots-Tag", "noindex");
+  const body = `
+${crumbs([["Series", "/series"], [series.name, `/series/${series.slug}`], ["Similar", ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">Series like ${esc(series.name)}</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">${esc(series.name)}${series.author_name ? ` by ${esc(series.author_name)}` : ""} is ${esc(series.genre.toLowerCase())} — here are ${similar.length} more ${esc(series.genre.toLowerCase())} series from the Shelfmark catalog, each with a complete reading order and a no-signup progress tracker. Picks are drawn from shared genre in our Wikidata/Open Library–derived catalog.</p>
+<div class="mt-4 flex flex-wrap gap-2 text-sm">
+  <a href="/series/${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">← ${esc(series.name)} reading order</a>
+  <a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">All ${esc(series.genre.toLowerCase())} series</a>
+</div>
+${similar.length ? `<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${similar.map(seriesCard).join("")}</div>` : `<p class="mt-6 text-ink-700">We haven't catalogued enough ${esc(series.genre.toLowerCase())} series to recommend yet — <a href="/genres" class="text-amber-accent underline">browse all genres</a> instead.</p>`}`;
+  return c.html(
+    layout({
+      title: `Series Like ${series.name} — ${similar.length} Similar ${gtitle(series.genre)} Series | Shelfmark`,
+      description: `Looking for series like ${series.name}? ${similar.length} similar ${series.genre.toLowerCase()} series with complete reading orders and a free no-signup progress tracker.`,
+      path: `/similar/${series.slug}`,
+      image: similar.find((s) => s.cover_url)?.cover_url?.replace("-M.jpg", "-L.jpg"),
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Series", "/series"], [series.name, `/series/${series.slug}`], ["Similar", `/similar/${series.slug}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `Series like ${series.name}`,
+          numberOfItems: similar.length,
+          itemListElement: similar.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+    })
+  );
+});
+
 app.get("/popular", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 80 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC, s.name LIMIT 100`
@@ -638,7 +686,7 @@ ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibol
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak.</div></details>
 <p class="mt-2 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
 ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
-${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div></section>` : ""}
+${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div><p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p></section>` : ""}
 ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
@@ -1548,6 +1596,7 @@ app.get("/llms.txt", (c) => {
 - [Year in Books](${c.env.SITE_URL}/year-in-books): personal reading report generated privately in the browser from the no-signup tracker.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
+- Series like X: ${c.env.SITE_URL}/similar/{series-slug} (e.g. /similar/mistborn): similar-series recommendations drawn from the catalog.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
 - [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
@@ -1607,6 +1656,10 @@ app.get("/sitemaps/:file", async (c) => {
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
     urls.push(...genres.map((g) => `/genres/${gslug(g.genre)}`));
+    const { results: similarEligible } = await c.env.DB.prepare(
+      `SELECT s.slug FROM series s WHERE s.genre IS NOT NULL AND s.author_id IS NOT NULL AND s.book_count BETWEEN 3 AND 60 AND (SELECT COUNT(*) FROM series s2 WHERE s2.genre=s.genre AND s2.id<>s.id AND s2.book_count BETWEEN 3 AND 60) >= 6 ORDER BY s.book_count DESC LIMIT 2000`
+    ).all<{ slug: string }>();
+    urls.push(...similarEligible.map((r) => `/similar/${r.slug}`));
   }
   const body = urls.map((u) => `<url><loc>${c.env.SITE_URL}${u}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
