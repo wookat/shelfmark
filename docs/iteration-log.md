@@ -1520,3 +1520,16 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - **共性自查**：搜索空态/邮件用途文案/数据来源解释层（about/API/press 已披露 Wikidata+OL）/移动端导航收敛（分级显隐+底部搜索）均已具备，无缺口；AI 任务等待 n/a。
 - **QA 两 nit 同轮修复**：`[id]{scroll-margin-top:72px}` 清除 sticky header 锚点遮挡；pulse 起始色 18%→10% 消除暗色 mid-pulse 4.47:1 transient。
 - **回归（生产 9d213355）**：测试代理两轮全绿——callout/锚点/jump nav/负控/44px/Up next 全行为/reduced-motion/书页守卫/axe 明暗 0 违规（含 mid-pulse 300/600ms）/375px 无溢出/tracker+coach mark 回归。
+
+## Round 140–144 — 验收官质量线·五驱动发现扫描 + P1/P2 全清
+
+- **发现扫描（五驱动）**：新用户全路径走查 + 1440/375 明暗视觉 + 无 JS/键盘/慢网/CLS + 长文本/55 本 Discworld/320px 边界 + 真实生产环境。数据分析：hits 近 5 日 48–414 views/日；搜索词 discworld(6)/mistborn(4)；referrer 仍仅 google.com×3（QA 流量不计入）。P0 无，P1×4、P2×4。
+- **P1-1 首勾布局跳动**：coach mark 原先在首次勾选时移除并在列表下方插入 hint，列表上移 46px 造成误击。改为就地替换 tip 内容（role=status），探针 book2_y 605.5→605.5（0px 位移）；无 tip 页面（书页/回访）保留原插入路径。
+- **P1-2/3 无 JS**：系列/作者页列表上方新增 noscript 说明「Ticking books … needs JavaScript — the reading order below works fine without it」；/shelf #shelf-root 内新增 noscript 本地数据解释 + /series 链接（Loading 行仍显示，观感可接受，遗留 cosmetic）。
+- **P1-4 header 640px 空胶囊**：行内搜索 hidden sm:block→hidden md:block，下方全宽搜索条 sm:hidden→md:hidden；640/700px 无空胶囊、<768px 全宽搜索可键盘到达（focus 可见）、768/1440 正常、全宽零溢出。
+- **P2-1 Star Trek 消歧**：同名系列链接追加区分信息（有作者用 by X，否则年份跨度/册数）：「Star Trek (57 books) · (18 books) · (48 books)」。
+- **P2-2 日期**：/shelf 与 Year in Books 数字日期改 fmtDate →「Aug 9, 2026」。
+- **P2-3 shelf 系列内排序**：li 加 data-bid，复用 /api/series-books 拉取后按系列阅读顺序重排（兜底按勾选时间升序）；逆序勾选 2→1 实测显示 1→2。
+- **P2-4 搜索建议**：/api/suggest 书目项由 /series/{slug} 改为 /book/{id}-{bslug}，点击直达书页且勾选同步。
+- **回归（生产 1952dc78）**：测试代理全绿——0px 位移+原坐标二次点击命中、shelf 重排、日期、建议直达、消歧、无 JS 三页、header 五档宽度、键盘、coach mark/Got it 持久化、书页单 checkbox 守卫、Up next、tracker 三端同步、axe 明暗 6 轮 0 违规、375/320 无溢出。
+- **遗留**：无 JS /shelf Loading 行与 noscript 说明并存（cosmetic）；每 10 轮竞品深访排在 ~R150。

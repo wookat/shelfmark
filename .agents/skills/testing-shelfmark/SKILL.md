@@ -76,3 +76,10 @@ Fonts are self-hosted at `/fonts/*.woff2` (immutable 1y cache) since R138. To pr
 
 ## Author URLs, CSP, and one-shot animations (R139)
 Author pages live at `/authors/{slug}` (plural — `/author/…` 404s). The site CSP has no `unsafe-inline` for scripts, so Playwright `add_script_tag` (axe injection) requires `bypass_csp=True` on the context. When axe-testing pages with one-shot animations (e.g. the `.up-next-flash` 1.2s pulse), wait for the animation to finish before running axe or you'll get transient color-contrast hits.
+
+## R140 discovery-scan & first-tick paths (R140–144)
+- Since the R140 fixes, the first-tick hint has two paths: pages WITH the "New here?" coach tip swap its content in place (`role=status`, no layout shift — assert by comparing a lower checkbox's boundingBox y before/after tick); pages without the tip (book pages, returning users) insert the hint after the list (12s removal).
+- /shelf re-sorts ticked books into series order asynchronously via `/api/series-books` — wait ~500ms after load before asserting order.
+- When grepping series-index "N books" copy, anchor the regex — `1 books` substring-matches `51/81 books`.
+- The homepage uses scroll-reveal: scroll target sections into view before `full_page=True` screenshots.
+- /saved state lives in the URL fragment; grant `clipboard-read` permission on the Playwright context to read the share link.

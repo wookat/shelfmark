@@ -119,12 +119,18 @@
     if (localStorage.getItem(HINT_KEY)) return;
     try { localStorage.setItem(HINT_KEY, "1"); } catch (e) {}
     try { localStorage.setItem(TIP_KEY, "1"); } catch (e) {}
+    var hintHtml = 'First book tracked \u2713 See all your progress on <a href="/shelf" class="text-amber-accent underline font-medium">My Shelf</a>.';
     var tipEl = document.querySelector(".coach-tip");
-    if (tipEl) tipEl.remove();
+    if (tipEl) {
+      // Swap the message in place so the list below doesn't jump mid-click.
+      tipEl.setAttribute("role", "status");
+      tipEl.innerHTML = '<p class="min-w-0 flex-1">' + hintHtml + "</p>";
+      return;
+    }
     var hint = document.createElement("p");
     hint.className = "coach-tip rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm text-ink-700 mt-3 print:hidden";
     hint.setAttribute("role", "status");
-    hint.innerHTML = 'First book tracked \u2713 See all your progress on <a href="/shelf" class="text-amber-accent underline font-medium">My Shelf</a>.';
+    hint.innerHTML = hintHtml;
     nearEl.insertAdjacentElement("afterend", hint);
     setTimeout(function () { hint.remove(); }, 12000);
   }
@@ -489,7 +495,7 @@
       }
       Object.keys(bySeries).map(function (k) {
         var g = bySeries[k];
-        g.items.sort(function (a, b) { return b.t - a.t; });
+        g.items.sort(function (a, b) { return a.t - b.t; });
         return g;
       }).sort(function (a, b) { return (b.items[0].t || 0) - (a.items[0].t || 0); }).forEach(function (g) {
         html += '<section class="mb-6"><h2 class="font-display font-semibold text-xl text-ink-900">' +
@@ -498,7 +504,7 @@
           (g.slug && g.slug.indexOf("standalone-") !== 0 ? ' <span class="block sm:inline text-sm font-sans font-normal" data-upnext="' + escapeHtml(g.slug) + '"></span>' : '') +
           '</h2><ul class="mt-2 space-y-1">' +
           g.items.map(function (e) {
-            return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? new Date(e.t).toLocaleDateString() : "") + "</span></li>";
+            return '<li class="flex items-center justify-between rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm" data-bid="' + escapeHtml(String(e.id)) + '"><span class="font-medium text-ink-900">' + escapeHtml(e.title || e.id) + '</span><span class="text-ink-700/75">' + (e.t > 1e12 ? fmtDate(e.t) : "") + "</span></li>";
           }).join("") + "</ul></section>";
       });
       root.innerHTML = html;
@@ -525,6 +531,18 @@
             slot.innerHTML = '\u00b7 Up next: <a class="text-amber-accent hover:underline" href="/series/' + escapeHtml(slug) + '">' + escapeHtml(next.title) + "</a>";
           } else if (res.books.length) {
             slot.innerHTML = '<span class="text-ink-700/75">\u00b7 Series complete \ud83c\udf89</span>';
+          }
+          // Re-sort the ticked list into series reading order.
+          var ul = slot.closest("section") && slot.closest("section").querySelector("ul");
+          if (ul) {
+            var order = {};
+            res.books.forEach(function (b, bi) { order[String(b.id)] = bi; });
+            Array.prototype.slice.call(ul.children)
+              .sort(function (la, lb) {
+                var oa = order[la.getAttribute("data-bid")], ob = order[lb.getAttribute("data-bid")];
+                return (oa == null ? 1e9 : oa) - (ob == null ? 1e9 : ob);
+              })
+              .forEach(function (li) { ul.appendChild(li); });
           }
         }).catch(function () {});
       });
@@ -778,8 +796,8 @@
             }).join("") + "</ol></div>";
         }
         if (first) {
-          html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4 text-sm text-ink-700" data-reveal><p><span class="font-medium text-ink-900">First finish:</span> ' + escapeHtml(first.title || "") + " (" + new Date(first.t).toLocaleDateString() + ')</p>' +
-            (last && last !== first ? '<p class="mt-1.5"><span class="font-medium text-ink-900">Latest finish:</span> ' + escapeHtml(last.title || "") + " (" + new Date(last.t).toLocaleDateString() + ")</p>" : "") + "</div>";
+          html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4 text-sm text-ink-700" data-reveal><p><span class="font-medium text-ink-900">First finish:</span> ' + escapeHtml(first.title || "") + " (" + fmtDate(first.t) + ')</p>' +
+            (last && last !== first ? '<p class="mt-1.5"><span class="font-medium text-ink-900">Latest finish:</span> ' + escapeHtml(last.title || "") + " (" + fmtDate(last.t) + ")</p>" : "") + "</div>";
         }
         html += '<div class="mt-6 flex flex-wrap gap-3"><button type="button" id="year-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700 cursor-pointer">Download ' + yr + ' report card</button><a href="/shelf" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Back to My Shelf</a></div>';
         yearRoot.innerHTML = html;
@@ -943,5 +961,9 @@
     return String(s).replace(/[&<>"']/g, function (c) {
       return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  }
+
+  function fmtDate(t) {
+    return new Date(t).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 })();
