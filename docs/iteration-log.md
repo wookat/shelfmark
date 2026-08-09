@@ -1511,3 +1511,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - **B 技术审计**：对照表新增 F 节（12 项：渲染/TTFB/体积/字体/图片/缓存/结构化数据/安全头/无障碍/协议/压缩）。TTFB 实测我们 0.24s vs BSIO 1.0s vs GR 2.4s。唯一未达标项 = 字体管线（第三方 Google Fonts CSS）。
 - **修复**：自托管 latin 子集变量字体（Fraunces roman/italic + Inter，OFL 许可，woff2 共 197KB）+ head preload，CSP 移除 Google 域（style-src/font-src 收紧至 'self'），/fonts/* 1 年 immutable 缓存。修复后 12/12 达标、8 项反超。
 - **回归（生产 9691d0c3）**：测试代理全绿——document.fonts + 宽度对抗测试证实真实 webfont 渲染、全网络捕获零第三方字体请求、console 无 CSP violation、woff2 immutable 头、375px 无溢出、axe 明暗 4 轮 0 违规、LCP 305ms/CLS 0.0013 无回退。
+
+## Round 139 — 大厂验收官整改（Shelfmark 83 分·通过，清 P1/P2）
+
+- **P1 本地数据告知**：/shelf 顶部新增 amber callout「Your shelf lives on this device」明确无账号、清缓存/换设备会丢失，anchor 直达 #backup 导出区（导出/导入/清除本已具备）。邮箱同步列中期项。
+- **P2-1 系列锚点索引**：作者页 ≥4 区时渲染「Jump to」锚点导航（44px 目标，print 隐藏）；<4 区不渲染。
+- **P2-2 勾选 aha**：勾选后下一本未读行内出现「Up next」amber 徽章 + 1.2s 背景 pulse（reduced-motion 降级为纯徽章）；untick/bulk/加载态均正确；单 checkbox 书页不显示。
+- **共性自查**：搜索空态/邮件用途文案/数据来源解释层（about/API/press 已披露 Wikidata+OL）/移动端导航收敛（分级显隐+底部搜索）均已具备，无缺口；AI 任务等待 n/a。
+- **QA 两 nit 同轮修复**：`[id]{scroll-margin-top:72px}` 清除 sticky header 锚点遮挡；pulse 起始色 18%→10% 消除暗色 mid-pulse 4.47:1 transient。
+- **回归（生产 9d213355）**：测试代理两轮全绿——callout/锚点/jump nav/负控/44px/Up next 全行为/reduced-motion/书页守卫/axe 明暗 0 违规（含 mid-pulse 300/600ms）/375px 无溢出/tracker+coach mark 回归。
