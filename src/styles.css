@@ -49,6 +49,22 @@ body {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
 }
 
+/* Anchor targets clear the 57px sticky header when jumped to. */
+[id] {
+  scroll-margin-top: 72px;
+}
+
+/* "Up next" nudge: gentle background pulse on the next unread book after a tick. */
+@media (prefers-reduced-motion: no-preference) {
+  .up-next-flash {
+    animation: up-next-pulse 1.2s ease-out 1;
+  }
+  @keyframes up-next-pulse {
+    0% { background-color: color-mix(in srgb, var(--color-amber-accent) 10%, var(--color-white, #fff)); }
+    100% { background-color: var(--color-white, #fff); }
+  }
+}
+
 /* Interaction tokens: card lift, cover tilt, checkbox pop, scroll reveal — all motion
    is gated behind prefers-reduced-motion: no-preference. */
 .card-lift {

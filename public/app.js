@@ -129,6 +129,31 @@
     setTimeout(function () { hint.remove(); }, 12000);
   }
 
+  // ---- "Up next" inline nudge: after a tick, highlight the next unread book ----
+  function updateUpNext(list, animate) {
+    var items = list.querySelectorAll("input[data-book]");
+    if (items.length < 2) return;
+    list.querySelectorAll(".up-next-badge").forEach(function (b) { b.remove(); });
+    var anyChecked = false, next = null;
+    items.forEach(function (box) {
+      if (box.checked) { anyChecked = true; }
+      else if (!next) { next = box; }
+    });
+    if (!anyChecked || !next) return;
+    var li = next.closest("li");
+    if (!li) return;
+    var badge = document.createElement("span");
+    badge.className = "up-next-badge ml-2 inline-block align-middle rounded-full bg-amber-accent/15 text-amber-accent text-xs font-semibold px-2 py-0.5 whitespace-nowrap";
+    badge.textContent = "Up next";
+    var title = li.querySelector("a");
+    if (title) title.insertAdjacentElement("afterend", badge);
+    if (animate) {
+      li.classList.remove("up-next-flash");
+      void li.offsetWidth;
+      li.classList.add("up-next-flash");
+    }
+  }
+
   document.querySelectorAll("ol[data-series]").forEach(function (list) {
     var slug = list.getAttribute("data-series");
     var seriesName = list.getAttribute("data-series-name") || slug;
@@ -146,10 +171,12 @@
         save(d);
         data = d;
         updateSeriesUI(slug);
+        updateUpNext(list, box.checked);
         if (box.checked && wasEmpty) maybeShelfHint(list);
       });
     });
     updateSeriesUI(slug);
+    updateUpNext(list, false);
 
     var boxes = list.querySelectorAll("input[data-book]");
     if (boxes.length > 1) {
@@ -174,6 +201,7 @@
           save(d);
           data = d;
           updateSeriesUI(slug);
+          updateUpNext(list, false);
         });
         return b;
       }
