@@ -46,6 +46,8 @@ async function rateLimited(c: { env: Env; req: { header: (n: string) => string |
 
 const PAGE_SIZE = 60;
 
+const TRACKER_NOSCRIPT = `<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">Ticking books to track reading progress needs JavaScript — the reading order below works fine without it.</p></noscript>`;
+
 function bookNoun(n: number) {
   return `${n} book${n === 1 ? "" : "s"}`;
 }
@@ -496,6 +498,7 @@ ${series.length + (standalone.length ? 1 : 0) >= 4 ? `<nav aria-label="Jump to s
     ${standalone.length ? `<li><a href="#standalone" class="inline-flex items-center min-h-[44px] px-1.5 text-amber-accent hover:underline underline-offset-2">Standalone books</a></li>` : ""}
   </ul>
 </nav>` : ""}
+${TRACKER_NOSCRIPT}
 ${series.map((s) => {
   const bs = bySeries.get(s.id) ?? [];
   return `<section class="mt-10" id="${s.slug}">
@@ -586,8 +589,8 @@ app.get("/series/:slug", async (c) => {
       ).bind(series.genre, series.id, series.author_id ?? -1).all<Series>()
     : { results: [] as Series[] };
   const { results: sameName } = await c.env.DB.prepare(
-    `SELECT s.slug, s.name, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
-  ).bind(series.name, series.id).all<{ slug: string; name: string; author_name: string | null }>();
+    `SELECT s.slug, s.name, s.book_count, s.first_year, s.last_year, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
+  ).bind(series.name, series.id).all<{ slug: string; name: string; book_count: number; first_year: number | null; last_year: number | null; author_name: string | null }>();
   const seriesPositions = books.map((b) => b.position).filter((p): p is number => p != null);
   const orderedBooks =
     new Set(seriesPositions).size !== seriesPositions.length
@@ -606,7 +609,7 @@ app.get("/series/:slug", async (c) => {
 ${crumbs(series.author_name ? [["Series", "/series"], [series.author_name, `/authors/${series.author_slug}`], [series.name, ""]] : [["Series", "/series"], [series.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
 ${recentRelease ? `<p class="mt-3 rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm max-w-2xl"><span class="year-chip !ml-0">${recentRelease.year! > thisYear ? "Upcoming" : `New in ${recentRelease.year}`}</span> <span class="text-ink-700 ml-1">“${esc(recentRelease.title)}”${recentRelease.year! > thisYear ? ` arrives in ${recentRelease.year}` : ` is the newest ${esc(series.name)} book`} — it's in the list below.</span></p>` : ""}
-${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a different ${esc(series.name)}? ${sameName.map((o) => `<a class="text-amber-accent underline" href="/series/${o.slug}">${esc(o.name)}${o.author_name ? ` by ${esc(o.author_name)}` : ""}</a>`).join(" · ")}</p>` : ""}
+${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a different ${esc(series.name)}? ${sameName.map((o) => { const detail = o.author_name ? `by ${o.author_name}` : [o.first_year ? `${o.first_year}–${o.last_year && o.last_year !== o.first_year ? o.last_year : ""}` : "", o.book_count ? bookNoun(o.book_count) : ""].filter(Boolean).join(", "); return `<a class="text-amber-accent underline" href="/series/${o.slug}">${esc(o.name)}${detail ? ` (${esc(detail)})` : ""}</a>`; }).join(" · ")}</p>` : ""}
 <p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the publication order — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
 <div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
@@ -629,6 +632,7 @@ ${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-acc
   <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in publication order — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
   </div>
 </aside>` : ""}
+${TRACKER_NOSCRIPT}
 ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak.</div></details>
@@ -1026,7 +1030,7 @@ app.get("/shelf", (c) => {
 <div class="mt-4 max-w-2xl rounded-xl border border-amber-accent/40 bg-amber-accent/10 px-4 py-3 text-sm text-ink-800">
   <p><span class="font-medium text-ink-900">Your shelf lives on this device.</span> There's no account — progress and saved lists are stored only in this browser. Clearing browser data or switching devices loses them, so <a href="#backup" class="text-amber-accent underline font-medium">export a backup</a> now and then, or share your saved list as a link.</p>
 </div>
-<div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
+<div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p><noscript><p class="rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">My Shelf is built from your browser's local reading data and needs JavaScript. Your reading orders are still browsable on every <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript></div>
 <div id="saved-root" class="mt-10"></div>
 <div id="backup" class="mt-10 flex flex-wrap gap-3">
   <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
@@ -1295,15 +1299,15 @@ app.get("/api/suggest", async (c) => {
     `SELECT name, slug FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 3`
   ).bind(like).all<{ name: string; slug: string }>();
   const { results: books } = await c.env.DB.prepare(
-    `SELECT b.title, s.slug FROM books b JOIN series s ON s.id=b.series_id WHERE b.title LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
-  ).bind(like).all<{ title: string; slug: string }>();
+    `SELECT b.id, b.title FROM books b JOIN series s ON s.id=b.series_id WHERE b.title LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
+  ).bind(like).all<{ id: number; title: string }>();
   c.header("Cache-Control", "public, max-age=3600");
   const seen = new Set<string>();
   return c.json({
     results: [
       ...series.map((s) => ({ label: s.name, href: `/series/${s.slug}`, kind: "series" })),
       ...authors.map((a) => ({ label: a.name, href: `/authors/${a.slug}`, kind: "author" })),
-      ...books.filter((b) => (seen.has(b.title) ? false : (seen.add(b.title), true))).map((b) => ({ label: b.title, href: `/series/${b.slug}`, kind: "book" })),
+      ...books.filter((b) => (seen.has(b.title) ? false : (seen.add(b.title), true))).map((b) => ({ label: b.title, href: `/book/${b.id}-${bslug(b.title)}`, kind: "book" })),
     ].slice(0, 8),
   });
 });
