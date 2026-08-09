@@ -83,3 +83,6 @@ Author pages live at `/authors/{slug}` (plural — `/author/…` 404s). The site
 - When grepping series-index "N books" copy, anchor the regex — `1 books` substring-matches `51/81 books`.
 - The homepage uses scroll-reveal: scroll target sections into view before `full_page=True` screenshots.
 - /saved state lives in the URL fragment; grant `clipboard-read` permission on the Playwright context to read the share link.
+
+## Dual header search inputs & LIKE length (R145)
+Since the R140 header fix the header renders TWO `input[type=search]` (inline ≥768px, below-header <768px) — Playwright `header input[type=search]` hits strict-mode violations; use `:visible` + `.first` or filter by `offsetParent`. SQLite/D1 rejects LIKE patterns >50 chars; search/suggest queries are capped to 48 chars before building patterns (R145 fix for the ≥49-char 500).

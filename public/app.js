@@ -362,7 +362,7 @@
       if (ev.key === "ArrowDown") { ev.preventDefault(); highlight(Math.min(active + 1, items.length - 1)); }
       else if (ev.key === "ArrowUp") { ev.preventDefault(); highlight(Math.max(active - 1, 0)); }
       else if (ev.key === "Enter" && active >= 0) { ev.preventDefault(); location.href = items[active].href; }
-      else if (ev.key === "Escape") { close(); }
+      else if (ev.key === "Escape") { ev.preventDefault(); close(); }
     });
     document.addEventListener("click", function (ev) {
       if (!form.contains(ev.target)) close();

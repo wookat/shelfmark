@@ -1533,3 +1533,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - **P2-4 搜索建议**：/api/suggest 书目项由 /series/{slug} 改为 /book/{id}-{bslug}，点击直达书页且勾选同步。
 - **回归（生产 1952dc78）**：测试代理全绿——0px 位移+原坐标二次点击命中、shelf 重排、日期、建议直达、消歧、无 JS 三页、header 五档宽度、键盘、coach mark/Got it 持久化、书页单 checkbox 守卫、Up next、tracker 三端同步、axe 明暗 6 轮 0 违规、375/320 无溢出。
 - **遗留**：无 JS /shelf Loading 行与 noscript 说明并存（cosmetic）；每 10 轮竞品深访排在 ~R150。
+
+## Round 145 — 五驱动扫描（feeds/API/边界/暗色/打印/导入导出）+ 搜索 500 修复
+
+- **发现扫描**：/lists 全四单、/genres 分页与负参、/new、/popular、/random、/press、/unsubscribe、RSS/opensearch/sitemap、API 错误形状、打印样式、暗色四页、375px 11 页、axe 8 轮 0 违规、shelf 导出/导入/清除/reading card 回环——均通过。发现 P1×1、P2×2。
+- **P1 搜索 ≥49 字符 500**：根因 = SQLite LIKE pattern 上限 50 字符（`%q%` 在 q≥49 时超限抛错）。/search、/api/suggest、/api/opensearch-suggest 的 pattern 内容统一 slice(0,48)；67 字符全书名实测 200 有结果。
+- **P2 /api/suggest HTML 500**：同根因，随上修复，超长查询降级返回 `{"results":[]}`。
+- **P2 Escape 清空输入**：typeahead Escape 分支补 preventDefault，只关闭建议不清空已输入文字（Chrome 原生 type=search 行为抑制）。
+- **附带**：无 JS /shelf「Loading」行经 noscript style 隐藏（R144 遗留 cosmetic）；周维护 IndexNow 全量重提交 46,274 URL（6×200）。
+- **回归（生产 1496e332）**：见 PR QA 评论。
