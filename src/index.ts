@@ -489,6 +489,13 @@ ${author.photo_url ? `<img src="${esc(author.photo_url)}" alt="${esc(author.name
   <button type="button" data-share data-share-title="${esc(author.name)} Books in Order" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Share</button>
   <button type="button" data-print class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent cursor-pointer">Print list</button>
 </div>
+${series.length + (standalone.length ? 1 : 0) >= 4 ? `<nav aria-label="Jump to series" class="mt-6 rounded-xl bg-white border border-ink-200 px-4 py-3 print:hidden">
+  <span class="text-xs font-semibold uppercase tracking-wide text-ink-700/75">Jump to</span>
+  <ul class="mt-2 flex flex-wrap gap-x-1 gap-y-0.5 text-sm">
+    ${series.map((s) => `<li><a href="#${s.slug}" class="inline-flex items-center min-h-[44px] px-1.5 text-amber-accent hover:underline underline-offset-2">${esc(s.name)}</a></li>`).join("")}
+    ${standalone.length ? `<li><a href="#standalone" class="inline-flex items-center min-h-[44px] px-1.5 text-amber-accent hover:underline underline-offset-2">Standalone books</a></li>` : ""}
+  </ul>
+</nav>` : ""}
 ${series.map((s) => {
   const bs = bySeries.get(s.id) ?? [];
   return `<section class="mt-10" id="${s.slug}">
@@ -1016,9 +1023,12 @@ app.get("/shelf", (c) => {
   const body = `
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">My Shelf</h1>
 <p class="mt-2 text-ink-700 max-w-2xl">Everything you've ticked off, in one place. Stored privately in this browser — nothing leaves your device.</p>
+<div class="mt-4 max-w-2xl rounded-xl border border-amber-accent/40 bg-amber-accent/10 px-4 py-3 text-sm text-ink-800">
+  <p><span class="font-medium text-ink-900">Your shelf lives on this device.</span> There's no account — progress and saved lists are stored only in this browser. Clearing browser data or switching devices loses them, so <a href="#backup" class="text-amber-accent underline font-medium">export a backup</a> now and then, or share your saved list as a link.</p>
+</div>
 <div id="shelf-root" class="mt-8"><p class="text-ink-700/75">Loading your shelf…</p></div>
 <div id="saved-root" class="mt-10"></div>
-<div class="mt-10 flex flex-wrap gap-3">
+<div id="backup" class="mt-10 flex flex-wrap gap-3">
   <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
