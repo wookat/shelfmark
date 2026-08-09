@@ -73,3 +73,6 @@ Book pages at `/book/{id}-{slug}` reuse the same tracker via a single-item `ol[d
 
 ## Self-hosted fonts (R138)
 Fonts are self-hosted at `/fonts/*.woff2` (immutable 1y cache) since R138. To prove webfonts render (vs fallback), combine `document.fonts.check()` with a text-width comparison against the fallback font (Georgia/Arial) — computed font-family alone passes even when the fallback is drawn. The italic Fraunces face loads lazily only on pages containing italic text (e.g. the homepage hero).
+
+## Author URLs, CSP, and one-shot animations (R139)
+Author pages live at `/authors/{slug}` (plural — `/author/…` 404s). The site CSP has no `unsafe-inline` for scripts, so Playwright `add_script_tag` (axe injection) requires `bypass_csp=True` on the context. When axe-testing pages with one-shot animations (e.g. the `.up-next-flash` 1.2s pulse), wait for the animation to finish before running axe or you'll get transient color-contrast hits.
