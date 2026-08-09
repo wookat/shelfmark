@@ -113,3 +113,8 @@ Current: Cloudflare Workers + Hono 4 + D1 + KV + Tailwind v4 + vanilla JS client
   modern — keep, maintain via dependency bumps (wrangler kept current).**
 
 Evidence: raw captures in `research/comp/` (HTML + PNG per site).
+
+## R147 复访（2026-08）：booksinorder.io 新动向
+新增面：/books-like（readalikes pSEO）、/box-sets、/compare、/gift-guides、/methodology、/studies、/videos。BSIO 无结构变化（/recommendations、/book-clubs 既有）。
+采纳：readalikes 层 → 我方 /similar/{slug}「Series like X」页（同流派目录推导，ItemList JSON-LD，<6 结果 noindex，834 页入 sitemap+IndexNow）。
+不采纳：/box-sets、/gift-guides（联盟商品数据我方无合规来源）；/videos（无视频资产）；/compare、/studies 列中期候选；/methodology 我方 /about 已覆盖数据来源披露。

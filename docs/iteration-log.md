@@ -1542,3 +1542,10 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - **P2 Escape 清空输入**：typeahead Escape 分支补 preventDefault，只关闭建议不清空已输入文字（Chrome 原生 type=search 行为抑制）。
 - **附带**：无 JS /shelf「Loading」行经 noscript style 隐藏（R144 遗留 cosmetic）；周维护 IndexNow 全量重提交 46,274 URL（6×200）。
 - **回归（生产 1496e332）**：见 PR QA 评论。
+
+## Round 147 — 竞品深访（10 轮节奏）+ 「Series like X」pSEO 层
+
+- **竞品复访**：booksinorder.io 自 R119 后新增 /books-like、/box-sets、/compare、/gift-guides、/methodology、/studies、/videos；BSIO 无结构变化。采纳 readalikes 模式（详见 competitor-teardown R147 节）。
+- **新功能 /similar/{slug}**：「Series like X」页——同流派（排除同作者）最多 18 个系列卡，ItemList + Breadcrumb JSON-LD，<6 结果 X-Robots noindex，无 genre 302 回系列页；系列页「If you like…」区加「See all series like X →」入口；llms.txt 披露。
+- **pSEO**：834 个合格 similar 页（genre 非空 + 同流派可推荐 ≥6）入 sitemap part 1（上限 2000），IndexNow 提交 834 URL（200）。
+- **回归（生产 83f35ded）**：见 PR QA 评论。
