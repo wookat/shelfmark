@@ -1682,3 +1682,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Companions Quartet had no author entity: Wikidata Q28406631 P50 → Q6306437 Julia Golding ("British fiction writer", b. 1969; mul label, no en label — why the P50 audit script skipped it). Inserted the author and attributed the series + 4 books.
 - Decision: 1920s "Best Continental Short Stories … Yearbook" anthologies kept — genuinely book-shaped published annuals.
 - Verified live: 3 slugs 404, /authors/julia-golding 200, series page links the author.
+
+## R178 (weekly maintenance)
+- IndexNow full resubmission: 44,896 URLs (6 batches, all 200) — down from 47,115 after the R173/176/177 curation passes.
+- Endpoint health check: 23 key routes all 200 (manifest is /manifest.json).
+
+## R179–180 (ten-round competitor deep revisit → /compare layer)
+- booksinorder.io added several surfaces since R170: /compare (X-vs-Y and where-to-start guides), /box-sets, /books-like, /gift-guides, /videos. /compare is the adoptable one: high-intent "which should I start" queries. Their version is editorial; ours must stay data-honest.
+- Shipped /compare + /compare/{a}-vs-{b}: side-by-side comparison of two same-genre catalog series — author, book count, publication span, books-per-year pace, "start with" first book, links to full orders + /similar. Deterministic facts only (longer/newer), explicit "no ratings or editorial verdicts" copy, methodology footnote.
+- Pair space: top-8 series (by book_count, CMP_ELIGIBLE guard = genre+author+3–60 books) per genre with ≥8 eligible, 12 genres → 336 canonical pairs (slugs alphabetical; reversed order 301s; off-index pairs render but noindex). Sitemap part 1 + footer + llms.txt wired. Box-sets/gift-guides/videos rejected (no edition/pricing data; no video capability); release-calendar still blocked on year-only granularity.
