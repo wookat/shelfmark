@@ -98,3 +98,6 @@ Western genre (3 series: lonesome-dove-series, lucky-luke, the-border-trilogy) r
 
 ## Order-copy conditional + see-all link (R151)
 Series copy is conditional on isPubOrder (displayed years non-decreasing): fixtures — wallander-novels / mistborn say "series order"; discworld / les-rougon-macquart say "publication order". The "See all series like X" link only renders when a 7th same-genre candidate exists (rougon = suppressed, mistborn = shown). List pages may serve one stale cached copy right after a deploy — always cache-bust and refetch once before concluding a fix is missing.
+
+## Sitemap children + chip-combo fixture (R154)
+Sitemap child files live at /sitemaps/N.xml (NOT /sitemap-N.xml — that pattern returns nothing; don't misread as missing URLs); all /lists/ URLs are in part 1. /series/jantje-jan-en-ermittelt is a 2-book fixture where the "Start here" chip and a "New" year-chip coexist on book 1/2 — use it for chip-combination tests.
