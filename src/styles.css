@@ -210,6 +210,19 @@ footer ul a {
   min-height: 44px;
 }
 
+/* On touch devices, grow action pills and breadcrumb links to a ≥44px hit area. */
+@media (pointer: coarse) {
+  main a.rounded-full,
+  main button.rounded-full {
+    padding-block: 0.7rem;
+  }
+  nav[aria-label="Breadcrumb"] a {
+    display: inline-block;
+    padding-block: 0.85rem;
+    margin-block: -0.85rem;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   [data-progress-bar], [role="progressbar"] > div {
     transition: none;
@@ -303,8 +316,22 @@ footer ul a {
 }
 
 @media print {
-  header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge, .year-chip, .start-chip {
+  header, footer, nav, form, button, input, select, textarea, [data-progress-bar], .up-next-badge, .year-chip, .start-chip {
     display: none !important;
+  }
+  /* Print in light ink on white even for dark-theme users. */
+  :root {
+    --color-ink-50: #f7f6f3;
+    --color-ink-100: #efede6;
+    --color-ink-200: #e3e0d5;
+    --color-ink-700: #57534a;
+    --color-ink-800: #37342d;
+    --color-ink-900: #1a1916;
+    --color-white: #ffffff;
+    --color-amber-accent: #a05f10;
+  }
+  img {
+    filter: none;
   }
   body {
     background: white;

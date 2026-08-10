@@ -873,8 +873,8 @@ ${bookList(books, series)}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak.</div></details>
 <p class="mt-2 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
-${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
-${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div>${moreSimilar ? `<p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p>` : ""}</section>` : ""}
+${related.length ? `<section class="mt-12 print:hidden"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
+${alsoLike.length ? `<section class="mt-12 print:hidden"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div>${moreSimilar ? `<p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p>` : ""}</section>` : ""}
 ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
@@ -1294,7 +1294,7 @@ app.get("/shelf", (c) => {
 </div>
 <div id="shelf-root" class="mt-8"><p id="shelf-loading" class="text-ink-700/75">Loading your shelf…</p><noscript><style>#shelf-loading{display:none}</style><p class="rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">My Shelf is built from your browser's local reading data and needs JavaScript. Your reading orders are still browsable on every <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript></div>
 <div id="saved-root" class="mt-10"></div>
-<div id="backup" class="mt-10 flex flex-wrap gap-3">
+<div id="backup" class="mt-10 flex flex-wrap gap-3 print:hidden">
   <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
@@ -1304,7 +1304,7 @@ app.get("/shelf", (c) => {
   <button id="clear-data-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:border-red-400">Clear all data</button>
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
-<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
+<p class="mt-3 text-xs text-ink-700/75 max-w-2xl print:hidden">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
