@@ -95,3 +95,6 @@ Western genre (3 series: lonesome-dove-series, lucky-luke, the-border-trilogy) r
 
 ## Suggest API caching (R149)
 /api/suggest responses are cached with max-age=3600 — always append a unique cache-buster param when probing suggest endpoints, or stale pre-fix behavior can masquerade as a failed fix.
+
+## Order-copy conditional + see-all link (R151)
+Series copy is conditional on isPubOrder (displayed years non-decreasing): fixtures — wallander-novels / mistborn say "series order"; discworld / les-rougon-macquart say "publication order". The "See all series like X" link only renders when a 7th same-genre candidate exists (rougon = suppressed, mistborn = shown). List pages may serve one stale cached copy right after a deploy — always cache-bust and refetch once before concluding a fix is missing.
