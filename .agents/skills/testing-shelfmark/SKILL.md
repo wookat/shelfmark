@@ -113,3 +113,9 @@ When asserting transient button-text swaps (e.g. "Link copied ✓", reverts afte
 
 ## Shelf/Year-in-Books seeding + Murderbot ordinals (R162)
 To seed shelf/Year-in-Books state: write shelfmark_read_v1 as {bookId: {t: epochMs, title, series, slug}} (grab real book ids from input[data-book] on a series page), set shelfmark_mig_v2 = "1" to skip the id-migration fetch, and shelfmark:goal:{year} for the goal bar. The Year-in-Books download button is labeled "Download {year} report card". The Murderbot Diaries list starts at book 0.5, so up-next after ticking the first two entries is book 2 — not an off-by-one. Book pages hide short Wikidata stub descriptions ("<90 chars, 'novel/manga/... by X'") by design (R163), so don't expect a description line on stub-only books.
+
+## Subscribe forms, styled 404, /unsubscribe (R165)
+Most pages have TWO form[data-subscribe] elements (main section on /new + footer everywhere) — scope Playwright locators with #main or footer to avoid strict-mode violations. The styled 404's marker is "Page not found" + the 4-pill onward row (it does NOT always contain "Try searching"). /unsubscribe without a valid token intentionally returns HTTP 400 with a full styled page.
+
+## Headless PWA installability audit (R166)
+Open the page in Playwright Chromium and use CDP via context.new_cdp_session(page): Page.getAppManifest (manifest parse errors) + Page.getInstallabilityErrors (install criteria) — no DevTools UI needed. For maskable icons, pixel-assert no glyph pixels outside r=0.4×size and simulate the round mask with a PIL ellipse.

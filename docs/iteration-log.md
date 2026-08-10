@@ -1617,3 +1617,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Perf spot-check first: TTFB 0.10–0.63s across 7 key pages, all healthy.
 - New third study /studies/most-prolific-authors (top 50 authors by catalogued series books, ItemList JSON-LD), wired into /studies index, sitemap part 1, llms.txt. QA caught placeholder entity "various authors" at rank 1 → excluded aggregate names (various/anonymous/unknown) from the query; verified rank 1 now R. L. Stine (worker 8c4b64f8).
 - R164 QA (worker 8c4b64f8): 50 rows rank-1 R. L. Stine, no aggregate authors, axe 0 light+dark, 375px fits fully, links resolve, longest-series rank-1 years 2009–2014 confirmed. IndexNow submitted for new URLs (200).
+
+## R165–166 (cold-surface discovery + PWA installability)
+- R165 discovery (cold surfaces: /pricing /privacy /press /unsubscribe /random /new.rss /opensearch.xml manifest, subscribe-form UX, 320px sweep, 404 hygiene): P0/P1 none. P2×1 — manifest shipped only an SVG icon, so Chrome's install prompt never fired (needs ≥192px PNG). P3 noted: opensearch-suggest thinner than in-app typeahead (possibly intentional dedup).
+- R166 fix: /icon-192.png + /icon-512.png (purpose any) + /icon-maskable-512.png (purpose maskable, glyph in 80% safe zone on full-bleed #1a1916) added to manifest; shortcuts carry the 192 icon; 86400 cache headers.
+- QA (worker 2a7ce1bd): CDP Page.getInstallabilityErrors → empty (was failing "no acceptable icon"); manifest parse 0 errors; PNGs 200/right dims/cache; maskable safe-zone pixel-verified; zero console errors on home.
