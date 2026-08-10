@@ -331,6 +331,27 @@ const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string;
     where: `${LIST_BASE} AND s.first_year BETWEEN 1850 AND 1980 AND s.book_count >= 3`,
     order: `s.first_year, s.name`,
   },
+  {
+    slug: "duologies",
+    name: "Duologies",
+    blurb: "Complete two-book series — a story and its conclusion, no decade-long commitment required.",
+    where: `${LIST_BASE} AND s.book_count = 2`,
+    order: `s.first_year DESC, s.name`,
+  },
+  {
+    slug: "big-fantasy-series",
+    name: "Big fantasy series",
+    blurb: "Fantasy series with five or more books — fully mapped worlds you can live in for months.",
+    where: `${LIST_BASE} AND s.genre LIKE '%fantasy%' AND s.book_count >= 5`,
+    order: `s.book_count DESC, s.name`,
+  },
+  {
+    slug: "long-running-mystery-series",
+    name: "Long-running mystery series",
+    blurb: "Mystery, crime, and detective series with ten or more books — one sleuth, a shelf of cases.",
+    where: `${LIST_BASE} AND (s.genre LIKE '%mystery%' OR s.genre LIKE '%crime%' OR s.genre LIKE '%detective%') AND s.book_count >= 10`,
+    order: `s.book_count DESC, s.name`,
+  },
 ];
 
 app.get("/lists", (c) => {
@@ -342,7 +363,7 @@ app.get("/lists", (c) => {
   return c.html(
     layout({
       title: "Reading Lists — Curated Book Series | Shelfmark",
-      description: "Curated book-series lists: trilogies to binge, long-running epics, new series of the 2020s, classic series — all with complete reading orders.",
+      description: "Curated book-series lists: trilogies, duologies, long-running epics, big fantasy, mystery marathons, new 2020s series, classics — all with complete reading orders.",
       path: "/lists",
       siteUrl: c.env.SITE_URL,
       body,
@@ -1606,7 +1627,7 @@ app.get("/llms.txt", (c) => {
 
 - [All series A–Z](${c.env.SITE_URL}/series): every series with a reading-order page.
 - [100 most popular series](${c.env.SITE_URL}/popular): the biggest, best-documented series.
-- [Reading lists](${c.env.SITE_URL}/lists): curated lists — trilogies, long-running epics, new series of the 2020s, classics.
+- [Reading lists](${c.env.SITE_URL}/lists): curated lists — trilogies, duologies, long-running epics, big fantasy series, long-running mysteries, new series of the 2020s, classics.
 - [Year in Books](${c.env.SITE_URL}/year-in-books): personal reading report generated privately in the browser from the no-signup tracker.
 - [All authors A–Z](${c.env.SITE_URL}/authors): author bibliographies grouped by series.
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.

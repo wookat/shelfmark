@@ -1577,3 +1577,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Driver: R151 P2-4 backlog — year chips vs order/description mismatches.
 - Audited all 264 series (4,793 books) whose displayed years are non-monotonic: fetched Wikidata P577 (publication date) for every book QID (all had QIDs; 637 items have no P577 on Wikidata).
 - Result: 0 discrepancies — every stored year matches the earliest Wikidata P577. The visible "out-of-order" years reflect the source itself (e.g. Faceless Killers Q1958087 carries only the 1997 English-translation date, not the 1991 Swedish original) plus reading-order ordinals. No compliant fix available without a second date source; the R151 conditional "series order" wording already covers the trust gap. No code change this round.
+
+## R154 (curated-list expansion)
+- pSEO/content driver: 3 new data-derived curated lists — /lists/duologies (book_count=2), /lists/big-fantasy-series (fantasy, >=5 books), /lists/long-running-mystery-series (mystery/crime/detective, >=10 books). /lists index now 7 cards; meta description + llms.txt updated; sitemap picks them up automatically via CURATED_LISTS.
+- Data fix: "canon of Hercule Poirot" → "Canon of Hercule Poirot" in D1 (QA catch, same class as R151 Sherlock).
+- QA (worker 7ef8e2f0): criteria hold at runtime (60/60 duology cards say "2 books"; fantasy counts 8–55; mystery 29 cards 10–72); ItemList JSON-LD valid on all 3; cross-links exclude self; axe 0 light+dark; 375px clean; duology spot-check found a live "Start here"+"New" chip coexistence fixture. Deploy note: brief version-propagation flapping (~1 min of mixed old/new isolates) — retry with fresh cache-busters before judging.
