@@ -125,3 +125,6 @@ The /search token fallback is tiered — series/authors first, books only when b
 
 ## Print + coarse-pointer testing (R169)
 Playwright has_touch=True makes matchMedia('(pointer: coarse)') match, activating the 44px touch-target rules — assert the media query matches before measuring. The print hide-list lives in src/styles.css @media print using element selectors (so <a> styled as buttons are NOT hidden by it — those need explicit print:hidden). The print palette resets the ink CSS vars: under emulate_media(media='print') in a dark context assert body backgroundColor rgb(255,255,255) and h1 color rgb(26,25,22). Print checks must run in BOTH themes; /shelf and saved-list UI are client-rendered by app.js into #shelf-root/#saved-root.
+
+## Sitemap parts, llms.txt prose, worker UA (R170)
+The sitemap index is /sitemap.xml pointing at parts /sitemaps/N.xml — studies/list URLs land in part 1, so grep the part, not the index. llms.txt references studies as prose under a single /studies link (e.g. "longest publication gaps"), so grep for study titles/phrases, not URL slugs. Plain urllib without a User-Agent gets 403 from the worker — send User-Agent: Mozilla/5.0 (or curl -A). Full-page screenshots catch data-reveal cards at pre-reveal opacity — an animation artifact, not a rendering bug.
