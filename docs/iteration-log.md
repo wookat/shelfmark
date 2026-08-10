@@ -1628,3 +1628,7 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Fix: primary series/author/book LIKE queries also compare against REPLACE(name,'-',' ') with a hyphen-normalized pattern; token fallback extended to book titles; close-match notice covers book-only fallback hits.
 - CJK titles (三体) remain unmatched — catalog stores English titles only; noted as a known limitation, not fixable without an alias dataset.
 - Follow-up (same round): the two suggest endpoints got the same hyphen normalization (prefix semantics kept) — "uncanny x men"/"kaguya sama" now suggest Uncanny X-Men / Kaguya-sama. Verified on worker 42383164.
+
+## R168–169 (mobile dark journey + print/touch fixes)
+- R168 discovery (recorded 375px dark-mode new-user journey, print emulation, keyboard pass): journey + keyboard clean (skip link, amber focus ring, sr-live announcements). P2×3: /shelf print showed all JS-rendered buttons; dark-theme printing kept dark cards + pale amber headings and printed the recommendation grids; series action pills 34px / breadcrumbs 17px tap height on mobile.
+- R169 fixes: print hide-list extended to button/input/select/textarea (covers JS-rendered shelf controls); @media print resets palette vars to light (ink-on-white even for dark users, print amber #a05f10, img filter off); "More series by X" + "If you like X" sections print:hidden; @media (pointer:coarse) grows main rounded-full pills and breadcrumb links to ≥44px hit areas.
