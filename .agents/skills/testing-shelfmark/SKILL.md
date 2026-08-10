@@ -144,3 +144,4 @@ When grepping search-results pages for forbidden terms, exclude the `Results for
 ## Genre aliases, related genres, stub suppression (R175)
 - Reader-facing genre aliases live in `GENRE_SLUG_REDIRECTS` and related-genre pills in `GENRE_CLUSTERS` (src/index.ts, genres section). Test redirects with a no-redirect client asserting status 301 + exact `Location`.
 - Wikidata stub suppression (`isStubDescription`) hides "novel by <author>" stubs on series and author book lists only when the stub contains that list's author name — different-author stubs (e.g. Eoin Colfer on Hitchhiker book 6) are intentionally kept.
+- Academic-imprint sweeps: regex alone misfires both ways — xkcd strip titles look like reports and foreign-language imprints ("Handbuch …") evade English patterns. Triage every flagged hit by its /series/ or /book/ href, and always eyeball deleted-series 404 suggestion lists: they reliably surface name-similar siblings a deletion pass missed.
