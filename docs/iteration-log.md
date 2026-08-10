@@ -1560,3 +1560,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Driver: first-party search analytics — zero-result term `"mistborn"` (quoted) spotted in the searches table.
 - Fix: /search, /api/suggest, /api/opensearch-suggest now normalize curly apostrophes ‘’→' and strip double quotes "“”«» before LIKE matching; results heading shows the normalized query (avoids “"mistborn"” doubled quotes).
 - QA (workers d36376b1 → 0dcef11e): quoted/curly variants all return expected results, straight vs curly apostrophe identical sets, %/_ and 49–100-char regressions intact, 375px curly-apostrophe typeahead clean. No P0/P1/P2.
+
+## R150 (competitor deep revisit + "Start here" chip)
+- Driver: 10-round competitor cadence — new scan (rightreadingorder.com, bookseriesorder.com, orderedbooks.com, bookbinge.app, storyjog.com, boundapp.co.uk) + benchmark revisit (booksinorder.io/BSIO unchanged). Notes in docs/competitor-teardown.md.
+- Adopted: "Start here" chip on the first book of every multi-book series list (series + author pages) — data-derived entry-point guidance matching rightreadingorder.com's "best starting point" pattern without fabricated editorial. Declined: browse-by-character (no compliant dataset), streaks/AI recaps (out of scope).
+- QA (worker b93b5427): chip on book 1 only across series/author pages, absent on 1-book series, light/dark contrast verified, axe 0 both themes, print hidden, tick/untick + Up-next regression clean. 375px: chip wraps below title (no overflow — accepted, same behavior as year-chip). Untested: first-book-upcoming + year-chip combo (no catalog fixture exists).

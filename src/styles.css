@@ -229,6 +229,19 @@ footer ul a {
   white-space: nowrap;
 }
 
+.start-chip {
+  display: inline-block;
+  margin-left: 0.5rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 9999px;
+  background: #e7efe2;
+  color: #2f5d2a;
+  font-size: 0.7rem;
+  font-weight: 600;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
 .beta-badge {
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;
@@ -277,6 +290,10 @@ footer ul a {
     background: #3b301c;
     color: #e8c186;
   }
+  .start-chip {
+    background: #263822;
+    color: #a8cf9e;
+  }
   .up-next-badge {
     color: #16140f;
   }
@@ -286,7 +303,7 @@ footer ul a {
 }
 
 @media print {
-  header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge, .year-chip {
+  header, footer, nav, form, [data-progress-bar], input[type="checkbox"], .up-next-badge, .year-chip, .start-chip {
     display: none !important;
   }
   body {
