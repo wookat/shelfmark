@@ -101,3 +101,6 @@ Series copy is conditional on isPubOrder (displayed years non-decreasing): fixtu
 
 ## Sitemap children + chip-combo fixture (R154)
 Sitemap child files live at /sitemaps/N.xml (NOT /sitemap-N.xml — that pattern returns nothing; don't misread as missing URLs); all /lists/ URLs are in part 1. /series/jantje-jan-en-ermittelt is a 2-book fixture where the "Start here" chip and a "New" year-chip coexist on book 1/2 — use it for chip-combination tests.
+
+## Axe theme runs + /new genre noindex (R156)
+When running axe in both themes, do a fresh page load per theme instead of toggling emulate_media on a live page — mid-session toggles can report phantom dark-mode violations that don't reproduce on isolated runs. /new noindexes ANY ?genre= param (valid or unknown) by design (noindex = activeGenre || unknownGenre).
