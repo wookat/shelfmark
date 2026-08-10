@@ -125,3 +125,10 @@ New competitors scanned (public pages only):
 - bookseriesorder.com / orderedbooks.com — both offer "browse by character" (books a character appears in, in order). Declined for now: no compliant character-appearance data source at our scale (Wikidata character coverage is sparse); listed as mid-term candidate if a defensible dataset emerges.
 - bookbinge.app / storyjog.com / boundapp.co.uk — series-tracker apps (iOS/paid). Validate our free no-signup tracker positioning; BookBinge's "no account required" messaging mirrors ours. No page patterns worth adopting beyond what we have (streaks/AI recaps out of scope — no compliant recap source, and streak mechanics conflict with our quiet-paper brand).
 Benchmark revisit: booksinorder.io unchanged since R147 (readalikes layer already matched by /similar). BSIO unchanged.
+
+## R160 deep revisit (2026-08-05)
+Fetched fresh homepages: bookseriesinorder.com (nav now: authors/characters/book-clubs/book-release-calendar/recommendations), booksinorder.io (nav grew since R150: + /compare, /box-sets, /gift-guides, /methodology, /studies, /videos, /books-like), bookseriesorder.com (unchanged minimal: authors/characters/search). rightreadingorder.com and orderedbooks.com timed out (no bypass attempted).
+
+Adopted: **/studies data-study layer** (BIO pattern — original, verifiable catalog research as linkable pSEO assets). Shipped /studies index + two studies derived purely from our own D1 catalog: longest-series (top 50 by book_count) and series-length-by-genre (avg/max per genre, n>=10). Every number links to underlying reading-order pages; no fabricated data.
+
+Declined with reasons: /methodology (already covered by /about#methodology), /compare & /gift-guides (editorial-heavy, no compliant data to answer "which first" beyond our existing Start here chip), /box-sets (affiliate commerce, out of scope), /videos (no video assets), /characters & /book-release-calendar (unchanged: no compliant character dataset; only year-granularity dates).
