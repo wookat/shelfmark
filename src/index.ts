@@ -108,7 +108,7 @@ app.get("/", async (c) => {
   <h1 class="font-display font-bold text-4xl sm:text-6xl text-ink-900 leading-tight">Read every series<br>in the <em class="text-amber-accent">right order</em>.</h1>
   <p class="mt-4 text-lg text-ink-700 max-w-xl mx-auto">Publication order for ${Number(nb).toLocaleString()} books across ${Number(ns).toLocaleString()} series — with a private reading tracker built in. No account needed.</p>
   <form action="/search" method="get" class="mt-6 max-w-lg mx-auto flex gap-2">
-    <input name="q" type="search" required placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 min-w-0 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
+    <input name="q" type="search" required aria-label="Search series, authors, and books" placeholder="Try “Jack Reacher” or “Brandon Sanderson”…" class="flex-1 min-w-0 rounded-full border border-ink-200 bg-white px-5 py-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     <button class="rounded-full bg-ink-900 text-ink-50 px-6 py-3 text-sm font-semibold hover:bg-ink-700">Search</button>
   </form>
   <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>

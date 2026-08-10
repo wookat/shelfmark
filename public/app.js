@@ -8,6 +8,12 @@
   }
   function save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch (e) {} }
 
+  var srLive = document.createElement("div");
+  srLive.id = "sr-live";
+  srLive.className = "sr-only";
+  srLive.setAttribute("role", "status");
+  document.body.appendChild(srLive);
+
   // ---- hide covers that fail to load ----
   document.addEventListener("error", function (e) {
     var t = e.target;
@@ -157,6 +163,7 @@
       li.classList.remove("up-next-flash");
       void li.offsetWidth;
       li.classList.add("up-next-flash");
+      srLive.textContent = "Up next: " + (next.getAttribute("data-title") || "the next book");
     }
   }
 
@@ -371,6 +378,7 @@
 
   // ---- share button ----
   document.querySelectorAll("[data-share]").forEach(function (btn) {
+    btn.setAttribute("aria-live", "polite");
     btn.addEventListener("click", function () {
       var payload = { title: btn.getAttribute("data-share-title") || document.title, url: location.href };
       if (navigator.share) {
@@ -392,6 +400,7 @@
 
   // ---- copy list button ----
   document.querySelectorAll("[data-copylist]").forEach(function (btn) {
+    btn.setAttribute("aria-live", "polite");
     btn.addEventListener("click", function () {
       var slug = btn.getAttribute("data-copylist");
       var list = document.querySelector('ol[data-series="' + slug + '"]');
@@ -909,6 +918,7 @@
       shareListBtn.type = "button";
       shareListBtn.className = "rounded-full bg-white border border-ink-200 px-4 py-2 text-sm font-semibold hover:border-amber-accent cursor-pointer";
       shareListBtn.textContent = "Share this list";
+      shareListBtn.setAttribute("aria-live", "polite");
       shareListBtn.addEventListener("click", function () {
         var payload = shareSlugs.sort(function (a, b) { return savedMapForShare[b].t - savedMapForShare[a].t; })
           .slice(0, 100).map(function (slug) { return [slug, String(savedMapForShare[slug].name || slug).slice(0, 120)]; });

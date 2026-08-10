@@ -104,3 +104,6 @@ Sitemap child files live at /sitemaps/N.xml (NOT /sitemap-N.xml — that pattern
 
 ## Axe theme runs + /new genre noindex (R156)
 When running axe in both themes, do a fresh page load per theme instead of toggling emulate_media on a live page — mid-session toggles can report phantom dark-mode violations that don't reproduce on isolated runs. /new noindexes ANY ?genre= param (valid or unknown) by design (noindex = activeGenre || unknownGenre).
+
+## Transient button-text swaps + #sr-live (R159)
+When asserting transient button-text swaps (e.g. "Link copied ✓", reverts after 2s), don't use a Playwright locator keyed to the original text — its auto-wait can resolve after the revert and falsely suggest the swap never happened; poll button text from t=0 or read the clipboard to confirm the action fired. #sr-live is a persistent body-level role=status div announcing "Up next: {title}" on ticks — assert on its textContent.
