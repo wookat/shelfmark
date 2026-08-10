@@ -1046,7 +1046,7 @@ app.get("/search", async (c) => {
     await c.env.DB.prepare(
       `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
     ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
-    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
+    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(qm || q)}”</h1>
 ${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
