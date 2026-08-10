@@ -118,3 +118,10 @@ Evidence: raw captures in `research/comp/` (HTML + PNG per site).
 新增面：/books-like（readalikes pSEO）、/box-sets、/compare、/gift-guides、/methodology、/studies、/videos。BSIO 无结构变化（/recommendations、/book-clubs 既有）。
 采纳：readalikes 层 → 我方 /similar/{slug}「Series like X」页（同流派目录推导，ItemList JSON-LD，<6 结果 noindex，834 页入 sitemap+IndexNow）。
 不采纳：/box-sets、/gift-guides（联盟商品数据我方无合规来源）；/videos（无视频资产）；/compare、/studies 列中期候选；/methodology 我方 /about 已覆盖数据来源披露。
+
+## R150 deep revisit + new competitor scan (2026-08)
+New competitors scanned (public pages only):
+- rightreadingorder.com — editorial layer: per-series "recommended order + why" and "best starting point"; small hand-curated catalog (~50 series). Adopted (data-derived, no fabricated editorial): visible "Start here" chip on the first book of every multi-book series list — matches our existing FAQ answer and gives new readers an instant entry point.
+- bookseriesorder.com / orderedbooks.com — both offer "browse by character" (books a character appears in, in order). Declined for now: no compliant character-appearance data source at our scale (Wikidata character coverage is sparse); listed as mid-term candidate if a defensible dataset emerges.
+- bookbinge.app / storyjog.com / boundapp.co.uk — series-tracker apps (iOS/paid). Validate our free no-signup tracker positioning; BookBinge's "no account required" messaging mirrors ours. No page patterns worth adopting beyond what we have (streaks/AI recaps out of scope — no compliant recap source, and streak mechanics conflict with our quiet-paper brand).
+Benchmark revisit: booksinorder.io unchanged since R147 (readalikes layer already matched by /similar). BSIO unchanged.
