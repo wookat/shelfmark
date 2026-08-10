@@ -1598,3 +1598,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Ten-round deep revisit (see competitor-teardown.md): booksinorder.io grew /compare, /box-sets, /gift-guides, /methodology, /studies, /videos since R150; BSIO/BSO unchanged.
 - Adopted the /studies pattern: new data-studies layer built purely from our D1 catalog — /studies index, /studies/longest-series (top 50 by book_count, ItemList JSON-LD), /studies/series-length-by-genre (avg/max per genre, n>=10). Footer/sitemap/llms.txt wired. Declined compare/box-sets/gift-guides/videos/methodology with reasons (methodology already on /about).
 - QA (worker 27f1018e) all green: data sanity 50 rows, links resolve, 375px no page scroll (tables scroll in wrapper), axe 0 light+dark, sitemap/llms verified. Three polish notes fixed same round (worker 9ebc9c07): year-span fallback to MIN/MAX(books.year), 8 more genre-label mappings, avg formatted toFixed(1). Kuroko's Basketball keeps "—" — its 275 volumes genuinely carry no year data at source.
+
+## R161 (data-driven search hardening)
+- Driver: first-party search-term table showed wildcard probes — "%" returned 80 results (LIKE-wildcard scrub left "% %", matching every multi-word name) and "_" matched single-char rows.
+- Fix: wildcard-only queries (empty after %/_ scrub) now render the empty-search prompt instead of querying; /api/suggest and /api/opensearch-suggest return empty results for the same case. Token scrub reused via `core`.
+- Verified on worker 2552e13b via curl: %, _, %%% → "Type a series or author name above"; mistborn/mist%born unchanged; /api/suggest?q=%% → {"results":[]}, normal suggest unaffected.
