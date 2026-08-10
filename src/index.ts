@@ -794,7 +794,7 @@ ${crumbs([
   </div>
 </div>
 ${sibs.length > 1 && book.series_name ? `<section class="mt-12">
-  <h2 class="font-display font-semibold text-2xl text-ink-900">All ${sibs.length} books in ${esc(book.series_name)}</h2>
+  <h2 class="font-display font-semibold text-2xl text-ink-900">All ${sibs.length} ${sibs.length === 1 ? "book" : "books"} in ${esc(book.series_name)}</h2>
   <div class="mt-4 flex gap-4 overflow-x-auto pb-2">
     ${sibs.map((b, i) => `<a href="/book/${b.id}-${bslug(b.title)}" class="shrink-0 w-24 group ${b.id === id ? "opacity-100" : ""}" ${b.id === id ? 'aria-current="page"' : ""}>
       ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="96" height="144" class="w-24 h-36 object-cover rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} group-hover:border-amber-accent">` : `<span aria-hidden="true" class="w-24 h-36 rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} flex items-center justify-center font-display font-semibold text-2xl text-ink-700/75 group-hover:border-amber-accent">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}

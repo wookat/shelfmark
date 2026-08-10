@@ -1549,3 +1549,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - **新功能 /similar/{slug}**：「Series like X」页——同流派（排除同作者）最多 18 个系列卡，ItemList + Breadcrumb JSON-LD，<6 结果 X-Robots noindex，无 genre 302 回系列页；系列页「If you like…」区加「See all series like X →」入口；llms.txt 披露。
 - **pSEO**：834 个合格 similar 页（genre 非空 + 同流派可推荐 ≥6）入 sitemap part 1（上限 2000），IndexNow 提交 834 URL（200）。
 - **回归（生产 83f35ded）**：见 PR QA 评论。
+
+## R148 (plural polish + discovery sweep)
+- Drivers: UX copy audit + data check (hits mostly QA traffic; top organic paths unchanged).
+- Fixed singular/plural copy: /shelf stat card ("1 book read"), reading-card PNG subline, /year-in-books ("1 book read in YYYY", busiest month "(1 book)"), /book sibling heading (defensive — section guarded by sibs.length>1 so singular is unreachable; kept as guard-rail).
+- QA (worker 34107574): 1-book and 2-book states verified end-to-end incl. downloaded PNG sublines; goal set/edit/remove flow all green (invalid input ignored, 0 removes, goal in PNG card); 1/2-book series book pages degrade cleanly; /pricing sane; /year-in-books dark+375 clean, axe 0 both themes. No P0/P1; only note is the unreachable-singular guard above.
+- Weekly IndexNow: full 46,274-URL resubmission done in R147 batch.

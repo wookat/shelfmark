@@ -455,7 +455,7 @@
         return '<div class="rounded-2xl bg-white border border-ink-200 p-4 text-center"><p class="font-display font-bold text-2xl text-ink-900">' + num + '</p><p class="text-xs text-ink-700/80 mt-1">' + label + "</p></div>";
       }
       var html = '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">' +
-        statCard(entries.length, "books read") +
+        statCard(entries.length, entries.length === 1 ? "book read" : "books read") +
         statCard(Object.keys(bySeries).length, "series followed") +
         statCard(thisYear, "read in " + new Date().getFullYear()) +
         statCard(topSeries ? escapeHtml(topSeries.name.length > 22 ? topSeries.name.slice(0, 21) + "…" : topSeries.name) : "—", "most-read series") +
@@ -657,7 +657,7 @@
     ctx.fillText(String(entries.length), 80, 480);
     ctx.font = "400 44px Arial, sans-serif";
     ctx.fillStyle = "#d9d5c8";
-    var subline = "books read \u00b7 " + Object.keys(bySeries).length + " series";
+    var subline = (entries.length === 1 ? "book read \u00b7 " : "books read \u00b7 ") + Object.keys(bySeries).length + " series";
     var cardGoal = parseInt(localStorage.getItem("shelfmark:goal:" + new Date().getFullYear()), 10) || 0;
     if (cardGoal) {
       var yearStart = new Date(new Date().getFullYear(), 0, 1).getTime();
@@ -778,9 +778,9 @@
           }).join("") + "</div>";
         }
         html += '<div class="grid grid-cols-2 sm:grid-cols-4 gap-3">' +
-          stat(ye.length, "books read in " + yr) +
+          stat(ye.length, (ye.length === 1 ? "book read in " : "books read in ") + yr) +
           stat(Object.keys(bySer).length, "series") +
-          stat(busiest >= 0 && busyN ? monthNames[busiest] : "—", "busiest month" + (busyN ? " (" + busyN + " books)" : "")) +
+          stat(busiest >= 0 && busyN ? monthNames[busiest] : "—", "busiest month" + (busyN ? " (" + busyN + (busyN === 1 ? " book)" : " books)") : "")) +
           stat(goalY ? Math.min(100, Math.round((ye.length / goalY) * 100)) + "%" : "—", goalY ? "of your " + goalY + "-book goal" : "no goal set") +
           "</div>";
         html += '<div class="rounded-2xl bg-white border border-ink-200 p-5 mt-4" data-reveal><p class="text-sm font-medium text-ink-900">' + yr + ' month by month</p><div class="mt-3 flex items-end gap-1.5 h-28" role="img" aria-label="Books read per month in ' + yr + '">' +

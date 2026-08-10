@@ -86,3 +86,9 @@ Author pages live at `/authors/{slug}` (plural — `/author/…` 404s). The site
 
 ## Dual header search inputs & LIKE length (R145)
 Since the R140 header fix the header renders TWO `input[type=search]` (inline ≥768px, below-header <768px) — Playwright `header input[type=search]` hits strict-mode violations; use `:visible` + `.first` or filter by `offsetParent`. SQLite/D1 rejects LIKE patterns >50 chars; search/suggest queries are capped to 48 chars before building patterns (R145 fix for the ≥49-char 500).
+
+## /similar fixtures (R147)
+Western genre (3 series: lonesome-dove-series, lucky-luke, the-border-trilogy) reliably triggers the <6-results `x-robots-tag: noindex` on /similar/{slug}; no-genre 302 cases are findable by diffing sitemap /series/ URLs against part 1's /similar/ list (e.g. ware-tetralogy). /similar/ URLs live only in sitemap part 1.
+
+## Small-series fixtures & goal flow (R148)
+1-book series: marsupilami (/book/111486-marsupilami); 2-book: monk-and-robot (/book/6377-a-psalm-for-the-wild-built). Find more by sampling series slugs from sitemap part 6 and reading "numberOfItems" from series-page JSON-LD. The book-page sibling cover strip only renders when a series has >1 book. Reading-goal flow uses window.prompt (#goal-edit button, localStorage key shelfmark:goal:{year}, page reloads on save) — handle with page.once("dialog", ...) in Playwright.
