@@ -1603,3 +1603,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Driver: first-party search-term table showed wildcard probes — "%" returned 80 results (LIKE-wildcard scrub left "% %", matching every multi-word name) and "_" matched single-char rows.
 - Fix: wildcard-only queries (empty after %/_ scrub) now render the empty-search prompt instead of querying; /api/suggest and /api/opensearch-suggest return empty results for the same case. Token scrub reused via `core`.
 - Verified on worker 2552e13b via curl: %, _, %%% → "Type a series or author name above"; mistborn/mist%born unchanged; /api/suggest?q=%% → {"results":[]}, normal suggest unaffected.
+
+## R162–163 (discovery + studies/book-page polish)
+- R162 discovery (fresh-eyes UX on /studies, /book, seeded /shelf + /year-in-books, full new-user journey): P0/P1 none, P2×5.
+- R163 fixes (worker ad033fc3):
+  - Null series-year backfill: 222 series had no first/last year and no book years; fetched their Wikidata series entities (P577 volume dates, else P580/P571/P582) → 33 backfilled in D1 (incl. Kuroko's Basketball 2009–2014, the rank-1 studies row).
+  - Stub-description suppression on /book: short Wikidata stubs ("2007 novel by Brandon Sanderson", "detective novel by John Rhode") duplicated or — with pen names — contradicted the byline; isStubDescription() hides <90-char "…by X" type stubs.
+  - /studies index enriched: data-provenance blurb linking /about + standard 4-pill onward row.
+- Declined: "Frieren: Beyond Journey's End -Prelude-" trailing hyphen is the genuine Wikidata label styling for the spin-off, not dirty data; placeholder cover strip on cover-less series kept (honest, and covers backfill over time).
+- Verified via curl: rank-1 years 2009–2014 render; both stub fixtures hide descriptions; studies blurb live.

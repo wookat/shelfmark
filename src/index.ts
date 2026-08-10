@@ -55,6 +55,12 @@ function fmtYear(y: number): string {
   return y <= 0 ? `${1 - y} BCE` : String(y);
 }
 
+// Short Wikidata stub descriptions ("2007 novel by Brandon Sanderson", "detective novel by John Rhode")
+// duplicate — or, with pen names, contradict — the byline shown right above them.
+function isStubDescription(d: string): boolean {
+  return d.length < 90 && /\bby [A-Z]/.test(d) && /\b(novel|novella|book|story|manga|comic|trilogy)\b/i.test(d);
+}
+
 function yearsSpan(s: Series) {
   if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${fmtYear(s.first_year)}–${fmtYear(s.last_year)}`;
   return s.first_year ? fmtYear(s.first_year) : "";
@@ -315,6 +321,13 @@ ${crumbs([["Studies", ""]])}
 <div class="grid gap-3 sm:grid-cols-2 mt-6">
   <a href="/studies/longest-series" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The longest book series in the catalog</h2><p class="mt-1.5 text-sm text-ink-700">The 50 largest series ranked by number of books, with authors, genres, and year spans.</p></a>
   <a href="/studies/series-length-by-genre" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">How long is a series in each genre?</h2><p class="mt-1.5 text-sm text-ink-700">Average and maximum series length across every genre with 10+ catalogued series.</p></a>
+</div>
+<p class="mt-8 text-sm text-ink-700/80 max-w-2xl">All figures are computed directly from the catalog — series relationships and ordinals from Wikidata (CC0), cross-checked with Open Library records. Read more about <a href="/about" class="text-amber-accent underline">how the data is built</a>. More studies are added as the catalog grows.</p>
+<div class="mt-6 flex flex-wrap gap-3 text-sm">
+  <a href="/popular" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Popular series</a>
+  <a href="/lists" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Reading lists</a>
+  <a href="/series" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">All series A–Z</a>
+  <a href="/genres" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Browse by genre</a>
 </div>`;
   return c.html(
     layout({
@@ -917,7 +930,7 @@ ${crumbs([
     <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900 break-words">${esc(book.title)}</h1>
     <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
     ${ordinal && book.series_name ? `<p class="mt-2 text-sm text-ink-700">Book ${ordinal} of ${book.series_count} in <a href="/series/${book.series_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.series_name)}</a>${book.series_genre ? ` · <a href="/genres/${gslug(book.series_genre)}" class="text-amber-accent underline underline-offset-2">${esc(gtitle(book.series_genre))}</a>` : ""}</p>` : ""}
-    ${book.description ? `<p class="mt-4 text-ink-700 max-w-2xl">${esc(book.description)}</p>` : ""}
+    ${book.description && !isStubDescription(book.description) ? `<p class="mt-4 text-ink-700 max-w-2xl">${esc(book.description)}</p>` : ""}
     ${book.series_slug ? `<ol class="mt-4 print:hidden" data-series="${book.series_slug}" data-series-name="${esc(book.series_name ?? "")}"><li><label class="inline-flex items-center gap-2.5 cursor-pointer rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm"><input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${book.id}" data-title="${esc(book.title)}"><span class="font-medium text-ink-900">I’ve read this</span><span class="text-ink-700/75">— saves privately in your browser</span></label></li></ol>` : ""}
     <div class="mt-5 flex flex-wrap gap-3">
       ${book.series_slug ? `<a href="/series/${book.series_slug}" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Full reading order</a>` : ""}
