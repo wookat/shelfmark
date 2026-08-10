@@ -230,7 +230,13 @@ ${crumbs([["Series", "/series"], [series.name, `/series/${series.slug}`], ["Simi
   <a href="/series/${series.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">← ${esc(series.name)} reading order</a>
   <a href="/genres/${gslug(series.genre)}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">All ${esc(series.genre.toLowerCase())} series</a>
 </div>
-${similar.length ? `<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${similar.map(seriesCard).join("")}</div>` : `<p class="mt-6 text-ink-700">We haven't catalogued enough ${esc(series.genre.toLowerCase())} series to recommend yet — <a href="/genres" class="text-amber-accent underline">browse all genres</a> instead.</p>`}`;
+${similar.length ? `<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${similar.map(seriesCard).join("")}</div>` : `<p class="mt-6 text-ink-700">We haven't catalogued enough ${esc(series.genre.toLowerCase())} series to recommend yet — <a href="/genres" class="text-amber-accent underline">browse all genres</a> instead.</p>`}
+${similar.length < 6 ? `<div class="mt-10 flex flex-wrap gap-3 text-sm">
+  <a href="/popular" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Popular series</a>
+  <a href="/lists" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Reading lists</a>
+  <a href="/series" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">All series A–Z</a>
+  <a href="/genres" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Browse by genre</a>
+</div>` : ""}`;
   return c.html(
     layout({
       title: `Series Like ${series.name} — ${similar.length} Similar ${gtitle(series.genre)} Series | Shelfmark`,
@@ -923,6 +929,13 @@ function breadcrumbLd(siteUrl: string, items: [string, string][]) {
 // ---------- Genres ----------
 const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const gtitle = (g: string) => g.replace(/(^|[\s-])[a-z]/g, (ch) => ch.toUpperCase());
+const GENRE_LABELS: Record<string, string> = {
+  "spokon": "sports (spokon)",
+  "comedy anime and manga": "comedy (anime & manga)",
+  "business literature": "business",
+  "lgbt literature": "LGBT literature",
+};
+const genreLabel = (g: string) => GENRE_LABELS[g.toLowerCase()] ?? g;
 
 app.get("/genres", async (c) => {
   const { results } = await c.env.DB.prepare(
@@ -1189,6 +1202,7 @@ app.get("/new", async (c) => {
   for (const b of all) genreCounts.set(b.genre, (genreCounts.get(b.genre) ?? 0) + 1);
   const genres = [...genreCounts.entries()].sort((a, b) => b[1] - a[1]).map(([g]) => g);
   const activeGenre = genres.find((g) => g.toLowerCase() === genreParam) ?? null;
+  const unknownGenre = Boolean(genreParam) && !activeGenre;
   const upcoming = activeGenre ? all.filter((b) => b.genre === activeGenre) : all;
   const byYear = new Map<number, typeof upcoming>();
   for (const b of upcoming) {
@@ -1199,9 +1213,10 @@ app.get("/new", async (c) => {
 ${crumbs([["New releases", ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">New &amp; Upcoming Series Books</h1>
 <p class="mt-3 text-ink-700 max-w-2xl">Series installments published in ${year}–${year + 1}, by series. Open a series page to see where the new book fits in the reading order. <a class="text-amber-accent underline whitespace-nowrap" href="/new.rss${activeGenre ? `?genre=${encodeURIComponent(activeGenre.toLowerCase())}` : ""}">RSS feed${activeGenre ? ` (${esc(activeGenre.toLowerCase())})` : ""}</a></p>
+${unknownGenre ? `<p class="mt-3 text-sm text-ink-700/80">No new releases under that genre — showing all.</p>` : ""}
 ${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-wrap gap-1.5 text-sm print:hidden">
   <a href="/new" class="rounded-full px-3 py-1.5 border ${!activeGenre ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
-  ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(g)} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
+  ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(genreLabel(g))} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
 </nav>` : ""}
 ${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
 ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}
@@ -1213,7 +1228,7 @@ ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded
     <button class="rounded-full bg-ink-900 text-ink-50 px-4 py-2 text-sm font-semibold hover:opacity-90">Notify me</button>
   </form>
 </section>`;
-  const noindex = Boolean(activeGenre);
+  const noindex = Boolean(activeGenre) || unknownGenre;
   return c.html(
     layout({
       title: `New Book Series Releases ${year} & ${year + 1} | Shelfmark`,
@@ -1709,7 +1724,13 @@ function notFound(c: any, suggestions: { href: string; label: string }[] = [], q
       siteUrl: c.env.SITE_URL,
       body: `<div class="text-center py-16"><h1 class="font-display font-bold text-4xl text-ink-900">Page not found</h1>
 ${suggestions.length ? `<p class="mt-4 text-ink-700">Were you looking for one of these?</p><ul class="mt-3 space-y-1.5">${suggestions.map((s) => `<li><a class="text-amber-accent underline" href="${s.href}">${esc(s.label)}</a></li>`).join("")}</ul>` : ""}
-<p class="mt-4 text-ink-700">Try <a href="/search${query ? `?q=${encodeURIComponent(query)}` : ""}" class="text-amber-accent underline">searching</a> for a series or author.</p></div>`,
+<p class="mt-4 text-ink-700">Try <a href="/search${query ? `?q=${encodeURIComponent(query)}` : ""}" class="text-amber-accent underline">searching</a> for a series or author.</p>
+<div class="mt-8 flex flex-wrap gap-3 text-sm justify-center">
+  <a href="/popular" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Popular series</a>
+  <a href="/lists" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Reading lists</a>
+  <a href="/series" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">All series A–Z</a>
+  <a href="/genres" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Browse by genre</a>
+</div></div>`,
     }),
     404
   );
