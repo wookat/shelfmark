@@ -740,8 +740,15 @@ function paginationQ(base: string, page: number, pages: number): string {
 }
 
 // ---------- Author page ----------
+// Old slugs of authors renamed to their reader-facing pen name; 301 to the canonical page.
+const AUTHOR_SLUG_REDIRECTS: Record<string, string> = {
+  "marion-chesney": "m-c-beaton",
+};
+
 app.get("/authors/:slug", async (c) => {
   const slug = c.req.param("slug");
+  const redirect = AUTHOR_SLUG_REDIRECTS[slug];
+  if (redirect) return c.redirect(`/authors/${redirect}`, 301);
   const author = await c.env.DB.prepare(`SELECT * FROM authors WHERE slug=?`).bind(slug).first<Author>();
   if (!author) return notFound(c, await authorSuggestions(c, slug), slug.replace(/-/g, " "));
   const { results: series } = await c.env.DB.prepare(
@@ -1105,7 +1112,7 @@ ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white bo
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${i === 0 && books.length > 1 ? `<span class="start-chip">Start here</span>` : ""}${b.description ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${i === 0 && books.length > 1 ? `<span class="start-chip">Start here</span>` : ""}${b.description && !(isStubDescription(b.description) && s.author_name && b.description.includes(s.author_name)) ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
   <a href="https://bookshop.org/search?keywords=${encodeURIComponent(b.title + (s.author_name ? " " + s.author_name : ""))}" rel="nofollow noopener" target="_blank" class="shrink-0 text-xs text-ink-700/75 hover:text-amber-accent underline print:hidden" aria-label="Find a copy of ${esc(b.title)} on Bookshop.org">Find a copy</a>
 </li>`).join("\n")}
@@ -1133,7 +1140,11 @@ function breadcrumbLd(siteUrl: string, items: [string, string][]) {
 
 // ---------- Genres ----------
 const gslug = (g: string) => g.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-const gtitle = (g: string) => g.replace(/(^|[\s-])[a-z]/g, (ch) => ch.toUpperCase());
+const GTITLE_SMALL = new Set(["a", "an", "and", "for", "in", "of", "on", "the", "to"]);
+const gtitle = (g: string) =>
+  g
+    .replace(/(^|[\s-])[a-z]/g, (ch) => ch.toUpperCase())
+    .replace(/(?<=\s)[A-Z][a-z]*/g, (w) => (GTITLE_SMALL.has(w.toLowerCase()) ? w.toLowerCase() : w));
 const GENRE_LABELS: Record<string, string> = {
   "spokon": "sports (spokon)",
   "comedy anime and manga": "comedy (anime & manga)",
@@ -1211,7 +1222,30 @@ const GENRE_SLUG_REDIRECTS: Record<string, string> = {
   "vampire-literature": "vampire-fiction",
   "western-novel": "western",
   "young-adult-fiction": "young-adult-literature",
+  // Common reader-facing aliases that don't match any catalog label verbatim.
+  "mystery": "mystery-fiction",
+  "mysteries": "mystery-fiction",
+  "crime": "crime-fiction",
+  "detective": "detective-fiction",
+  "horror": "horror-fiction",
+  "sci-fi": "science-fiction",
+  "scifi": "science-fiction",
+  "ya": "young-adult-literature",
+  "young-adult": "young-adult-literature",
+  "children": "children-s-literature",
+  "childrens": "children-s-literature",
+  "kids": "children-s-literature",
 };
+
+// Neighbouring-genre clusters (canonical slugs) rendered as a "Related genres" row.
+const GENRE_CLUSTERS: string[][] = [
+  ["mystery-fiction", "crime-fiction", "detective-fiction", "thriller", "spy-fiction", "psychological-thriller"],
+  ["fantasy", "high-fantasy", "dark-fantasy", "urban-fantasy", "historical-fantasy", "heroic-fantasy", "romantic-fantasy", "juvenile-fantasy"],
+  ["science-fiction", "space-opera", "cyberpunk", "steampunk", "military-science-fiction", "hard-science-fiction", "alternate-history", "speculative-fiction"],
+  ["horror-fiction", "vampire-fiction", "dark-fantasy", "paranormal-romance"],
+  ["romance-novel", "paranormal-romance", "romantic-fantasy", "romantic-comedy"],
+  ["children-s-literature", "young-adult-literature", "juvenile-fantasy", "children-s-and-young-adult-literature"],
+];
 
 app.get("/genres/:slug", async (c) => {
   const slug = c.req.param("slug");
@@ -1234,10 +1268,19 @@ app.get("/genres/:slug", async (c) => {
   const newCount = Number(((await c.env.DB.prepare(
     `SELECT COUNT(*) AS n FROM books b JOIN series s ON s.id=b.series_id WHERE b.year>=? AND b.year<=? AND s.genre=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.first_year IS NOT NULL AND s.first_year < b.year`
   ).bind(year, year + 1, genre).all()).results as any[])[0].n);
+  const bySlug = new Map(genres.map((g) => [gslug(g.genre), g.genre]));
+  const related = [...new Set(GENRE_CLUSTERS.filter((cl) => cl.includes(slug)).flat())]
+    .filter((s) => s !== slug && bySlug.has(s));
+  const relatedGenres = related.length
+    ? `<div class="mt-4 flex flex-wrap items-center gap-2 text-sm"><span class="text-ink-700/75">Related genres:</span>${related
+        .map((s) => `<a href="/genres/${s}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">${esc(gtitle(bySlug.get(s)!))}</a>`)
+        .join("")}</div>`
+    : "";
   const body = `
 ${crumbs([["Genres", "/genres"], [gtitle(genre), ""]])}
 <h1 class="font-display font-bold text-3xl text-ink-900">${esc(gtitle(genre))} Series in Order${page > 1 ? ` — Page ${page}` : ""}</h1>
 <p class="mt-2 text-ink-700">${total} ${esc(genre.toLowerCase())} series with complete reading orders.${newCount ? ` <a class="text-amber-accent underline" href="/new?genre=${encodeURIComponent(genre.toLowerCase())}">New &amp; upcoming in ${esc(genre.toLowerCase())} (${newCount})</a> · <a class="text-amber-accent underline" href="/new.rss?genre=${encodeURIComponent(genre.toLowerCase())}">RSS</a>` : ""}</p>
+${relatedGenres}
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
 ${paginationQ(`/genres/${slug}?`, page, pages)}`;
   return c.html(
