@@ -803,7 +803,7 @@ ${series.map((s) => {
     <span class="text-sm font-medium text-amber-accent" data-progress-label="${s.slug}"></span>
     ${bs.length ? `<button type="button" data-copylist="${s.slug}" class="text-sm rounded-full bg-white border border-ink-200 px-3 py-1 hover:border-amber-accent print:hidden cursor-pointer">Copy list</button>` : ""}
   </div>
-  ${bookList(bs, s)}
+  ${bookList(bs, { slug: s.slug, name: s.name, author_name: author.name })}
 </section>`;
 }).join("")}
 ${standalone.length ? `<section class="mt-10" id="standalone">

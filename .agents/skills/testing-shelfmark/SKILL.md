@@ -140,3 +140,7 @@ Deleted-series 404s render a "Were you looking for one of these?" suggestion lis
 
 ## Search-leak grep caveat (R173)
 When grepping search-results pages for forbidden terms, exclude the `Results for "…"` header line first — the query echo otherwise produces false "leak" matches. Deletion verification should check three surfaces together: styled-404 suggestion list, close-match search fallback, and all 11 sitemap parts — each can independently retain a stale/sibling entry.
+
+## Genre aliases, related genres, stub suppression (R175)
+- Reader-facing genre aliases live in `GENRE_SLUG_REDIRECTS` and related-genre pills in `GENRE_CLUSTERS` (src/index.ts, genres section). Test redirects with a no-redirect client asserting status 301 + exact `Location`.
+- Wikidata stub suppression (`isStubDescription`) hides "novel by <author>" stubs on series and author book lists only when the stub contains that list's author name — different-author stubs (e.g. Eoin Colfer on Hitchhiker book 6) are intentionally kept.
