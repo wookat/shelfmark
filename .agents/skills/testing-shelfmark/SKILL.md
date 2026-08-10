@@ -131,3 +131,6 @@ The sitemap index is /sitemap.xml pointing at parts /sitemaps/N.xml — studies/
 
 ## Suggest endpoint shapes + cache (R171)
 /api/suggest returns {results:[{label,href,kind}]} (kinds series/author/book, capped 8, series-first) while /api/opensearch-suggest returns [q,[names]] and queries series names only — a book-title query correctly returning [] there is not a failure. Suggest responses are cached max-age=3600, so always cache-bust. After keyboard-Enter navigation in Playwright, read page.url only after waiting for the destination h1/locator, not right after wait_for_load_state (it can resolve pre-navigation).
+
+## Author portraits + mixed-author series (R172)
+Author portraits hotlink commons.wikimedia.org/wiki/Special:FilePath/... which 302-redirects — naturalWidth can read 0 right after load, so poll (scroll into view, wait up to ~10s) before asserting; expect occasional empty portrait circles in fast full-page screenshots. Author pages list only books authored by that author, so a series section header's book count (e.g. "6 books") can legitimately exceed the rows shown when a series has mixed per-book authors. /api/authors/{slug}.json series entries carry url/api keys, not slug.
