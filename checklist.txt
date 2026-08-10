@@ -1,0 +1,7 @@
+R61-65 batch notes
+- [x] R61 site-wide RSS autodiscovery
+- [x] R62 author og:image
+- [x] R63 handoff-context.md
+- [x] R64 _headers static caching + OL fetch resilience
+- [ ] R65 pending
+- [closed] OL cover backfill: after fixing timeouts, 200 checked → 0 exact-title matches. Remaining coverless books are ones that already failed ISBN matching; OL search has no clean match for them. Strict matching kept (no wrong covers). Revisit only with a better source (OL dumps + fuzzy validation).
