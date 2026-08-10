@@ -107,3 +107,6 @@ When running axe in both themes, do a fresh page load per theme instead of toggl
 
 ## Transient button-text swaps + #sr-live (R159)
 When asserting transient button-text swaps (e.g. "Link copied ✓", reverts after 2s), don't use a Playwright locator keyed to the original text — its auto-wait can resolve after the revert and falsely suggest the swap never happened; poll button text from t=0 or read the clipboard to confirm the action fired. #sr-live is a persistent body-level role=status div announcing "Up next: {title}" on ticks — assert on its textContent.
+
+## Data-studies fixtures (R160)
+/studies/longest-series is a fast data-quality census fixture — 50 rows expose the full range of genre labels and missing year spans on one page (rank 1 Kuroko's Basketball legitimately has zero book years in the source data, so "—" is correct). Tables sit in overflow-x-auto wrappers, so mobile overflow checks must assert document.scrollingElement.scrollWidth, not the table itself.

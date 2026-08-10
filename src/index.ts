@@ -306,6 +306,99 @@ app.get("/popular", async (c) => {
   );
 });
 
+// ---------- Data studies ----------
+app.get("/studies", (c) => {
+  const body = `
+${crumbs([["Studies", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">Book data studies</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Original, verifiable research built from the Shelfmark catalog (Wikidata CC0 + Open Library) — every number links back to the underlying reading-order pages.</p>
+<div class="grid gap-3 sm:grid-cols-2 mt-6">
+  <a href="/studies/longest-series" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The longest book series in the catalog</h2><p class="mt-1.5 text-sm text-ink-700">The 50 largest series ranked by number of books, with authors, genres, and year spans.</p></a>
+  <a href="/studies/series-length-by-genre" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">How long is a series in each genre?</h2><p class="mt-1.5 text-sm text-ink-700">Average and maximum series length across every genre with 10+ catalogued series.</p></a>
+</div>`;
+  return c.html(
+    layout({
+      title: "Book Data Studies — Original Catalog Research | Shelfmark",
+      description: "Original book-series data studies from the Shelfmark catalog: longest series, series length by genre — every number verifiable against the underlying pages.",
+      path: "/studies",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"]])],
+    })
+  );
+});
+
+app.get("/studies/longest-series", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.*, a.name AS author_name,
+       COALESCE(s.first_year, (SELECT MIN(b.year) FROM books b WHERE b.series_id = s.id)) AS first_year,
+       COALESCE(s.last_year, (SELECT MAX(b.year) FROM books b WHERE b.series_id = s.id)) AS last_year
+     FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE ${LIST_BASE} AND s.book_count >= 2 ORDER BY s.book_count DESC, s.name LIMIT 50`
+  ).all<Series>();
+  const body = `
+${crumbs([["Studies", "/studies"], ["Longest series", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">The longest book series in the catalog</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">The 50 largest series in the Shelfmark catalog, ranked by number of catalogued books. Every row links to the full reading order, so each count is verifiable. Data: Wikidata (CC0) + Open Library, fiction series with a known author and genre.</p>
+<div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
+<table class="w-full text-sm">
+<thead><tr class="text-left text-ink-700/75 border-b border-ink-200"><th class="px-4 py-3 font-semibold">#</th><th class="px-4 py-3 font-semibold">Series</th><th class="px-4 py-3 font-semibold">Author</th><th class="px-4 py-3 font-semibold">Genre</th><th class="px-4 py-3 font-semibold text-right">Books</th><th class="px-4 py-3 font-semibold text-right">Years</th></tr></thead>
+<tbody>${results.map((s, i) => `<tr class="border-b border-ink-200/60 last:border-0"><td class="px-4 py-2.5 tabular-nums text-ink-700/75">${i + 1}</td><td class="px-4 py-2.5"><a href="/series/${s.slug}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(s.name)}</a></td><td class="px-4 py-2.5 text-ink-700">${s.author_name ? esc(s.author_name) : "—"}</td><td class="px-4 py-2.5 text-ink-700 capitalize">${esc(genreLabel(s.genre ?? ""))}</td><td class="px-4 py-2.5 text-right tabular-nums font-medium text-ink-900">${s.book_count}</td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${yearsSpan(s) || "—"}</td></tr>`).join("")}</tbody>
+</table>
+</div>
+<p class="mt-4 text-sm text-ink-700/80">Counts reflect books catalogued on Shelfmark; series still in progress keep growing. Reuse welcome with a link back — data is derived from Wikidata (CC0) and Open Library.</p>`;
+  return c.html(
+    layout({
+      title: "The 50 Longest Book Series — Ranked by Number of Books | Shelfmark",
+      description: `The longest book series in the Shelfmark catalog, ranked by book count — from ${results[0] ? `${results[0].name} (${results[0].book_count} books)` : "the largest"} down. Every count links to the full reading order.`,
+      path: "/studies/longest-series",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"], ["Longest series", "/studies/longest-series"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "The longest book series in the Shelfmark catalog",
+          numberOfItems: results.length,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+    })
+  );
+});
+
+app.get("/studies/series-length-by-genre", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT s.genre, COUNT(*) AS n, ROUND(AVG(s.book_count), 1) AS avg_books, MAX(s.book_count) AS max_books FROM series s WHERE ${LIST_BASE} AND s.book_count >= 2 GROUP BY s.genre HAVING n >= 10 ORDER BY avg_books DESC`
+  ).all<{ genre: string; n: number; avg_books: number; max_books: number }>();
+  const body = `
+${crumbs([["Studies", "/studies"], ["Series length by genre", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">How long is a book series in each genre?</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Average and maximum series length for every genre with at least 10 catalogued series (2+ books each, known author). Genre labels come straight from Wikidata; each genre links to its full series listing.</p>
+<div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
+<table class="w-full text-sm">
+<thead><tr class="text-left text-ink-700/75 border-b border-ink-200"><th class="px-4 py-3 font-semibold">Genre</th><th class="px-4 py-3 font-semibold text-right">Series</th><th class="px-4 py-3 font-semibold text-right">Avg books</th><th class="px-4 py-3 font-semibold text-right">Longest</th></tr></thead>
+<tbody>${results.map((g) => `<tr class="border-b border-ink-200/60 last:border-0"><td class="px-4 py-2.5"><a href="/genres/${gslug(g.genre)}" class="font-medium text-ink-900 hover:text-amber-accent capitalize">${esc(genreLabel(g.genre))}</a></td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${g.n}</td><td class="px-4 py-2.5 text-right tabular-nums font-medium text-ink-900">${Number(g.avg_books).toFixed(1)}</td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${g.max_books}</td></tr>`).join("")}</tbody>
+</table>
+</div>
+<p class="mt-4 text-sm text-ink-700/80">Averages are per catalogued series and change as the catalog grows. Reuse welcome with a link back — data is derived from Wikidata (CC0) and Open Library.</p>`;
+  return c.html(
+    layout({
+      title: "Average Book Series Length by Genre | Shelfmark",
+      description: "How many books does a series run in each genre? Average and maximum series length across every genre with 10+ catalogued series, from the Shelfmark catalog.",
+      path: "/studies/series-length-by-genre",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"], ["Series length by genre", "/studies/series-length-by-genre"]])],
+    })
+  );
+});
+
 // ---------- Curated lists ----------
 const LIST_BASE = `s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%compendium%' AND s.genre NOT LIKE '%essay%' AND s.genre NOT LIKE '%biograph%' AND s.genre NOT LIKE '%handbook%' AND s.genre NOT LIKE '%monograph%' AND s.genre NOT LIKE '%textbook%' AND s.genre NOT LIKE '%catalog%' AND s.genre NOT LIKE '%yearbook%' AND s.genre NOT LIKE '%non-fiction%'`;
 const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string; order: string }[] = [
@@ -934,6 +1027,14 @@ const GENRE_LABELS: Record<string, string> = {
   "comedy anime and manga": "comedy (anime & manga)",
   "business literature": "business",
   "lgbt literature": "LGBT literature",
+  "school anime and manga": "school life (anime & manga)",
+  "action anime and manga": "action (anime & manga)",
+  "romantic comedy anime and manga": "romantic comedy (anime & manga)",
+  "school life": "school life",
+  "dialogue": "philosophical dialogue",
+  "art book": "art books",
+  "gamebook": "gamebooks",
+  "sword and planet": "sword & planet",
 };
 const genreLabel = (g: string) => GENRE_LABELS[g.toLowerCase()] ?? g;
 
@@ -1648,6 +1749,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - Series like X: ${c.env.SITE_URL}/similar/{series-slug} (e.g. /similar/mistborn): similar-series recommendations drawn from the catalog.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
+- [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre.
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
 - [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
 - [Pricing](${c.env.SITE_URL}/pricing): plans and beta status (everything free during beta).
@@ -1701,6 +1803,7 @@ app.get("/sitemaps/:file", async (c) => {
   if (n === 1) {
     urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/press", "/new");
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
+    urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
