@@ -65,7 +65,7 @@ ${ld}
     <a href="/" class="font-display font-bold text-lg sm:text-xl text-ink-900 shrink-0">Shelf<span class="text-amber-accent">mark</span></a>
     <a href="/pricing" class="beta-badge shrink-0 hidden sm:inline-block" title="Free while in beta — see planned pricing">Beta</a>
     <form action="/search" method="get" class="flex-1 max-w-md hidden md:block">
-      <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
+      <input name="q" type="search" aria-label="Search series, authors, and books" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-accent/50">
     </form>
     <nav aria-label="Primary" class="ml-auto flex items-center gap-2 sm:gap-4 text-sm font-medium">
       <a href="/series" class="hover:text-amber-accent">Series</a>
@@ -77,7 +77,7 @@ ${ld}
     </nav>
   </div>
   <form action="/search" method="get" class="md:hidden px-4 pb-3">
-    <input name="q" type="search" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
+    <input name="q" type="search" aria-label="Search series, authors, and books" placeholder="Search series, authors, books…" class="w-full rounded-full border border-ink-200 bg-white px-4 py-1.5 text-sm">
   </form>
 </header>
 <main id="main" class="flex-1 w-full max-w-5xl xl:max-w-6xl mx-auto px-4 py-8">

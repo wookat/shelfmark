@@ -1587,3 +1587,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - R155 discovery (testing agent, acceptance-officer eye): /similar visual passes, /press//popular//pricing dark+768, /saved full share loop, /new genre filters + RSS, 404//random quality. P0/P1 none; P2×4.
 - R156 fixes (all four P2s): generic 404 gains a centered 4-pill onward row (popular/lists/A–Z/genres); /new with unknown ?genre= shows "No new releases under that genre — showing all." + noindex; /similar pages with <6 cards get the same onward pill row after the grid (>=6-card pages unchanged); genreLabel map cleans raw chip labels (spokon→sports (spokon), comedy anime and manga→comedy (anime & manga), business literature→business, lgbt literature→LGBT literature).
 - QA (worker de2b520d): all four verified light+dark, pills navigate, 375px clean, axe 0 (isolated theme runs), mistborn control has no pill row. Untested: LGBT-literature label (no fixture in current /new window).
+
+## R157–159 (maintenance + a11y semantics)
+- R157 maintenance: IndexNow submission of changed URLs (/lists + 3 new lists + /new + /popular, 200); TTFB spot-check healthy (0.1–0.7s incl. cold).
+- R158 discovery (keyboard-only + assistive-semantics pass): P0/P1 none — full keyboard operability, complete typeahead ARIA, landmarks/headings clean. P2×3: clipboard confirmations not announced, search inputs labeled only by placeholder, up-next moves unannounced after first tick.
+- R159 fixes: aria-live="polite" on [data-share]/[data-copylist]/shelf share buttons; aria-label="Search series, authors, and books" on all search inputs (header ×2 + hero); persistent #sr-live (sr-only, role=status) announces "Up next: {title}" on every tick.
+- QA (worker 1a4d63e7): all three verified (announcement text lands in live region, combobox name = aria-label, sr-live updates on successive ticks); typeahead/coach-mark/tracker regression green; axe 0 light+dark home+series.
