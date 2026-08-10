@@ -1013,12 +1013,13 @@ ${paginationQ(`/genres/${slug}?`, page, pages)}`;
 app.get("/search", async (c) => {
   c.header("Cache-Control", "no-store");
   const q = (c.req.query("q") ?? "").trim().slice(0, 100);
+  const qm = q.replace(/[\u2018\u2019]/g, "'").replace(/["\u201c\u201d\u00ab\u00bb]/g, "").trim();
   let body: string;
   if (!q) {
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Search</h1><p class="mt-2 text-ink-700">Type a series or author name above.</p>`;
   } else {
     // SQLite rejects LIKE patterns longer than 50 chars, so cap the substring.
-    const like = `%${q.replace(/[%_]/g, " ").slice(0, 48)}%`;
+    const like = `%${qm.replace(/[%_]/g, " ").slice(0, 48)}%`;
     let { results: series } = await c.env.DB.prepare(
       `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 30`
     ).bind(like).all<Series>();
@@ -1029,7 +1030,7 @@ app.get("/search", async (c) => {
       `SELECT b.id, b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
     ).bind(like).all<{ id: number; title: string; year: number | null; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
     let closeMatches = false;
-    const tokens = q.replace(/[%_]/g, " ").split(/\s+/).filter((t) => t.length > 2);
+    const tokens = qm.replace(/[%_]/g, " ").split(/\s+/).filter((t) => t.length > 2);
     if (!series.length && !authors.length && !bookHits.length && tokens.length > 1) {
       closeMatches = true;
       const binds = tokens.map((t) => `%${t}%`);
@@ -1045,7 +1046,7 @@ app.get("/search", async (c) => {
     await c.env.DB.prepare(
       `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
     ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
-    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(q)}”</h1>
+    body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(qm || q)}”</h1>
 ${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
@@ -1243,7 +1244,7 @@ app.get("/opensearch.xml", (c) => {
 app.get("/api/opensearch-suggest", async (c) => {
   const q = (c.req.query("q") ?? "").trim().slice(0, 60);
   if (q.length < 2) return c.json([q, []]);
-  const like = `${q.replace(/[%_]/g, " ").slice(0, 48)}%`;
+  const like = `${q.replace(/[\u2018\u2019]/g, "'").replace(/["\u201c\u201d\u00ab\u00bb]/g, "").replace(/[%_]/g, " ").trim().slice(0, 48)}%`;
   const { results } = await c.env.DB.prepare(
     `SELECT name FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
   ).bind(like).all<{ name: string }>();
@@ -1340,7 +1341,7 @@ app.get("/privacy", (c) =>
 app.get("/api/suggest", async (c) => {
   const q = (c.req.query("q") ?? "").trim().slice(0, 60);
   if (q.length < 2) return c.json({ results: [] });
-  const like = `${q.replace(/[%_]/g, " ").slice(0, 48)}%`;
+  const like = `${q.replace(/[\u2018\u2019]/g, "'").replace(/["\u201c\u201d\u00ab\u00bb]/g, "").replace(/[%_]/g, " ").trim().slice(0, 48)}%`;
   const { results: series } = await c.env.DB.prepare(
     `SELECT name, slug FROM series WHERE name LIKE ? AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
   ).bind(like).all<{ name: string; slug: string }>();

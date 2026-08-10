@@ -92,3 +92,6 @@ Western genre (3 series: lonesome-dove-series, lucky-luke, the-border-trilogy) r
 
 ## Small-series fixtures & goal flow (R148)
 1-book series: marsupilami (/book/111486-marsupilami); 2-book: monk-and-robot (/book/6377-a-psalm-for-the-wild-built). Find more by sampling series slugs from sitemap part 6 and reading "numberOfItems" from series-page JSON-LD. The book-page sibling cover strip only renders when a series has >1 book. Reading-goal flow uses window.prompt (#goal-edit button, localStorage key shelfmark:goal:{year}, page reloads on save) — handle with page.once("dialog", ...) in Playwright.
+
+## Suggest API caching (R149)
+/api/suggest responses are cached with max-age=3600 — always append a unique cache-buster param when probing suggest endpoints, or stale pre-fix behavior can masquerade as a failed fix.
