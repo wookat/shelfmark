@@ -1225,15 +1225,17 @@ app.get("/search", async (c) => {
   } else {
     // SQLite rejects LIKE patterns longer than 50 chars, so cap the substring.
     const like = `%${core.slice(0, 48)}%`;
+    // Hyphenated titles ("Three-Body Problem") should match space-separated queries and vice versa.
+    const likeNorm = `%${core.replace(/-/g, " ").replace(/\s+/g, " ").trim().slice(0, 48)}%`;
     let { results: series } = await c.env.DB.prepare(
-      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name LIKE ? AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 30`
-    ).bind(like).all<Series>();
+      `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE (s.name LIKE ?1 OR REPLACE(s.name, '-', ' ') LIKE ?2) AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 30`
+    ).bind(like, likeNorm).all<Series>();
     let { results: authors } = await c.env.DB.prepare(
-      `SELECT * FROM authors WHERE name LIKE ? ORDER BY book_count DESC LIMIT 30`
-    ).bind(like).all<Author>();
-    const { results: bookHits } = await c.env.DB.prepare(
-      `SELECT b.id, b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ? ORDER BY s.book_count DESC LIMIT 20`
-    ).bind(like).all<{ id: number; title: string; year: number | null; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
+      `SELECT * FROM authors WHERE name LIKE ?1 OR REPLACE(name, '-', ' ') LIKE ?2 ORDER BY book_count DESC LIMIT 30`
+    ).bind(like, likeNorm).all<Author>();
+    let { results: bookHits } = await c.env.DB.prepare(
+      `SELECT b.id, b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.title LIKE ?1 OR REPLACE(b.title, '-', ' ') LIKE ?2 ORDER BY s.book_count DESC LIMIT 20`
+    ).bind(like, likeNorm).all<{ id: number; title: string; year: number | null; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>();
     let closeMatches = false;
     const tokens = core.split(/\s+/).filter((t) => t.length > 2);
     if (!series.length && !authors.length && !bookHits.length && tokens.length > 1) {
@@ -1245,6 +1247,11 @@ app.get("/search", async (c) => {
       ({ results: authors } = await c.env.DB.prepare(
         `SELECT * FROM authors WHERE ${tokens.map(() => "name LIKE ?").join(" OR ")} ORDER BY book_count DESC LIMIT 12`
       ).bind(...binds).all<Author>());
+      if (!series.length && !authors.length) {
+        ({ results: bookHits } = await c.env.DB.prepare(
+          `SELECT b.id, b.title, b.year, b.cover_url, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE ${tokens.map(() => "REPLACE(b.title, '-', ' ') LIKE ?").join(" OR ")} ORDER BY s.book_count DESC LIMIT 12`
+        ).bind(...binds).all<{ id: number; title: string; year: number | null; cover_url: string | null; series_slug: string; series_name: string; author_name: string | null }>());
+      }
     }
     const day = new Date().toISOString().slice(0, 10);
     const nResults = series.length + authors.length + bookHits.length;
@@ -1252,7 +1259,7 @@ app.get("/search", async (c) => {
       `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
     ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(qm || q)}”</h1>
-${closeMatches && (series.length || authors.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
+${closeMatches && (series.length || authors.length || bookHits.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
 ${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="32" height="48" class="w-8 h-12 object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-8 h-12 rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/book/${b.id}-${bslug(b.title)}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— <a href="/series/${b.series_slug}" class="hover:text-amber-accent underline underline-offset-2">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul>` : ""}

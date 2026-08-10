@@ -1622,3 +1622,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - R165 discovery (cold surfaces: /pricing /privacy /press /unsubscribe /random /new.rss /opensearch.xml manifest, subscribe-form UX, 320px sweep, 404 hygiene): P0/P1 none. P2×1 — manifest shipped only an SVG icon, so Chrome's install prompt never fired (needs ≥192px PNG). P3 noted: opensearch-suggest thinner than in-app typeahead (possibly intentional dedup).
 - R166 fix: /icon-192.png + /icon-512.png (purpose any) + /icon-maskable-512.png (purpose maskable, glyph in 80% safe zone on full-bleed #1a1916) added to manifest; shortcuts carry the 192 icon; 86400 cache headers.
 - QA (worker 2a7ce1bd): CDP Page.getInstallabilityErrors → empty (was failing "no acceptable icon"); manifest parse 0 errors; PNGs 200/right dims/cache; maskable safe-zone pixel-verified; zero console errors on home.
+
+## R167 (data-driven search: hyphen-insensitive matching)
+- Search analytics: real query "三体"/"three body problem" returned 0 results even though "The Three-Body Problem" exists — hyphenated titles didn't match space-separated queries.
+- Fix: primary series/author/book LIKE queries also compare against REPLACE(name,'-',' ') with a hyphen-normalized pattern; token fallback extended to book titles; close-match notice covers book-only fallback hits.
+- CJK titles (三体) remain unmatched — catalog stores English titles only; noted as a known limitation, not fixable without an alias dataset.
