@@ -270,6 +270,134 @@ ${similar.length < 6 ? `<div class="mt-10 flex flex-wrap gap-3 text-sm">
   );
 });
 
+// ---------- Compare (data-driven series comparisons) ----------
+const CMP_TOP = 8; // top series per genre eligible for comparison pairs
+const CMP_ELIGIBLE = `s.genre IS NOT NULL AND s.author_id IS NOT NULL AND s.book_count BETWEEN 3 AND 60`;
+
+async function cmpGenreTop(db: D1Database, genre: string): Promise<Series[]> {
+  const { results } = await db.prepare(
+    `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id
+     WHERE ${CMP_ELIGIBLE} AND s.genre=? ORDER BY s.book_count DESC, s.name LIMIT ${CMP_TOP}`
+  ).bind(genre).all<Series>();
+  return results;
+}
+
+const cmpStat = (label: string, a: string, b: string) =>
+  `<tr class="border-b border-ink-200/60 last:border-0"><th scope="row" class="px-4 py-2.5 text-left font-medium text-ink-700 whitespace-nowrap">${label}</th><td class="px-4 py-2.5 text-ink-900">${a}</td><td class="px-4 py-2.5 text-ink-900">${b}</td></tr>`;
+
+app.get("/compare", async (c) => {
+  const { results: genres } = await c.env.DB.prepare(
+    `SELECT s.genre, COUNT(*) AS n FROM series s WHERE ${CMP_ELIGIBLE} GROUP BY s.genre HAVING n >= ${CMP_TOP} ORDER BY n DESC LIMIT 12`
+  ).all<{ genre: string; n: number }>();
+  const sections = await Promise.all(genres.map(async (g) => {
+    const top = await cmpGenreTop(c.env.DB, g.genre);
+    const pairs: string[] = [];
+    for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) {
+      const [a, b] = [top[i], top[j]].sort((x, y) => x.slug.localeCompare(y.slug));
+      pairs.push(`<li><a href="/compare/${a.slug}-vs-${b.slug}" class="text-amber-accent hover:underline underline-offset-2">${esc(a.name)} vs ${esc(b.name)}</a></li>`);
+    }
+    return `<section class="mt-8"><h2 class="font-display font-semibold text-2xl text-ink-900"><a href="/genres/${gslug(g.genre)}" class="hover:text-amber-accent">${esc(gtitle(g.genre))}</a></h2>
+<ul class="mt-3 grid gap-x-6 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3 text-sm">${pairs.join("")}</ul></section>`;
+  }));
+  const body = `
+${crumbs([["Compare", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">Compare book series</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">Deciding what to start next? These side-by-side comparisons put two series from the same genre next to each other — length, publication span, pace, and where each one starts. Everything is drawn from the catalog data; no ratings or editorial verdicts.</p>
+${sections.join("")}`;
+  return c.html(
+    layout({
+      title: "Compare Book Series Side by Side | Shelfmark",
+      description: "Side-by-side book series comparisons by the numbers: length, publication span, pace, and where to start — drawn from the Shelfmark catalog.",
+      path: "/compare",
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Compare", "/compare"]])],
+      body,
+    })
+  );
+});
+
+app.get("/compare/:pair", async (c) => {
+  const pair = c.req.param("pair");
+  const m = /^([a-z0-9-]+)-vs-([a-z0-9-]+)$/.exec(pair);
+  if (!m) return notFound(c);
+  const [slugA, slugB] = [m[1], m[2]];
+  if (slugA === slugB) return notFound(c);
+  if (slugA.localeCompare(slugB) > 0) return c.redirect(`/compare/${slugB}-vs-${slugA}`, 301);
+  const fetchSeries = (slug: string) =>
+    c.env.DB.prepare(
+      `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=? AND ${CMP_ELIGIBLE}`
+    ).bind(slug).all<Series>().then((r) => r.results[0]);
+  const [a, b] = await Promise.all([fetchSeries(slugA), fetchSeries(slugB)]);
+  if (!a || !b || a.genre !== b.genre) return notFound(c);
+  const top = await cmpGenreTop(c.env.DB, a.genre!);
+  const inTop = (id: number) => top.some((s) => s.id === id);
+  if (!inTop(a.id) || !inTop(b.id)) c.header("X-Robots-Tag", "noindex");
+  const firstBook = (id: number) =>
+    c.env.DB.prepare(`SELECT id, title, year FROM books WHERE series_id=? ORDER BY position, year LIMIT 1`).bind(id).all<Book>().then((r) => r.results[0]);
+  const [fa, fb] = await Promise.all([firstBook(a.id), firstBook(b.id)]);
+  const span = (s: Series) => (s.first_year && s.last_year ? s.last_year - s.first_year : null);
+  const pace = (s: Series) => {
+    const sp = span(s);
+    return sp && sp > 0 ? (s.book_count / sp).toFixed(1) : null;
+  };
+  const startCell = (s: Series, f?: Book) =>
+    f ? `<a href="/book/${f.id}-${bslug(f.title)}" class="text-amber-accent underline underline-offset-2">${esc(f.title)}</a>${f.year ? ` (${fmtYear(f.year)})` : ""}` : "—";
+  const longer = a.book_count === b.book_count ? null : a.book_count > b.book_count ? a : b;
+  const newer = a.first_year && b.first_year && a.first_year !== b.first_year ? (a.first_year > b.first_year ? a : b) : null;
+  const facts: string[] = [];
+  if (longer) facts.push(`${longer.name} is the longer series (${bookNoun(longer.book_count)} vs ${bookNoun(longer === a ? b.book_count : a.book_count)})`);
+  if (newer) facts.push(`${newer.name} is the more recent one, starting in ${fmtYear(newer.first_year!)}`);
+  const body = `
+${crumbs([["Compare", "/compare"], [`${a.name} vs ${b.name}`, ""]])}
+<h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(a.name)} vs ${esc(b.name)}</h1>
+<p class="mt-3 text-ink-700 max-w-2xl">Two ${esc(a.genre!.toLowerCase())} series side by side, straight from the catalog data${facts.length ? `: ${esc(facts.join("; "))}.` : "."} There's no wrong answer — pick the shape that fits your reading appetite, and Shelfmark will keep your place in either (no account needed).</p>
+<div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
+<table class="w-full text-sm">
+<thead><tr class="border-b border-ink-200 text-left"><th class="px-4 py-2.5"></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${a.slug}" class="text-ink-900 hover:text-amber-accent">${esc(a.name)}</a></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${b.slug}" class="text-ink-900 hover:text-amber-accent">${esc(b.name)}</a></th></tr></thead>
+<tbody>
+${cmpStat("Author", a.author_name ? esc(a.author_name) : "—", b.author_name ? esc(b.author_name) : "—")}
+${cmpStat("Books", `<span class="tabular-nums font-medium">${a.book_count}</span>`, `<span class="tabular-nums font-medium">${b.book_count}</span>`)}
+${cmpStat("Published", yearsSpan(a) || "—", yearsSpan(b) || "—")}
+${cmpStat("Books per year", pace(a) ? `<span class="tabular-nums">${pace(a)}</span>` : "—", pace(b) ? `<span class="tabular-nums">${pace(b)}</span>` : "—")}
+${cmpStat("Start with", startCell(a, fa), startCell(b, fb))}
+${cmpStat("Reading order", `<a href="/series/${a.slug}" class="text-amber-accent underline underline-offset-2">Full ${esc(a.name)} order →</a>`, `<a href="/series/${b.slug}" class="text-amber-accent underline underline-offset-2">Full ${esc(b.name)} order →</a>`)}
+</tbody>
+</table>
+</div>
+<p class="mt-4 text-xs text-ink-700/75 max-w-2xl">Numbers come from the Shelfmark catalog (Wikidata + Open Library). "Books per year" is catalogued books divided by the publication span — a rough cadence, not a quality score.</p>
+<div class="mt-8 flex flex-wrap gap-3 text-sm">
+  <a href="/similar/${a.slug}" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Series like ${esc(a.name)}</a>
+  <a href="/similar/${b.slug}" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Series like ${esc(b.name)}</a>
+  <a href="/genres/${gslug(a.genre!)}" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">All ${esc(a.genre!.toLowerCase())} series</a>
+  <a href="/compare" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">More comparisons</a>
+</div>`;
+  return c.html(
+    layout({
+      title: `${a.name} vs ${b.name}: Which Series to Start? | Shelfmark`,
+      description: `${a.name} vs ${b.name} by the numbers: ${a.book_count} vs ${b.book_count} books, ${yearsSpan(a) || "—"} vs ${yearsSpan(b) || "—"}. Compare length, pace, and where each ${a.genre!.toLowerCase()} series starts.`,
+      path: `/compare/${pair}`,
+      image: (a.cover_url ?? b.cover_url)?.replace("-M.jpg", "-L.jpg"),
+      siteUrl: c.env.SITE_URL,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Compare", "/compare"], [`${a.name} vs ${b.name}`, `/compare/${pair}`]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: `${a.name} vs ${b.name}`,
+          numberOfItems: 2,
+          itemListElement: [a, b].map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+      body,
+    })
+  );
+});
+
 app.get("/popular", async (c) => {
   const { results } = await c.env.DB.prepare(
     `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 80 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC, s.name LIMIT 100`
@@ -1925,6 +2053,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - Series like X: ${c.env.SITE_URL}/similar/{series-slug} (e.g. /similar/mistborn): similar-series recommendations drawn from the catalog.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
+- [Compare series](${c.env.SITE_URL}/compare): side-by-side series comparisons by the numbers (length, span, pace, where to start), e.g. /compare/{a}-vs-{b}.
 - [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre, most prolific authors, longest publication gaps.
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
 - [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
@@ -1989,6 +2118,17 @@ app.get("/sitemaps/:file", async (c) => {
       `SELECT s.slug FROM series s WHERE s.genre IS NOT NULL AND s.author_id IS NOT NULL AND s.book_count BETWEEN 3 AND 60 AND (SELECT COUNT(*) FROM series s2 WHERE s2.genre=s.genre AND s2.id<>s.id AND s2.book_count BETWEEN 3 AND 60) >= 6 ORDER BY s.book_count DESC LIMIT 2000`
     ).all<{ slug: string }>();
     urls.push(...similarEligible.map((r) => `/similar/${r.slug}`));
+    urls.push("/compare");
+    const { results: cmpGenres } = await c.env.DB.prepare(
+      `SELECT s.genre, COUNT(*) AS n FROM series s WHERE ${CMP_ELIGIBLE} GROUP BY s.genre HAVING n >= ${CMP_TOP} ORDER BY n DESC LIMIT 12`
+    ).all<{ genre: string }>();
+    for (const g of cmpGenres) {
+      const top = await cmpGenreTop(c.env.DB, g.genre);
+      for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) {
+        const [x, y] = [top[i], top[j]].sort((p, q) => p.slug.localeCompare(q.slug));
+        urls.push(`/compare/${x.slug}-vs-${y.slug}`);
+      }
+    }
   }
   const body = urls.map((u) => `<url><loc>${c.env.SITE_URL}${u}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
