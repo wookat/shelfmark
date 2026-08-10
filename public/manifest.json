@@ -7,11 +7,14 @@
   "background_color": "#f7f6f3",
   "theme_color": "#f7f6f3",
   "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
     { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
   ],
   "shortcuts": [
-    { "name": "My Shelf", "url": "/shelf", "description": "Your reading progress and stats" },
-    { "name": "New & upcoming", "url": "/new", "description": "Recent and upcoming series installments" },
-    { "name": "Surprise me", "url": "/random", "description": "Jump to a random series" }
+    { "name": "My Shelf", "url": "/shelf", "description": "Your reading progress and stats", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "New & upcoming", "url": "/new", "description": "Recent and upcoming series installments", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] },
+    { "name": "Surprise me", "url": "/random", "description": "Jump to a random series", "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }] }
   ]
 }

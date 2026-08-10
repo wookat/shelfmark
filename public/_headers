@@ -7,6 +7,12 @@
   Cache-Control: public, max-age=86400
 /og.png
   Cache-Control: public, max-age=86400
+/icon-192.png
+  Cache-Control: public, max-age=86400
+/icon-512.png
+  Cache-Control: public, max-age=86400
+/icon-maskable-512.png
+  Cache-Control: public, max-age=86400
 /manifest.json
   Cache-Control: public, max-age=86400
 /fonts/*
