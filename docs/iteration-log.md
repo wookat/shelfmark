@@ -1696,3 +1696,12 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - "Start with" now uses the same book-ordering rules as the series page (sub-entry wikidata exclusion + dup-position year re-sort) — Discworld pair pages now say The Light Fantastic, matching the Start-here chip.
 - Pair-table first header cell gets an sr-only "Statistic" label (axe empty-table-header).
 - Malformed non-alphabetical pairs 404 directly instead of 301→404 (existence check now precedes the canonical-order redirect).
+
+## R181 (series-page compare cross-links)
+- Series pages of genre top-8 eligible series now show a "Can't decide?" row with up to 3 compare pills (same CMP_ELIGIBLE + cmpGenreTop rules; canonical alphabetical hrefs) inside the print-hidden "If you like…" section.
+- QA verified live: xanth/discworld 3 pills each, mistborn none, all hrefs 200 no-redirect, 375px wraps cleanly, axe 0 (light+dark), print-hidden, plus all three R180 fixes re-confirmed closed.
+
+## R182 (five-driver scan — no findings ≥P2)
+- Data: fresh searches are QA probes (academic-term residual checks all return legitimate fiction/xkcd titles — catalog clean); `mist%born` hits the intended close-match fallback (wildcards scrubbed → token OR), not a wildcard leak; referrers still google.com ×3 only.
+- Health: 24 key routes all 200, TTFB 0.07–0.56s; /compare index 336 links + ItemList JSON-LD intact.
+- No P0/P1/P2 identified this round; testing-skill notes updated (compare-pill row location + no-redirect probing).
