@@ -137,3 +137,6 @@ Author portraits hotlink commons.wikimedia.org/wiki/Special:FilePath/... which 3
 
 ## Post-deletion surfaces (R173)
 Deleted-series 404s render a "Were you looking for one of these?" suggestion list built from name-similar series — after catalog deletions, inspect that list and the close-match search fallback, since they surface sibling entries the deletion patterns missed. Series URLs are spread across all sitemap parts (/sitemaps/1..11.xml), so grep every part, not just part 1.
+
+## Search-leak grep caveat (R173)
+When grepping search-results pages for forbidden terms, exclude the `Results for "…"` header line first — the query echo otherwise produces false "leak" matches. Deletion verification should check three surfaces together: styled-404 suggestion list, close-match search fallback, and all 11 sitemap parts — each can independently retain a stale/sibling entry.
