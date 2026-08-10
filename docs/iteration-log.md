@@ -1640,3 +1640,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Wired: studies index card (4 cards), sitemap part 1, llms.txt.
 - QA (worker b95f8e54): 50 rows, ranks sequential, gaps non-increasing 83→18 all ≥10, gap == to−from for all 50, ItemList JSON-LD n=50, ranks 1/25/50 cross-checked on their series pages (framing years present, none between), 375px contained, axe 0 light+dark, zero console errors.
 - Data fix surfaced by QA: rank 1 (Dream Cycle 83 yrs) ended at a 2026-dated book — "Through the Gates of the Silver Key" carried Wikidata's future-dated P577 (2026-07-30, an anthology/edition date); actual first publication is Weird Tales, July 1934. Corrected year to 1934 in D1. New rank 1: Arsène Lupin literary series, 71 yrs (1941–2012).
+
+## R171 (data-driven suggest: article-insensitive prefix matching)
+- Search analytics: "three body" / "three-body" now find results in full search (R167) but typeahead still suggested nothing — suggest is prefix-match and the title starts with "The". Same for any "The/A/An"-prefixed series ("hitchhiker", "song of ice", …).
+- Fix: shared artMatch() SQL fragment — prefix match also runs against the name with a leading "The "/"An "/"A " stripped (CASE + SUBSTR, hyphen-normalized). Applied to series in both suggest endpoints and book titles in /api/suggest; /search untouched (substring match already handles articles).
+- Verified live: "three body"→The Three-Body Problem, "hitchhiker"→The Hitchhiker's Guide, "song of ice"→A Song of Ice and Fire; "mistborn" unchanged.
