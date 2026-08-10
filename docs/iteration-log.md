@@ -1616,3 +1616,4 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 ## R164 (studies expansion: most prolific authors)
 - Perf spot-check first: TTFB 0.10–0.63s across 7 key pages, all healthy.
 - New third study /studies/most-prolific-authors (top 50 authors by catalogued series books, ItemList JSON-LD), wired into /studies index, sitemap part 1, llms.txt. QA caught placeholder entity "various authors" at rank 1 → excluded aggregate names (various/anonymous/unknown) from the query; verified rank 1 now R. L. Stine (worker 8c4b64f8).
+- R164 QA (worker 8c4b64f8): 50 rows rank-1 R. L. Stine, no aggregate authors, axe 0 light+dark, 375px fits fully, links resolve, longest-series rank-1 years 2009–2014 confirmed. IndexNow submitted for new URLs (200).
