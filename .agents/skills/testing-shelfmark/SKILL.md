@@ -134,3 +134,6 @@ The sitemap index is /sitemap.xml pointing at parts /sitemaps/N.xml — studies/
 
 ## Author portraits + mixed-author series (R172)
 Author portraits hotlink commons.wikimedia.org/wiki/Special:FilePath/... which 302-redirects — naturalWidth can read 0 right after load, so poll (scroll into view, wait up to ~10s) before asserting; expect occasional empty portrait circles in fast full-page screenshots. Author pages list only books authored by that author, so a series section header's book count (e.g. "6 books") can legitimately exceed the rows shown when a series has mixed per-book authors. /api/authors/{slug}.json series entries carry url/api keys, not slug.
+
+## Post-deletion surfaces (R173)
+Deleted-series 404s render a "Were you looking for one of these?" suggestion list built from name-similar series — after catalog deletions, inspect that list and the close-match search fallback, since they surface sibling entries the deletion patterns missed. Series URLs are spread across all sitemap parts (/sitemaps/1..11.xml), so grep every part, not just part 1.
