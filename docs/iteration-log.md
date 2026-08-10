@@ -1612,3 +1612,7 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
   - /studies index enriched: data-provenance blurb linking /about + standard 4-pill onward row.
 - Declined: "Frieren: Beyond Journey's End -Prelude-" trailing hyphen is the genuine Wikidata label styling for the spin-off, not dirty data; placeholder cover strip on cover-less series kept (honest, and covers backfill over time).
 - Verified via curl: rank-1 years 2009–2014 render; both stub fixtures hide descriptions; studies blurb live.
+
+## R164 (studies expansion: most prolific authors)
+- Perf spot-check first: TTFB 0.10–0.63s across 7 key pages, all healthy.
+- New third study /studies/most-prolific-authors (top 50 authors by catalogued series books, ItemList JSON-LD), wired into /studies index, sitemap part 1, llms.txt. QA caught placeholder entity "various authors" at rank 1 → excluded aggregate names (various/anonymous/unknown) from the query; verified rank 1 now R. L. Stine (worker 8c4b64f8).

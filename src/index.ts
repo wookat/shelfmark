@@ -321,6 +321,7 @@ ${crumbs([["Studies", ""]])}
 <div class="grid gap-3 sm:grid-cols-2 mt-6">
   <a href="/studies/longest-series" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The longest book series in the catalog</h2><p class="mt-1.5 text-sm text-ink-700">The 50 largest series ranked by number of books, with authors, genres, and year spans.</p></a>
   <a href="/studies/series-length-by-genre" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">How long is a series in each genre?</h2><p class="mt-1.5 text-sm text-ink-700">Average and maximum series length across every genre with 10+ catalogued series.</p></a>
+  <a href="/studies/most-prolific-authors" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The most prolific series authors</h2><p class="mt-1.5 text-sm text-ink-700">The 50 authors with the most catalogued series books, with full-bibliography links.</p></a>
 </div>
 <p class="mt-8 text-sm text-ink-700/80 max-w-2xl">All figures are computed directly from the catalog — series relationships and ordinals from Wikidata (CC0), cross-checked with Open Library records. Read more about <a href="/about" class="text-amber-accent underline">how the data is built</a>. More studies are added as the catalog grows.</p>
 <div class="mt-6 flex flex-wrap gap-3 text-sm">
@@ -332,7 +333,7 @@ ${crumbs([["Studies", ""]])}
   return c.html(
     layout({
       title: "Book Data Studies — Original Catalog Research | Shelfmark",
-      description: "Original book-series data studies from the Shelfmark catalog: longest series, series length by genre — every number verifiable against the underlying pages.",
+      description: "Original book-series data studies from the Shelfmark catalog: longest series, series length by genre, most prolific authors — every number verifiable against the underlying pages.",
       path: "/studies",
       siteUrl: c.env.SITE_URL,
       body,
@@ -378,6 +379,47 @@ ${crumbs([["Studies", "/studies"], ["Longest series", ""]])}
             position: i + 1,
             name: s.name,
             url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
+    })
+  );
+});
+
+app.get("/studies/most-prolific-authors", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `SELECT * FROM authors WHERE series_count >= 2 AND LOWER(name) NOT IN ('various authors', 'various', 'anonymous', 'unknown') ORDER BY book_count DESC, name LIMIT 50`
+  ).all<Author>();
+  const body = `
+${crumbs([["Studies", "/studies"], ["Most prolific authors", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">The most prolific series authors in the catalog</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">The 50 authors with the most catalogued series books (minimum two series each). Every row links to the full bibliography, so each count is verifiable. Data: Wikidata (CC0) + Open Library.</p>
+<div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
+<table class="w-full text-sm">
+<thead><tr class="text-left text-ink-700/75 border-b border-ink-200"><th class="px-4 py-3 font-semibold">#</th><th class="px-4 py-3 font-semibold">Author</th><th class="px-4 py-3 font-semibold text-right">Series</th><th class="px-4 py-3 font-semibold text-right">Books</th></tr></thead>
+<tbody>${results.map((a, i) => `<tr class="border-b border-ink-200/60 last:border-0"><td class="px-4 py-2.5 tabular-nums text-ink-700/75">${i + 1}</td><td class="px-4 py-2.5"><a href="/authors/${a.slug}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(a.name)}</a></td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${a.series_count}</td><td class="px-4 py-2.5 text-right tabular-nums font-medium text-ink-900">${a.book_count}</td></tr>`).join("")}</tbody>
+</table>
+</div>
+<p class="mt-4 text-sm text-ink-700/80">Counts reflect series books catalogued on Shelfmark and grow with the catalog. Reuse welcome with a link back — data is derived from Wikidata (CC0) and Open Library.</p>`;
+  return c.html(
+    layout({
+      title: "The 50 Most Prolific Series Authors — Ranked by Books | Shelfmark",
+      description: `The most prolific series authors in the Shelfmark catalog, ranked by catalogued books${results[0] ? ` — from ${results[0].name} (${results[0].book_count} books) down` : ""}. Every count links to the full bibliography.`,
+      path: "/studies/most-prolific-authors",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"], ["Most prolific authors", "/studies/most-prolific-authors"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "The most prolific series authors in the Shelfmark catalog",
+          numberOfItems: results.length,
+          itemListElement: results.map((a, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: a.name,
+            url: `${c.env.SITE_URL}/authors/${a.slug}`,
           })),
         },
       ],
@@ -1768,7 +1810,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - Series like X: ${c.env.SITE_URL}/similar/{series-slug} (e.g. /similar/mistborn): similar-series recommendations drawn from the catalog.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
-- [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre.
+- [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre, most prolific authors.
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
 - [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
 - [Pricing](${c.env.SITE_URL}/pricing): plans and beta status (everything free during beta).
@@ -1822,7 +1864,7 @@ app.get("/sitemaps/:file", async (c) => {
   if (n === 1) {
     urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/press", "/new");
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
-    urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre");
+    urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre", "/studies/most-prolific-authors");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
