@@ -266,7 +266,13 @@ app.get("/popular", async (c) => {
 <nav aria-label="Breadcrumb" class="text-sm text-ink-700/75 mb-4"><a href="/" class="hover:text-amber-accent">Home</a> / <span aria-current="page">Popular</span></nav>
 <h1 class="font-display font-bold text-3xl text-ink-900">The 100 most popular book series</h1>
 <p class="mt-2 text-ink-700 max-w-2xl">The biggest, best-documented series in the Shelfmark catalog — every one with a complete reading order and a built-in no-signup progress tracker.</p>
-<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>`;
+<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
+<div class="mt-10 flex flex-wrap gap-3 text-sm">
+  <a href="/genres" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Browse by genre</a>
+  <a href="/lists" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">Reading lists</a>
+  <a href="/series" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">All series A–Z</a>
+  <a href="/new" class="rounded-full bg-white border border-ink-200 px-4 py-2 hover:border-amber-accent">New &amp; upcoming</a>
+</div>`;
   return c.html(
     layout({
       title: "100 Most Popular Book Series in Order | Shelfmark",
@@ -295,7 +301,7 @@ app.get("/popular", async (c) => {
 });
 
 // ---------- Curated lists ----------
-const LIST_BASE = `s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%'`;
+const LIST_BASE = `s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%compendium%' AND s.genre NOT LIKE '%essay%' AND s.genre NOT LIKE '%biograph%' AND s.genre NOT LIKE '%handbook%' AND s.genre NOT LIKE '%monograph%' AND s.genre NOT LIKE '%textbook%' AND s.genre NOT LIKE '%catalog%' AND s.genre NOT LIKE '%yearbook%' AND s.genre NOT LIKE '%non-fiction%'`;
 const CURATED_LISTS: { slug: string; name: string; blurb: string; where: string; order: string }[] = [
   {
     slug: "trilogies",
@@ -442,8 +448,9 @@ function pagination(base: string, page: number, pages: number): string {
   if (pages <= 1) return "";
   const link = (p: number, label: string) =>
     `<a href="${base}?page=${p}" class="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm hover:border-amber-accent">${label}</a>`;
-  return `<div class="flex gap-2 justify-center mt-8">
+  return `<div class="flex items-center gap-3 justify-center mt-8">
     ${page > 1 ? link(page - 1, "← Previous") : ""}
+    <span class="text-sm text-ink-700/75 tabular-nums">Page ${page} of ${pages}</span>
     ${page < pages ? link(page + 1, "Next →") : ""}
   </div>`;
 }
@@ -493,8 +500,9 @@ function paginationQ(base: string, page: number, pages: number): string {
   if (pages <= 1) return "";
   const link = (p: number, label: string) =>
     `<a href="${base}page=${p}" class="rounded-full border border-ink-200 bg-white px-4 py-2 text-sm hover:border-amber-accent">${label}</a>`;
-  return `<div class="flex gap-2 justify-center mt-8">
+  return `<div class="flex items-center gap-3 justify-center mt-8">
     ${page > 1 ? link(page - 1, "← Previous") : ""}
+    <span class="text-sm text-ink-700/75 tabular-nums">Page ${page} of ${pages}</span>
     ${page < pages ? link(page + 1, "Next →") : ""}
   </div>`;
 }
@@ -631,11 +639,13 @@ app.get("/series/:slug", async (c) => {
   const parent = series.parent_id
     ? await c.env.DB.prepare(`SELECT slug, name FROM series WHERE id=?`).bind(series.parent_id).first<{ slug: string; name: string }>()
     : null;
-  const { results: alsoLike } = series.genre
+  const { results: alsoLikeAll } = series.genre
     ? await c.env.DB.prepare(
-        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.id<>? AND (s.author_id IS NULL OR s.author_id<>?) AND s.book_count BETWEEN 3 AND 60 ORDER BY s.book_count DESC LIMIT 6`
+        `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.genre=? AND s.id<>? AND (s.author_id IS NULL OR s.author_id<>?) AND s.book_count BETWEEN 3 AND 60 ORDER BY s.book_count DESC LIMIT 7`
       ).bind(series.genre, series.id, series.author_id ?? -1).all<Series>()
     : { results: [] as Series[] };
+  const alsoLike = alsoLikeAll.slice(0, 6);
+  const moreSimilar = alsoLikeAll.length > 6;
   const { results: sameName } = await c.env.DB.prepare(
     `SELECT s.slug, s.name, s.book_count, s.first_year, s.last_year, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
   ).bind(series.name, series.id).all<{ slug: string; name: string; book_count: number; first_year: number | null; last_year: number | null; author_name: string | null }>();
@@ -645,9 +655,12 @@ app.get("/series/:slug", async (c) => {
       ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
       : books;
   const first = orderedBooks[0];
+  const shownYears = orderedBooks.map((b) => b.year).filter((y): y is number => y != null);
+  const isPubOrder = shownYears.every((y, i) => i === 0 || y >= shownYears[i - 1]);
+  const orderNoun = isPubOrder ? "publication order" : "series order";
   const latest = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
   const faqs: [string, string][] = [];
-  if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. Publication order is the order most readers should follow.`]);
+  if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. ${isPubOrder ? "Publication order is the order most readers should follow." : "The series order below is the order most readers should follow."}`]);
   faqs.push([`How many books are in the ${series.name} series?`, `There are ${bookNoun(series.book_count)} in ${series.name}${yearsSpan(series) ? `, published ${yearsSpan(series)}` : ""}.`]);
   if (latest && latest !== first) faqs.push([`What is the most recent ${series.name} book?`, `The most recent installment on record is “${latest.title}”${latest.year ? ` (${latest.year})` : ""}.`]);
   if (series.author_name) faqs.push([`Who writes the ${series.name} series?`, `${series.name} is written by ${series.author_name}.`]);
@@ -658,7 +671,7 @@ ${crumbs(series.author_name ? [["Series", "/series"], [series.author_name, `/aut
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
 ${recentRelease ? `<p class="mt-3 rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm max-w-2xl"><span class="year-chip !ml-0">${recentRelease.year! > thisYear ? "Upcoming" : `New in ${recentRelease.year}`}</span> <span class="text-ink-700 ml-1">“${esc(recentRelease.title)}”${recentRelease.year! > thisYear ? ` arrives in ${recentRelease.year}` : ` is the newest ${esc(series.name)} book`} — it's in the list below.</span></p>` : ""}
 ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a different ${esc(series.name)}? ${sameName.map((o) => { const detail = o.author_name ? `by ${o.author_name}` : [o.first_year ? `${o.first_year}–${o.last_year && o.last_year !== o.first_year ? o.last_year : ""}` : "", o.book_count ? bookNoun(o.book_count) : ""].filter(Boolean).join(", "); return `<a class="text-amber-accent underline" href="/series/${o.slug}">${esc(o.name)}${detail ? ` (${esc(detail)})` : ""}</a>`; }).join(" · ")}</p>` : ""}
-<p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the publication order — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
+<p class="mt-3 text-ink-700 max-w-2xl">${esc(series.description ?? `${series.name}${series.author_name ? ` by ${series.author_name}` : ""} has ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. The list below is the ${orderNoun} — the order most readers should follow.${first ? ` Start with “${first.title}”.` : ""}`)}</p>
 <div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
   ${series.author_name ? `<a href="/authors/${series.author_slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">More by ${esc(series.author_name)}</a>` : ""}
   ${parent ? `<a href="/series/${parent.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">Part of ${esc(parent.name)}</a>` : ""}
@@ -677,7 +690,7 @@ ${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-acc
   <div class="min-w-0">
   <p class="text-xs font-semibold uppercase tracking-wide text-amber-accent">Where to start</p>
   <p class="mt-1 font-display font-semibold text-lg text-ink-900">Start with “${esc(first.title)}”${first.year ? ` (${first.year})` : ""}</p>
-  <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in publication order — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
+  <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in ${orderNoun} — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
   </div>
 </aside>` : ""}
 ${TRACKER_NOSCRIPT}
@@ -686,12 +699,12 @@ ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibol
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak.</div></details>
 <p class="mt-2 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
 ${related.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
-${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div><p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p></section>` : ""}
+${alsoLike.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div>${moreSimilar ? `<p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p>` : ""}</section>` : ""}
 ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
       title: `${series.name} Books in Order (${series.book_count} Books)${series.author_name ? " — " + series.author_name : ""} | Shelfmark`,
-      description: `${series.name} reading order: all ${bookNoun(series.book_count)}${series.author_name ? ` by ${series.author_name}` : ""} listed in publication order${first ? `, starting with ${first.title}` : ""}. Track your progress, no signup needed.`,
+      description: `${series.name} reading order: all ${bookNoun(series.book_count)}${series.author_name ? ` by ${series.author_name}` : ""} listed in ${orderNoun}${first ? `, starting with ${first.title}` : ""}. Track your progress, no signup needed.`,
       path: `/series/${slug}`,
       siteUrl: c.env.SITE_URL,
       jsonLd: [
