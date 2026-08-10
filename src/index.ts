@@ -322,6 +322,7 @@ ${crumbs([["Studies", ""]])}
   <a href="/studies/longest-series" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The longest book series in the catalog</h2><p class="mt-1.5 text-sm text-ink-700">The 50 largest series ranked by number of books, with authors, genres, and year spans.</p></a>
   <a href="/studies/series-length-by-genre" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">How long is a series in each genre?</h2><p class="mt-1.5 text-sm text-ink-700">Average and maximum series length across every genre with 10+ catalogued series.</p></a>
   <a href="/studies/most-prolific-authors" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The most prolific series authors</h2><p class="mt-1.5 text-sm text-ink-700">The 50 authors with the most catalogued series books, with full-bibliography links.</p></a>
+  <a href="/studies/longest-gaps" class="rounded-2xl bg-white border border-ink-200 p-5 hover:border-amber-accent block" data-reveal><h2 class="font-display font-semibold text-xl text-ink-900">The longest waits between books</h2><p class="mt-1.5 text-sm text-ink-700">The 50 biggest publication gaps between consecutive series books, with the exact years.</p></a>
 </div>
 <p class="mt-8 text-sm text-ink-700/80 max-w-2xl">All figures are computed directly from the catalog — series relationships and ordinals from Wikidata (CC0), cross-checked with Open Library records. Read more about <a href="/about" class="text-amber-accent underline">how the data is built</a>. More studies are added as the catalog grows.</p>
 <div class="mt-6 flex flex-wrap gap-3 text-sm">
@@ -333,7 +334,7 @@ ${crumbs([["Studies", ""]])}
   return c.html(
     layout({
       title: "Book Data Studies — Original Catalog Research | Shelfmark",
-      description: "Original book-series data studies from the Shelfmark catalog: longest series, series length by genre, most prolific authors — every number verifiable against the underlying pages.",
+      description: "Original book-series data studies from the Shelfmark catalog: longest series, series length by genre, most prolific authors, longest publication gaps — every number verifiable against the underlying pages.",
       path: "/studies",
       siteUrl: c.env.SITE_URL,
       body,
@@ -450,6 +451,62 @@ ${crumbs([["Studies", "/studies"], ["Series length by genre", ""]])}
       siteUrl: c.env.SITE_URL,
       body,
       jsonLd: [breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"], ["Series length by genre", "/studies/series-length-by-genre"]])],
+    })
+  );
+});
+
+app.get("/studies/longest-gaps", async (c) => {
+  const { results } = await c.env.DB.prepare(
+    `WITH gaps AS (
+       SELECT series_id, year, LAG(year) OVER (PARTITION BY series_id ORDER BY year, id) AS prev
+       FROM books WHERE year IS NOT NULL AND year > 1400
+     ),
+     ranked AS (
+       SELECT series_id, year, prev, year - prev AS gap,
+              ROW_NUMBER() OVER (PARTITION BY series_id ORDER BY year - prev DESC, year) AS rn
+       FROM gaps WHERE prev IS NOT NULL
+     )
+     SELECT s.slug, s.name, s.genre, s.book_count, a.name AS author_name,
+            r.gap, r.prev AS gap_from, r.year AS gap_to
+     FROM ranked r
+     JOIN series s ON s.id = r.series_id
+     LEFT JOIN authors a ON a.id = s.author_id
+     WHERE r.rn = 1 AND r.gap >= 10 AND ${LIST_BASE} AND s.book_count >= 3
+     ORDER BY r.gap DESC, s.name LIMIT 50`
+  ).all<{ slug: string; name: string; genre: string | null; book_count: number; author_name: string | null; gap: number; gap_from: number; gap_to: number }>();
+  const body = `
+${crumbs([["Studies", "/studies"], ["Longest publication gaps", ""]])}
+<h1 class="font-display font-bold text-3xl text-ink-900">The longest gaps between books in a series</h1>
+<p class="mt-2 text-ink-700 max-w-2xl">The 50 biggest waits between consecutive books in a series, computed from the publication years in the catalog. Long gaps often mark revivals, posthumous volumes, or authorized continuations — every row links to the full reading order so you can see exactly which books frame the gap. Data: Wikidata (CC0) + Open Library.</p>
+<div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
+<table class="w-full text-sm">
+<thead><tr class="text-left text-ink-700/75 border-b border-ink-200"><th class="px-4 py-3 font-semibold">#</th><th class="px-4 py-3 font-semibold">Series</th><th class="px-4 py-3 font-semibold">Author</th><th class="px-4 py-3 font-semibold text-right">Gap</th><th class="px-4 py-3 font-semibold text-right">Between</th><th class="px-4 py-3 font-semibold text-right">Books</th></tr></thead>
+<tbody>${results.map((s, i) => `<tr class="border-b border-ink-200/60 last:border-0"><td class="px-4 py-2.5 tabular-nums text-ink-700/75">${i + 1}</td><td class="px-4 py-2.5"><a href="/series/${s.slug}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(s.name)}</a></td><td class="px-4 py-2.5 text-ink-700">${s.author_name ? esc(s.author_name) : "—"}</td><td class="px-4 py-2.5 text-right tabular-nums font-medium text-ink-900">${s.gap} yrs</td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${fmtYear(s.gap_from)}–${fmtYear(s.gap_to)}</td><td class="px-4 py-2.5 text-right tabular-nums text-ink-700">${s.book_count}</td></tr>`).join("")}</tbody>
+</table>
+</div>
+<p class="mt-4 text-sm text-ink-700/80">Gaps are measured between consecutive publication years catalogued on Shelfmark; a "gap" may reflect a continuation by another writer or a posthumous release rather than an author's pause. Reuse welcome with a link back — data is derived from Wikidata (CC0) and Open Library.</p>`;
+  return c.html(
+    layout({
+      title: "The Longest Gaps Between Books in a Series | Shelfmark",
+      description: `The biggest waits between consecutive series books${results[0] ? ` — up to ${results[0].gap} years (${results[0].name})` : ""}, computed from catalogued publication years. Every gap links to the full reading order.`,
+      path: "/studies/longest-gaps",
+      siteUrl: c.env.SITE_URL,
+      body,
+      jsonLd: [
+        breadcrumbLd(c.env.SITE_URL, [["Studies", "/studies"], ["Longest publication gaps", "/studies/longest-gaps"]]),
+        {
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "The longest publication gaps between series books in the Shelfmark catalog",
+          numberOfItems: results.length,
+          itemListElement: results.map((s, i) => ({
+            "@type": "ListItem",
+            position: i + 1,
+            name: s.name,
+            url: `${c.env.SITE_URL}/series/${s.slug}`,
+          })),
+        },
+      ],
     })
   );
 });
@@ -1819,7 +1876,7 @@ app.get("/llms.txt", (c) => {
 - [Genres](${c.env.SITE_URL}/genres): series grouped by genre.
 - Series like X: ${c.env.SITE_URL}/similar/{series-slug} (e.g. /similar/mistborn): similar-series recommendations drawn from the catalog.
 - [New & upcoming](${c.env.SITE_URL}/new): recent and upcoming series installments (RSS at /new.rss, per-genre via ?genre=).
-- [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre, most prolific authors.
+- [Data studies](${c.env.SITE_URL}/studies): original catalog research — longest series, series length by genre, most prolific authors, longest publication gaps.
 - [About](${c.env.SITE_URL}/about): data sources, privacy model, API docs.
 - [Press kit](${c.env.SITE_URL}/press): boilerplate, brand assets, fast facts.
 - [Pricing](${c.env.SITE_URL}/pricing): plans and beta status (everything free during beta).
@@ -1873,7 +1930,7 @@ app.get("/sitemaps/:file", async (c) => {
   if (n === 1) {
     urls.unshift("/", "/series", "/authors", "/genres", "/popular", "/lists", "/shelf", "/year-in-books", "/pricing", "/about", "/press", "/new");
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
-    urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre", "/studies/most-prolific-authors");
+    urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre", "/studies/most-prolific-authors", "/studies/longest-gaps");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
     const { results: genres } = await c.env.DB.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
