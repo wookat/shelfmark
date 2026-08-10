@@ -89,3 +89,6 @@ Since the R140 header fix the header renders TWO `input[type=search]` (inline â‰
 
 ## /similar fixtures (R147)
 Western genre (3 series: lonesome-dove-series, lucky-luke, the-border-trilogy) reliably triggers the <6-results `x-robots-tag: noindex` on /similar/{slug}; no-genre 302 cases are findable by diffing sitemap /series/ URLs against part 1's /similar/ list (e.g. ware-tetralogy). /similar/ URLs live only in sitemap part 1.
+
+## Small-series fixtures & goal flow (R148)
+1-book series: marsupilami (/book/111486-marsupilami); 2-book: monk-and-robot (/book/6377-a-psalm-for-the-wild-built). Find more by sampling series slugs from sitemap part 6 and reading "numberOfItems" from series-page JSON-LD. The book-page sibling cover strip only renders when a series has >1 book. Reading-goal flow uses window.prompt (#goal-edit button, localStorage key shelfmark:goal:{year}, page reloads on save) â€” handle with page.once("dialog", ...) in Playwright.
