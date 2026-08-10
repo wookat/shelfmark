@@ -1043,6 +1043,12 @@ app.get("/series/:slug", async (c) => {
   if (series.author_name) faqs.push([`Who writes the ${series.name} series?`, `${series.name} is written by ${series.author_name}.`]);
   const thisYear = new Date().getFullYear();
   const recentRelease = latest && latest.year != null && latest.year >= thisYear ? latest : null;
+  let compareLinks: Series[] = [];
+  if (series.genre && series.author_id && series.book_count >= 3 && series.book_count <= 60) {
+    const top = await cmpGenreTop(c.env.DB, series.genre);
+    if (top.length === CMP_TOP && top.some((s) => s.id === series.id))
+      compareLinks = top.filter((s) => s.id !== series.id).slice(0, 3);
+  }
   const body = `
 ${crumbs(series.author_name ? [["Series", "/series"], [series.author_name, `/authors/${series.author_slug}`], [series.name, ""]] : [["Series", "/series"], [series.name, ""]])}
 <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900">${esc(series.name)} Books in Order</h1>
@@ -1076,7 +1082,7 @@ ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibol
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak.</div></details>
 <p class="mt-2 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
 ${related.length ? `<section class="mt-12 print:hidden"><h2 class="font-display font-semibold text-2xl text-ink-900">More series${series.author_name ? ` by ${esc(series.author_name)}` : ""}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${related.map(seriesCard).join("")}</div></section>` : ""}
-${alsoLike.length ? `<section class="mt-12 print:hidden"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div>${moreSimilar ? `<p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p>` : ""}</section>` : ""}
+${alsoLike.length ? `<section class="mt-12 print:hidden"><h2 class="font-display font-semibold text-2xl text-ink-900">If you like ${esc(series.name)}, you’ll love…</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${alsoLike.map(seriesCard).join("")}</div>${moreSimilar ? `<p class="mt-4 text-sm"><a href="/similar/${series.slug}" class="text-amber-accent underline underline-offset-2">See all series like ${esc(series.name)} →</a></p>` : ""}${compareLinks.length ? `<div class="mt-5 flex flex-wrap items-center gap-2 text-sm"><span class="text-ink-700/75">Can't decide?</span>${compareLinks.map((s) => { const [x, y] = [series, s].sort((p, q) => p.slug.localeCompare(q.slug)); return `<a href="/compare/${x.slug}-vs-${y.slug}" class="rounded-full bg-white border border-ink-200 px-3.5 py-1.5 hover:border-amber-accent">${esc(series.name)} vs ${esc(s.name)}</a>`; }).join("")}</div>` : ""}</section>` : ""}
 ${faqs.length ? `<section class="mt-12"><h2 class="font-display font-semibold text-2xl text-ink-900">${esc(series.name)} FAQ</h2><dl class="mt-4 space-y-4 max-w-2xl">${faqs.map(([q2, a2]) => `<div class="rounded-xl bg-white border border-ink-200 px-4 py-3"><dt class="font-medium text-ink-900">${esc(q2)}</dt><dd class="mt-1 text-sm text-ink-700">${esc(a2)}</dd></div>`).join("")}</dl></section>` : ""}`;
   return c.html(
     layout({
