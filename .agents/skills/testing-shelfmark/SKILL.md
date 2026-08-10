@@ -110,3 +110,6 @@ When asserting transient button-text swaps (e.g. "Link copied ✓", reverts afte
 
 ## Data-studies fixtures (R160)
 /studies/longest-series is a fast data-quality census fixture — 50 rows expose the full range of genre labels and missing year spans on one page (rank 1 Kuroko's Basketball legitimately has zero book years in the source data, so "—" is correct). Tables sit in overflow-x-auto wrappers, so mobile overflow checks must assert document.scrollingElement.scrollWidth, not the table itself.
+
+## Shelf/Year-in-Books seeding + Murderbot ordinals (R162)
+To seed shelf/Year-in-Books state: write shelfmark_read_v1 as {bookId: {t: epochMs, title, series, slug}} (grab real book ids from input[data-book] on a series page), set shelfmark_mig_v2 = "1" to skip the id-migration fetch, and shelfmark:goal:{year} for the goal bar. The Year-in-Books download button is labeled "Download {year} report card". The Murderbot Diaries list starts at book 0.5, so up-next after ticking the first two entries is book 2 — not an off-by-one. Book pages hide short Wikidata stub descriptions ("<90 chars, 'novel/manga/... by X'") by design (R163), so don't expect a description line on stub-only books.
