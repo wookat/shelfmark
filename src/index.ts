@@ -1512,6 +1512,12 @@ app.get("/opensearch.xml", (c) => {
   return c.body(xml);
 });
 
+const artMatch = (col: string) =>
+  `(${col} LIKE ?1 OR REPLACE(${col}, '-', ' ') LIKE ?2
+    OR (CASE WHEN ${col} LIKE 'The %' THEN REPLACE(SUBSTR(${col}, 5), '-', ' ')
+             WHEN ${col} LIKE 'An %' THEN REPLACE(SUBSTR(${col}, 4), '-', ' ')
+             WHEN ${col} LIKE 'A %' THEN REPLACE(SUBSTR(${col}, 3), '-', ' ') END) LIKE ?2)`;
+
 app.get("/api/opensearch-suggest", async (c) => {
   const q = (c.req.query("q") ?? "").trim().slice(0, 60);
   if (q.length < 2) return c.json([q, []]);
@@ -1520,7 +1526,7 @@ app.get("/api/opensearch-suggest", async (c) => {
   const like = `${qc}%`;
   const likeNorm = `${qc.replace(/-/g, " ").replace(/\s+/g, " ").trim().slice(0, 48)}%`;
   const { results } = await c.env.DB.prepare(
-    `SELECT name FROM series WHERE (name LIKE ?1 OR REPLACE(name, '-', ' ') LIKE ?2) AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+    `SELECT name FROM series WHERE ${artMatch("name")} AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
   ).bind(like, likeNorm).all<{ name: string }>();
   c.header("Cache-Control", "public, max-age=3600");
   return c.json([q, results.map((s) => s.name)]);
@@ -1620,13 +1626,13 @@ app.get("/api/suggest", async (c) => {
   const like = `${qc}%`;
   const likeNorm = `${qc.replace(/-/g, " ").replace(/\s+/g, " ").trim().slice(0, 48)}%`;
   const { results: series } = await c.env.DB.prepare(
-    `SELECT name, slug FROM series WHERE (name LIKE ?1 OR REPLACE(name, '-', ' ') LIKE ?2) AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
+    `SELECT name, slug FROM series WHERE ${artMatch("name")} AND book_count > 0 ORDER BY book_count DESC LIMIT 5`
   ).bind(like, likeNorm).all<{ name: string; slug: string }>();
   const { results: authors } = await c.env.DB.prepare(
     `SELECT name, slug FROM authors WHERE name LIKE ?1 OR REPLACE(name, '-', ' ') LIKE ?2 ORDER BY book_count DESC LIMIT 3`
   ).bind(like, likeNorm).all<{ name: string; slug: string }>();
   const { results: books } = await c.env.DB.prepare(
-    `SELECT b.id, b.title FROM books b JOIN series s ON s.id=b.series_id WHERE (b.title LIKE ?1 OR REPLACE(b.title, '-', ' ') LIKE ?2) AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
+    `SELECT b.id, b.title FROM books b JOIN series s ON s.id=b.series_id WHERE ${artMatch("b.title")} AND s.book_count > 0 ORDER BY s.book_count DESC LIMIT 3`
   ).bind(like, likeNorm).all<{ id: number; title: string }>();
   c.header("Cache-Control", "public, max-age=3600");
   const seen = new Set<string>();

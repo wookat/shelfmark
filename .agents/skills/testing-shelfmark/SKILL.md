@@ -128,3 +128,6 @@ Playwright has_touch=True makes matchMedia('(pointer: coarse)') match, activatin
 
 ## Sitemap parts, llms.txt prose, worker UA (R170)
 The sitemap index is /sitemap.xml pointing at parts /sitemaps/N.xml — studies/list URLs land in part 1, so grep the part, not the index. llms.txt references studies as prose under a single /studies link (e.g. "longest publication gaps"), so grep for study titles/phrases, not URL slugs. Plain urllib without a User-Agent gets 403 from the worker — send User-Agent: Mozilla/5.0 (or curl -A). Full-page screenshots catch data-reveal cards at pre-reveal opacity — an animation artifact, not a rendering bug.
+
+## Suggest endpoint shapes + cache (R171)
+/api/suggest returns {results:[{label,href,kind}]} (kinds series/author/book, capped 8, series-first) while /api/opensearch-suggest returns [q,[names]] and queries series names only — a book-title query correctly returning [] there is not a failure. Suggest responses are cached max-age=3600, so always cache-bust. After keyboard-Enter navigation in Playwright, read page.url only after waiting for the destination h1/locator, not right after wait_for_load_state (it can resolve pre-navigation).
