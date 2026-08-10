@@ -1669,3 +1669,4 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
   - Series-list stub suppression: redundant "novel by <series author>" Wikidata stubs hidden on series lists (kept when the stub credits a different author, e.g. Eoin Colfer).
   - gtitle now lowercases articles/prepositions mid-label → "Comics of the United States".
 - Verified live: all aliases 301, related-genres row renders, agatha-raisin shows M. C. Beaton with zero stub repeats, genres index casing fixed.
+- R175 QA nits (same round): author-page book lists now pass the author's name into bookList so redundant "novel by <author>" stubs are suppressed there too (different-author stubs still shown); bio opener lowercased in D1 ("pen name of Marion Chesney…") so the injected "X is a …" sentence reads correctly.
