@@ -1294,7 +1294,7 @@ app.get("/shelf", (c) => {
 </div>
 <div id="shelf-root" class="mt-8"><p id="shelf-loading" class="text-ink-700/75">Loading your shelf…</p><noscript><style>#shelf-loading{display:none}</style><p class="rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">My Shelf is built from your browser's local reading data and needs JavaScript. Your reading orders are still browsable on every <a class="text-amber-accent underline" href="/series">series page</a>.</p></noscript></div>
 <div id="saved-root" class="mt-10"></div>
-<div id="backup" class="mt-10 flex flex-wrap gap-3">
+<div id="backup" class="mt-10 flex flex-wrap gap-3 print:hidden">
   <a href="/year-in-books" class="rounded-full bg-amber-accent text-white px-5 py-2.5 text-sm font-semibold hover:opacity-90">Year in Books →</a>
   <button id="share-card-btn" class="rounded-full bg-ink-900 text-ink-50 px-5 py-2.5 text-sm font-semibold hover:bg-ink-700">Download my reading card</button>
   <button id="export-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold hover:border-amber-accent">Export JSON</button>
@@ -1304,7 +1304,7 @@ app.get("/shelf", (c) => {
   <button id="clear-data-btn" class="rounded-full bg-white border border-ink-200 px-5 py-2.5 text-sm font-semibold text-ink-700 hover:border-red-400">Clear all data</button>
   <span id="import-status" role="status" class="text-sm text-ink-700/80 self-center"></span>
 </div>
-<p class="mt-3 text-xs text-ink-700/75 max-w-2xl">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
+<p class="mt-3 text-xs text-ink-700/75 max-w-2xl print:hidden">Export downloads a backup of your shelf as a JSON file. Import merges a backup into this browser — useful when switching devices. Clear all data erases every Shelfmark record from this browser (progress, saved list, goals) — export first if you want a backup.</p>
 <canvas id="share-canvas" width="1080" height="1350" class="hidden"></canvas>`;
   return c.html(
     layout({
