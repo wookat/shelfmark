@@ -1627,3 +1627,4 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Search analytics: real query "三体"/"three body problem" returned 0 results even though "The Three-Body Problem" exists — hyphenated titles didn't match space-separated queries.
 - Fix: primary series/author/book LIKE queries also compare against REPLACE(name,'-',' ') with a hyphen-normalized pattern; token fallback extended to book titles; close-match notice covers book-only fallback hits.
 - CJK titles (三体) remain unmatched — catalog stores English titles only; noted as a known limitation, not fixable without an alias dataset.
+- Follow-up (same round): the two suggest endpoints got the same hyphen normalization (prefix semantics kept) — "uncanny x men"/"kaguya sama" now suggest Uncanny X-Men / Kaguya-sama. Verified on worker 42383164.

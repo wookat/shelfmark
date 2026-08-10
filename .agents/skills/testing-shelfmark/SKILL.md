@@ -119,3 +119,6 @@ Most pages have TWO form[data-subscribe] elements (main section on /new + footer
 
 ## Headless PWA installability audit (R166)
 Open the page in Playwright Chromium and use CDP via context.new_cdp_session(page): Page.getAppManifest (manifest parse errors) + Page.getInstallabilityErrors (install criteria) — no DevTools UI needed. For maskable icons, pixel-assert no glyph pixels outside r=0.4×size and simulate the round mask with a PIL ellipse.
+
+## Search token fallback tiers + suggest path (R167)
+The /search token fallback is tiered — series/authors first, books only when both are empty — so to exercise the book-only fallback use a multi-token query whose real token matches only a book title (e.g. "branican zzzqqq"); generic words hit series/author names first. /api/suggest and /api/opensearch-suggest are separate prefix-match code paths from /search — search-behavior changes don't automatically apply to typeahead (both now share hyphen normalization; prefix semantics mean "three body" still won't suggest "The Three-Body Problem" since the title starts with "The").
