@@ -322,18 +322,28 @@ app.get("/compare/:pair", async (c) => {
   if (!m) return notFound(c);
   const [slugA, slugB] = [m[1], m[2]];
   if (slugA === slugB) return notFound(c);
-  if (slugA.localeCompare(slugB) > 0) return c.redirect(`/compare/${slugB}-vs-${slugA}`, 301);
   const fetchSeries = (slug: string) =>
     c.env.DB.prepare(
       `SELECT s.*, a.name AS author_name, a.slug AS author_slug FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.slug=? AND ${CMP_ELIGIBLE}`
     ).bind(slug).all<Series>().then((r) => r.results[0]);
-  const [a, b] = await Promise.all([fetchSeries(slugA), fetchSeries(slugB)]);
-  if (!a || !b || a.genre !== b.genre) return notFound(c);
+  const [a0, b0] = await Promise.all([fetchSeries(slugA), fetchSeries(slugB)]);
+  if (!a0 || !b0 || a0.genre !== b0.genre) return notFound(c);
+  if (slugA.localeCompare(slugB) > 0) return c.redirect(`/compare/${slugB}-vs-${slugA}`, 301);
+  const [a, b] = [a0, b0];
   const top = await cmpGenreTop(c.env.DB, a.genre!);
   const inTop = (id: number) => top.some((s) => s.id === id);
   if (!inTop(a.id) || !inTop(b.id)) c.header("X-Robots-Tag", "noindex");
-  const firstBook = (id: number) =>
-    c.env.DB.prepare(`SELECT id, title, year FROM books WHERE series_id=? ORDER BY position, year LIMIT 1`).bind(id).all<Book>().then((r) => r.results[0]);
+  // Same ordering rules as the series page's book list (sub-entry exclusion + dup-position year re-sort),
+  // so "Start with" always matches the Start-here chip there.
+  const firstBook = async (id: number) => {
+    const { results } = await c.env.DB.prepare(
+      `SELECT id, title, year, position FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
+    ).bind(id).all<Book>();
+    const positions = results.map((x) => x.position).filter((p): p is number => p != null);
+    if (new Set(positions).size !== positions.length)
+      results.sort((x, y) => ((x.year ?? 9999) - (y.year ?? 9999)) || ((x.position ?? 0) - (y.position ?? 0)));
+    return results[0];
+  };
   const [fa, fb] = await Promise.all([firstBook(a.id), firstBook(b.id)]);
   const span = (s: Series) => (s.first_year && s.last_year ? s.last_year - s.first_year : null);
   const pace = (s: Series) => {
@@ -353,7 +363,7 @@ ${crumbs([["Compare", "/compare"], [`${a.name} vs ${b.name}`, ""]])}
 <p class="mt-3 text-ink-700 max-w-2xl">Two ${esc(a.genre!.toLowerCase())} series side by side, straight from the catalog data${facts.length ? `: ${esc(facts.join("; "))}.` : "."} There's no wrong answer — pick the shape that fits your reading appetite, and Shelfmark will keep your place in either (no account needed).</p>
 <div class="mt-6 overflow-x-auto rounded-2xl bg-white border border-ink-200">
 <table class="w-full text-sm">
-<thead><tr class="border-b border-ink-200 text-left"><th class="px-4 py-2.5"></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${a.slug}" class="text-ink-900 hover:text-amber-accent">${esc(a.name)}</a></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${b.slug}" class="text-ink-900 hover:text-amber-accent">${esc(b.name)}</a></th></tr></thead>
+<thead><tr class="border-b border-ink-200 text-left"><th scope="col" class="px-4 py-2.5"><span class="sr-only">Statistic</span></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${a.slug}" class="text-ink-900 hover:text-amber-accent">${esc(a.name)}</a></th><th class="px-4 py-2.5 font-display font-semibold text-base"><a href="/series/${b.slug}" class="text-ink-900 hover:text-amber-accent">${esc(b.name)}</a></th></tr></thead>
 <tbody>
 ${cmpStat("Author", a.author_name ? esc(a.author_name) : "—", b.author_name ? esc(b.author_name) : "—")}
 ${cmpStat("Books", `<span class="tabular-nums font-medium">${a.book_count}</span>`, `<span class="tabular-nums font-medium">${b.book_count}</span>`)}
