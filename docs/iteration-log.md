@@ -1572,3 +1572,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Fixed P2: "See all series like X" link suppressed when /similar adds nothing beyond the inline 6 (LIMIT 7 probe); curated-list LIST_BASE excludes nonfiction genres (compendium/essay/biography/handbook/monograph/textbook/catalog/yearbook) — Dehio/Künstler/Principia removed from classic-series; "Canon of Sherlock Holmes" name capitalized in D1; /popular ends with 4-pill cross-link row; pagination shows "Page X of Y" (both helpers).
 - Declined/deferred: home-page third-party-cookie console warnings (external cover CDN, harmless); book-year data audit (data-source work, backlog).
 - QA (worker 67dd3913): all 5 fixes verified incl. monotonic control keeping "publication order"; axe 0 light+dark on series + classic list; 375px pagination clean; tick/untick regression green.
+
+## R153 (book-year data audit)
+- Driver: R151 P2-4 backlog — year chips vs order/description mismatches.
+- Audited all 264 series (4,793 books) whose displayed years are non-monotonic: fetched Wikidata P577 (publication date) for every book QID (all had QIDs; 637 items have no P577 on Wikidata).
+- Result: 0 discrepancies — every stored year matches the earliest Wikidata P577. The visible "out-of-order" years reflect the source itself (e.g. Faceless Killers Q1958087 carries only the 1997 English-translation date, not the 1991 Swedish original) plus reading-order ordinals. No compliant fix available without a second date source; the R151 conditional "series order" wording already covers the trust gap. No code change this round.
