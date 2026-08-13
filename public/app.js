@@ -146,10 +146,15 @@
   function maybeBackupHint(nearEl, count) {
     if (count < 5 || localStorage.getItem(BACKUP_KEY)) return;
     try { localStorage.setItem(BACKUP_KEY, "1"); } catch (e) {}
-    // Rendered as a list item right under the ticked row so it lands in the viewport even on long series.
-    var note = document.createElement(nearEl.tagName === "LI" ? "li" : "div");
-    note.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 print:hidden " + (note.tagName === "LI" ? "list-none" : "mt-3");
-    note.setAttribute("role", "note");
+    // Rendered right under the ticked row so it lands in the viewport even on long series.
+    // role="note" lives on an inner div: li itself must stay role-less to keep the ol valid.
+    var isLi = nearEl.tagName === "LI";
+    var note = document.createElement(isLi ? "li" : "div");
+    var body = document.createElement("div");
+    body.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3" + (isLi ? "" : " mt-3");
+    body.setAttribute("role", "note");
+    note.className = (isLi ? "list-none " : "") + "print:hidden";
+    note.appendChild(body);
     var noteText = document.createElement("p");
     noteText.className = "min-w-0 flex-1";
     noteText.innerHTML = "You\u2019ve tracked " + count + " books \u2014 they live only in this browser. <a href=\"/shelf#backup\" class=\"text-amber-accent underline font-medium\">Back up your shelf</a> so a cleared cache or new device can\u2019t lose them.";
@@ -159,8 +164,8 @@
     noteClose.textContent = "Got it";
     noteClose.setAttribute("aria-label", "Dismiss backup reminder");
     noteClose.addEventListener("click", function () { note.remove(); });
-    note.appendChild(noteText);
-    note.appendChild(noteClose);
+    body.appendChild(noteText);
+    body.appendChild(noteClose);
     nearEl.insertAdjacentElement("afterend", note);
   }
 
