@@ -1716,3 +1716,6 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ## 审改分离 R2 QA 修复（axe 回归）
 - 备份提示 li 上的 role="note" 触发 axe `list`(serious)+`aria-allowed-role`：role 移至 li 内层 div，li 保持无 role（list-none + print:hidden），ol 结构合法。
+
+## 审改分离 R2 间隙自查（性能顺序档复测）
+- 顺序档 Lighthouse 移动 3 连跑：Perf 97 / LCP 2.43s / CLS 0.001 / TBT 0ms（±0.02s）——与 round3 基线一致，验收官并行档 88/3.5s 确认为测试机资源竞争噪声，无真实回归。
