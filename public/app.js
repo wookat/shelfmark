@@ -146,8 +146,9 @@
   function maybeBackupHint(nearEl, count) {
     if (count < 5 || localStorage.getItem(BACKUP_KEY)) return;
     try { localStorage.setItem(BACKUP_KEY, "1"); } catch (e) {}
-    var note = document.createElement("div");
-    note.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 mt-3 print:hidden";
+    // Rendered as a list item right under the ticked row so it lands in the viewport even on long series.
+    var note = document.createElement(nearEl.tagName === "LI" ? "li" : "div");
+    note.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 print:hidden " + (note.tagName === "LI" ? "list-none" : "mt-3");
     note.setAttribute("role", "note");
     var noteText = document.createElement("p");
     noteText.className = "min-w-0 flex-1";
@@ -208,7 +209,7 @@
         updateSeriesUI(slug);
         updateUpNext(list, box.checked);
         if (box.checked && wasEmpty) maybeShelfHint(list);
-        if (box.checked && !wasEmpty) maybeBackupHint(list, Object.keys(d).length);
+        if (box.checked && !wasEmpty) maybeBackupHint(box.closest("li") || list, Object.keys(d).length);
       });
     });
     updateSeriesUI(slug);

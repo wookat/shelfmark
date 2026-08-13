@@ -1710,3 +1710,6 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 仓库卫生（架构 P2）：根目录 ~160 个过程文件（pr*-comment、test-plan*、test-report*、checklist.txt）全部归档到 docs/archive/，.gitignore 拦截未来根目录 QA 产物。
 - 更优方案①（备份提示时机）：勾选累计首次达 5 本时，系列页就地一次性「Back up your shelf」提示（links /shelf#backup，可关闭，localStorage `shelfmark_hint_backup_v1`，print 隐藏）——复用既有 coach-tip 样式，不新增组件。
 - 更优方案②（排序依据自证）：系列页 explainer 增补「Order source: Wikidata series numbering; years are first-publication dates」。出版序/时间线序切换未采纳：目录无故事内时间线数据（year 为首版年份），切换会伪造"chronological"视角，违反数据诚实红线；乱序系列已有诚实的 "series order" 措辞。
+
+## 审改分离 R2（coach-tip 位置 P2）
+- 备份提示改为插入在被勾选行紧邻下方（li 元素、list-none，复用 space-y-2 间距），长系列（如 James Bond 51 本）勾第 5 本时提示必在视口内；非列表兜底路径保留 div+mt-3。徽章红点联动方案未采纳：现有 coach-tip 即可达成「位置可见」目标，新增红点/下拉组件违反勿增实体。
