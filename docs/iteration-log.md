@@ -1705,3 +1705,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Data: fresh searches are QA probes (academic-term residual checks all return legitimate fiction/xkcd titles — catalog clean); `mist%born` hits the intended close-match fallback (wildcards scrubbed → token OR), not a wildcard leak; referrers still google.com ×3 only.
 - Health: 24 key routes all 200, TTFB 0.07–0.56s; /compare index 336 links + ItemList JSON-LD intact.
 - No P0/P1/P2 identified this round; testing-skill notes updated (compare-pill row location + no-redirect probing).
+
+## 审改分离 R1（验收官第 1 轮审查整改）
+- 仓库卫生（架构 P2）：根目录 ~160 个过程文件（pr*-comment、test-plan*、test-report*、checklist.txt）全部归档到 docs/archive/，.gitignore 拦截未来根目录 QA 产物。
+- 更优方案①（备份提示时机）：勾选累计首次达 5 本时，系列页就地一次性「Back up your shelf」提示（links /shelf#backup，可关闭，localStorage `shelfmark_hint_backup_v1`，print 隐藏）——复用既有 coach-tip 样式，不新增组件。
+- 更优方案②（排序依据自证）：系列页 explainer 增补「Order source: Wikidata series numbering; years are first-publication dates」。出版序/时间线序切换未采纳：目录无故事内时间线数据（year 为首版年份），切换会伪造"chronological"视角，违反数据诚实红线；乱序系列已有诚实的 "series order" 措辞。

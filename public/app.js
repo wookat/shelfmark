@@ -141,6 +141,28 @@
     setTimeout(function () { hint.remove(); }, 12000);
   }
 
+  // ---- one-time "back up your shelf" nudge once a real collection has built up ----
+  var BACKUP_KEY = "shelfmark_hint_backup_v1";
+  function maybeBackupHint(nearEl, count) {
+    if (count < 5 || localStorage.getItem(BACKUP_KEY)) return;
+    try { localStorage.setItem(BACKUP_KEY, "1"); } catch (e) {}
+    var note = document.createElement("div");
+    note.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 mt-3 print:hidden";
+    note.setAttribute("role", "note");
+    var noteText = document.createElement("p");
+    noteText.className = "min-w-0 flex-1";
+    noteText.innerHTML = "You\u2019ve tracked " + count + " books \u2014 they live only in this browser. <a href=\"/shelf#backup\" class=\"text-amber-accent underline font-medium\">Back up your shelf</a> so a cleared cache or new device can\u2019t lose them.";
+    var noteClose = document.createElement("button");
+    noteClose.type = "button";
+    noteClose.className = "shrink-0 text-ink-700/75 hover:text-ink-900 cursor-pointer font-medium";
+    noteClose.textContent = "Got it";
+    noteClose.setAttribute("aria-label", "Dismiss backup reminder");
+    noteClose.addEventListener("click", function () { note.remove(); });
+    note.appendChild(noteText);
+    note.appendChild(noteClose);
+    nearEl.insertAdjacentElement("afterend", note);
+  }
+
   // ---- "Up next" inline nudge: after a tick, highlight the next unread book ----
   function updateUpNext(list, animate) {
     var items = list.querySelectorAll("input[data-book]");
@@ -186,6 +208,7 @@
         updateSeriesUI(slug);
         updateUpNext(list, box.checked);
         if (box.checked && wasEmpty) maybeShelfHint(list);
+        if (box.checked && !wasEmpty) maybeBackupHint(list, Object.keys(d).length);
       });
     });
     updateSeriesUI(slug);
