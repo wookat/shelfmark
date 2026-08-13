@@ -1713,3 +1713,6 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ## 审改分离 R2（coach-tip 位置 P2）
 - 备份提示改为插入在被勾选行紧邻下方（li 元素、list-none，复用 space-y-2 间距），长系列（如 James Bond 51 本）勾第 5 本时提示必在视口内；非列表兜底路径保留 div+mt-3。徽章红点联动方案未采纳：现有 coach-tip 即可达成「位置可见」目标，新增红点/下拉组件违反勿增实体。
+
+## 审改分离 R2 QA 修复（axe 回归）
+- 备份提示 li 上的 role="note" 触发 axe `list`(serious)+`aria-allowed-role`：role 移至 li 内层 div，li 保持无 role（list-none + print:hidden），ol 结构合法。
