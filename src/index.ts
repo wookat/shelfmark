@@ -22,7 +22,7 @@ const app = new Hono<{ Bindings: Env }>();
 // Key includes the full query string plus CACHE_VER, which rotates with the asset
 // hashes on every deploy; bump the suffix by hand after data-only imports.
 // Skipped: APIs, redirects, and anything stateful or per-visitor.
-const CACHE_VER = `${ASSET_V.app}${ASSET_V.css}-1`;
+const CACHE_VER = `${ASSET_V.app}${ASSET_V.css}-2`;
 const CACHE_SKIP = new Set(["/random", "/confirm", "/unsubscribe", "/search", "/shelf"]);
 
 app.use("*", async (c, next) => {
@@ -93,7 +93,35 @@ function fmtYear(y: number): string {
 // Short Wikidata stub descriptions ("2007 novel by Brandon Sanderson", "detective novel by John Rhode")
 // duplicate — or, with pen names, contradict — the byline shown right above them.
 function isStubDescription(d: string): boolean {
-  return d.length < 90 && /\bby [A-Z]/.test(d) && /\b(novel|novella|book|story|manga|comic|trilogy)\b/i.test(d);
+  return (
+    d.length < 90 &&
+    /\b(novel|novella|book|story|manga|comic|trilogy|atlas|companion|guide|encyclopedia|cookbook|anthology|collection)\b/i.test(d) &&
+    (/\bby [A-Z]/.test(d) || /[\u00b4'\u2019]s\s/.test(d))
+  );
+}
+
+// Numbered reading order vs unnumbered extras (companions, novellas, shorts):
+// the ordinal recorded on the Wikidata series statement is the reading order,
+// so when a series has numbering, unnumbered members are shown separately.
+function splitSeriesBooks<T extends { position: number | null; year: number | null }>(books: T[]): { main: T[]; extras: T[] } {
+  if (!books.some((b) => b.position != null)) return { main: books, extras: [] };
+  return {
+    main: books.filter((b) => b.position != null),
+    extras: books.filter((b) => b.position == null).sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999)),
+  };
+}
+
+function orderSeriesBooks<T extends { position: number | null; year: number | null }>(books: T[]): T[] {
+  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
+  return new Set(positions).size !== positions.length
+    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
+    : books;
+}
+
+// "Start with" skips prequels (ordinal 0, 0.5, …): a series in publication
+// order still starts at book 1, with the prequel labelled where it sits.
+function startBook<T extends { position: number | null }>(ordered: T[]): T | undefined {
+  return ordered.find((b) => b.position == null || b.position >= 1) ?? ordered[0];
 }
 
 function yearsSpan(s: Series) {
@@ -382,10 +410,7 @@ app.get("/compare/:pair", async (c) => {
     const { results } = await c.env.DB.prepare(
       `SELECT id, title, year, position FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
     ).bind(id).all<Book>();
-    const positions = results.map((x) => x.position).filter((p): p is number => p != null);
-    if (new Set(positions).size !== positions.length)
-      results.sort((x, y) => ((x.year ?? 9999) - (y.year ?? 9999)) || ((x.position ?? 0) - (y.position ?? 0)));
-    return results[0];
+    return startBook(orderSeriesBooks(splitSeriesBooks(results).main));
   };
   const [fa, fb] = await Promise.all([firstBook(a.id), firstBook(b.id)]);
   const span = (s: Series) => (s.first_year && s.last_year ? s.last_year - s.first_year : null);
@@ -1089,19 +1114,16 @@ app.get("/series/:slug", async (c) => {
   const { results: sameName } = await c.env.DB.prepare(
     `SELECT s.slug, s.name, s.book_count, s.first_year, s.last_year, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.name=? AND s.id<>? LIMIT 3`
   ).bind(series.name, series.id).all<{ slug: string; name: string; book_count: number; first_year: number | null; last_year: number | null; author_name: string | null }>();
-  const seriesPositions = books.map((b) => b.position).filter((p): p is number => p != null);
-  const orderedBooks =
-    new Set(seriesPositions).size !== seriesPositions.length
-      ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
-      : books;
-  const first = orderedBooks[0];
+  const { main: mainBooks, extras } = splitSeriesBooks(books);
+  const orderedBooks = orderSeriesBooks(mainBooks);
+  const first = startBook(orderedBooks);
   const shownYears = orderedBooks.map((b) => b.year).filter((y): y is number => y != null);
   const isPubOrder = shownYears.every((y, i) => i === 0 || y >= shownYears[i - 1]);
   const orderNoun = isPubOrder ? "publication order" : "series order";
-  const latest = books.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
+  const latest = mainBooks.reduce<Book | null>((m, b) => (b.year != null && (m?.year == null || b.year > m.year) ? b : m), null);
   const faqs: [string, string][] = [];
   if (first) faqs.push([`What is the first ${series.name} book?`, `The series starts with “${first.title}”${first.year ? ` (${first.year})` : ""}. ${isPubOrder ? "Publication order is the order most readers should follow." : "The series order below is the order most readers should follow."}`]);
-  faqs.push([`How many books are in the ${series.name} series?`, `There are ${bookNoun(series.book_count)} in ${series.name}${yearsSpan(series) ? `, published ${yearsSpan(series)}` : ""}.`]);
+  faqs.push([`How many books are in the ${series.name} series?`, `There are ${bookNoun(series.book_count)} in ${series.name}${yearsSpan(series) ? `, published ${yearsSpan(series)}` : ""}${extras.length ? `, plus ${extras.length} companion works and shorts outside the numbered order` : ""}.`]);
   if (latest && latest !== first) faqs.push([`What is the most recent ${series.name} book?`, `The most recent installment on record is “${latest.title}”${latest.year ? ` (${latest.year})` : ""}.`]);
   if (series.author_name) faqs.push([`Who writes the ${series.name} series?`, `${series.name} is written by ${series.author_name}.`]);
   const thisYear = new Date().getFullYear();
@@ -1140,7 +1162,8 @@ ${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-acc
   </div>
 </aside>` : ""}
 ${TRACKER_NOSCRIPT}
-${bookList(books, series)}
+${bookList(mainBooks, series, first?.id)}
+${extras.length ? `<details class="mt-6 rounded-2xl bg-white border border-ink-200 px-5 py-4"><summary class="cursor-pointer font-display font-semibold text-lg text-ink-900">Companions, novellas &amp; shorts (${extras.length})</summary><p class="mt-2 text-sm text-ink-700/75">Not part of the numbered reading order on record — companion volumes, novellas, and short works set in the same world.</p>${bookList(extras, series, undefined, false)}</details>` : ""}
 ${children.length ? `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">Sub-series within ${esc(series.name)}</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${children.map(seriesCard).join("")}</div></section>` : ""}
 <details class="explainer mt-3 print:hidden"><summary>What’s “publication order”?</summary><div>It’s simply the order the books came out — the order the author wrote the story in. Unless a series page says otherwise, reading by publication date is the safe choice: in-jokes land, characters grow in the right sequence, and you avoid spoilers that “chronological” orders can leak. Order source: the series numbering recorded on Wikidata; years are first-publication dates.</div></details>
 <p class="mt-2 text-sm text-ink-700/75 print:hidden">☑️ Tick a book to mark it read. Progress is saved privately in your browser — see <a href="/shelf" class="text-amber-accent underline">My Shelf</a>. Spotted a wrong or missing book? <a class="text-amber-accent underline" href="mailto:contact@zalize.com?subject=${encodeURIComponent(`Shelfmark data issue: ${series.name}`)}">Report it</a>.</p>
@@ -1309,17 +1332,17 @@ ${alsoEnjoy.length ? `<section class="mt-12 print:hidden">
   );
 });
 
-function bookList(books: Book[], s: TrackList): string {
+function bookList(books: Book[], s: TrackList, startId?: number, numbered = true): string {
   if (!books.length) return `<p class="mt-4 text-ink-700/75 text-sm">No books recorded for this series yet.</p>`;
   const positions = books.map((b) => b.position).filter((p): p is number => p != null);
   const dupPositions = new Set(positions).size !== positions.length;
-  if (dupPositions) books = [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0));
+  if (dupPositions || !numbered) books = orderSeriesBooks(books);
   return `<ol class="mt-5 space-y-2" data-series="${s.slug}" data-series-name="${esc(s.name)}">
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
     ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
-    <span class="text-sm sm:text-base min-w-0"><span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span><a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${i === 0 && books.length > 1 ? `<span class="start-chip">Start here</span>` : ""}${b.description && !(isStubDescription(b.description) && s.author_name && b.description.includes(s.author_name)) ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
+    <span class="text-sm sm:text-base min-w-0">${numbered ? `<span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span>` : ""}<a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.position != null && b.position < 1 ? `<span class="year-chip">Prequel</span>` : ""}${(startId != null ? b.id === startId : numbered && i === 0) && books.length > 1 ? `<span class="start-chip">Start here</span>` : ""}${b.description && !isStubDescription(b.description) ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
   <a href="https://bookshop.org/search?keywords=${encodeURIComponent(b.title + (s.author_name ? " " + s.author_name : ""))}" rel="nofollow noopener" target="_blank" class="shrink-0 text-xs text-ink-700/75 hover:text-amber-accent underline print:hidden" aria-label="Find a copy of ${esc(b.title)} on Bookshop.org">Find a copy</a>
 </li>`).join("\n")}
@@ -1904,10 +1927,8 @@ app.get("/api/series-books/:slug", async (c) => {
   const { results: books } = await c.env.DB.prepare(
     `SELECT id, title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
   ).bind(series.id).all<{ id: number; title: string; position: number | null; year: number | null }>();
-  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
-  const ordered = new Set(positions).size !== positions.length
-    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
-    : books;
+  const split = splitSeriesBooks(books);
+  const ordered = [...orderSeriesBooks(split.main), ...split.extras];
   c.header("Cache-Control", "public, max-age=3600");
   return c.json({ books: ordered.map((b) => ({ id: b.id, title: b.title })) });
 });
@@ -1923,10 +1944,8 @@ app.get("/api/series/:file", async (c) => {
   const { results: books } = await c.env.DB.prepare(
     `SELECT title, position, year FROM books WHERE series_id=? AND wikidata_id NOT IN (SELECT wikidata_id FROM series WHERE wikidata_id IS NOT NULL) ORDER BY position, year, id`
   ).bind(series.id).all<{ title: string; position: number | null; year: number | null }>();
-  const positions = books.map((b) => b.position).filter((p): p is number => p != null);
-  const ordered = new Set(positions).size !== positions.length
-    ? [...books].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999) || (a.position ?? 0) - (b.position ?? 0))
-    : books;
+  const split = splitSeriesBooks(books);
+  const ordered = [...orderSeriesBooks(split.main), ...split.extras];
   c.header("Cache-Control", "public, max-age=3600");
   c.header("Access-Control-Allow-Origin", "*");
   return c.json({
