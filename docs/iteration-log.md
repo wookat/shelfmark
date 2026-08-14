@@ -1724,3 +1724,9 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 静态资源版本化：`scripts/asset-versions.mjs` 在 `npm run css`（deploy 前置）时生成 `src/asset-versions.ts`（app.js/styles.css 内容 md5 前 8 位），HTML 统一引用 `/app.js?v=<hash>`、`/styles.css?v=<hash>`——部署即换 URL，老访客 HTML 过期（max-age=300）后必拉新资源，无需改 _headers 或购买 purge 能力。
 - 更优方案①采纳：coach-tip 统一入场动效（0.9s fade-in + amber 边框脉冲，prefers-reduced-motion 降级为静态），长列表中插入不再易被略过。
 - 更优方案②未采纳：/shelf 已有常驻「Your shelf lives on this device」callout 直达导出区，再加一条 ≥10 本的可关闭提醒属重复实体；备份 coach-tip 保持系列页单次触发。
+
+## 审改分离 R5（SEO 收录 P1）
+- IndexNow 自动化：全量推送并入既有每周 cron（scheduled 里 runIndexNow 与 runDigest 并行；URL 列表复用 sitemap 生成逻辑——sitemapPartCount/sitemapShardPaths 抽出共享，不再依赖手动脚本 scripts/indexnow.sh）。
+- Hub 内链网：/series?letter=X 与 /authors?letter=X（第 1 页）新增该字母全量紧凑链接索引（多栏 ul），任何系列/作者页从首页 3 跳可达（home → A–Z hub → 详情页）；字母 hub 页本就在 sitemap。
+- 待老板项：注册 Google Search Console 与 Bing Webmaster Tools 并提交 https://shelfmark.zalize.com/sitemap.xml（验证方式建议 DNS TXT，无需改站点）。
+- 第 6 轮准备：docs/analytics-export.md 落库 30 天聚合漏斗数据（无 PII；如实声明无访客级漏斗——无 cookie/ID 属产品隐私设计，QA 流量占绝对多数）。

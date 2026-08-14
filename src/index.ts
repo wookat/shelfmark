@@ -193,6 +193,13 @@ app.get("/series", async (c) => {
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
   if (page > Math.max(1, pages)) return notFound(c);
+  let fullIndex = "";
+  if (letter && page === 1) {
+    const { results: all } = await c.env.DB.prepare(
+      `SELECT slug, name FROM series WHERE book_count > 0 AND UPPER(name) LIKE ? ORDER BY name`
+    ).bind(`${letter}%`).all<{ slug: string; name: string }>();
+    fullIndex = letterIndexSection(`All ${all.length.toLocaleString()} series starting with ${letter}`, all.map((r) => [`/series/${r.slug}`, r.name]));
+  }
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
 <h1 class="font-display font-bold text-3xl text-ink-900">All book series${letter ? `: ${letter}` : ""}</h1>
@@ -203,7 +210,8 @@ app.get("/series", async (c) => {
 </nav>
 <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-6">${results.map(seriesCard).join("")}</div>
 ${!results.length ? `<p class="mt-6 text-ink-700">No series under this letter yet.</p>` : ""}
-${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}`;
+${paginationQ(letter ? `/series?letter=${letter}&` : "/series?", page, pages)}
+${fullIndex}`;
   return c.html(
     layout({
       title: `${letter ? `Book Series Starting With ${letter}` : "All Book Series in Order"} — Page ${page} | Shelfmark`,
@@ -841,6 +849,13 @@ app.get("/authors", async (c) => {
   ).results as any[]);
   const pages = Math.ceil(Number(n) / PAGE_SIZE);
   if (page > Math.max(1, pages)) return notFound(c);
+  let fullIndex = "";
+  if (letter && page === 1) {
+    const { results: all } = await c.env.DB.prepare(
+      `SELECT slug, name FROM authors WHERE UPPER(name) LIKE ? ORDER BY name`
+    ).bind(`${letter}%`).all<{ slug: string; name: string }>();
+    fullIndex = letterIndexSection(`All ${all.length.toLocaleString()} authors starting with ${letter}`, all.map((r) => [`/authors/${r.slug}`, r.name]));
+  }
   const base = letter ? `/authors?letter=${letter}&` : "/authors?";
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
   const body = `
@@ -854,7 +869,8 @@ app.get("/authors", async (c) => {
 ${results.map(authorCard).join("")}
 </div>
 ${!results.length ? `<p class="mt-6 text-ink-700">No authors under this letter yet.</p>` : ""}
-${paginationQ(base, page, pages)}`;
+${paginationQ(base, page, pages)}
+${fullIndex}`;
   return c.html(
     layout({
       title: `Authors${letter ? ` Starting With ${letter}` : " A–Z"}: Books in Order — Page ${page} | Shelfmark`,
@@ -865,6 +881,18 @@ ${paginationQ(base, page, pages)}`;
     })
   );
 });
+
+// Compact every-page link index rendered on letter hub pages so crawlers reach any
+// series/author page within three hops of the homepage (home -> A-Z hub -> page).
+function letterIndexSection(heading: string, links: [string, string][]): string {
+  if (!links.length) return "";
+  return `<section class="mt-12">
+  <h2 class="font-display font-semibold text-2xl text-ink-900">${esc(heading)}</h2>
+  <ul class="mt-4 columns-2 sm:columns-3 lg:columns-4 gap-x-6 text-sm">
+    ${links.map(([href, name]) => `<li class="mb-1.5 break-inside-avoid"><a class="hover:text-amber-accent underline decoration-ink-200 underline-offset-2" href="${href}">${esc(name)}</a></li>`).join("\n    ")}
+  </ul>
+</section>`;
+}
 
 function paginationQ(base: string, page: number, pages: number): string {
   if (pages <= 1) return "";
@@ -2085,37 +2113,39 @@ When citing a reading order, please link to the series page URL.
 });
 
 const SM_CHUNK = 5000;
+
+async function sitemapPartCount(db: D1Database): Promise<number> {
+  const [{ na }] = ((await db.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
+  const [{ ns }] = ((await db.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
+  const [{ nb }] = ((await db.prepare(`SELECT COUNT(*) AS nb FROM books WHERE description IS NOT NULL AND series_id IS NOT NULL`).all()).results as any[]);
+  return Math.ceil(Number(na) / SM_CHUNK) + Math.ceil(Number(ns) / SM_CHUNK) + Math.ceil(Number(nb) / SM_CHUNK);
+}
+
 app.get("/sitemap.xml", async (c) => {
-  const [{ na }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
-  const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
-  const [{ nb }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS nb FROM books WHERE description IS NOT NULL AND series_id IS NOT NULL`).all()).results as any[]);
-  const parts = Math.ceil(Number(na) / SM_CHUNK) + Math.ceil(Number(ns) / SM_CHUNK) + Math.ceil(Number(nb) / SM_CHUNK);
+  const parts = await sitemapPartCount(c.env.DB);
   const items = Array.from({ length: parts }, (_, i) => `<sitemap><loc>${c.env.SITE_URL}/sitemaps/${i + 1}.xml</loc></sitemap>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${items}</sitemapindex>`, 200, { "content-type": "application/xml" });
 });
 
-app.get("/sitemaps/:file", async (c) => {
-  const m = /^([0-9]+)\.xml$/.exec(c.req.param("file"));
-  if (!m) return notFound(c);
-  const n = parseInt(m[1]);
-  const [{ na }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
+async function sitemapShardPaths(db: D1Database, n: number): Promise<string[]> {
+  const [{ na }] = ((await db.prepare(`SELECT COUNT(*) AS na FROM authors`).all()).results as any[]);
   const authorParts = Math.ceil(Number(na) / SM_CHUNK);
   let urls: string[];
   if (n <= authorParts) {
-    const { results } = await c.env.DB.prepare(`SELECT slug FROM authors ORDER BY id LIMIT ? OFFSET ?`)
+    const { results } = await db.prepare(`SELECT slug FROM authors ORDER BY id LIMIT ? OFFSET ?`)
       .bind(SM_CHUNK, (n - 1) * SM_CHUNK).all<{ slug: string }>();
     urls = results.map((r) => `/authors/${r.slug}`);
   } else {
-    const [{ ns }] = ((await c.env.DB.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
+    const [{ ns }] = ((await db.prepare(`SELECT COUNT(*) AS ns FROM series`).all()).results as any[]);
     const seriesParts = Math.ceil(Number(ns) / SM_CHUNK);
     const m = n - authorParts;
     if (m <= seriesParts) {
-      const { results } = await c.env.DB.prepare(`SELECT slug FROM series ORDER BY id LIMIT ? OFFSET ?`)
+      const { results } = await db.prepare(`SELECT slug FROM series ORDER BY id LIMIT ? OFFSET ?`)
         .bind(SM_CHUNK, (m - 1) * SM_CHUNK).all<{ slug: string }>();
       urls = results.map((r) => `/series/${r.slug}`);
     } else {
       const k = m - seriesParts;
-      const { results } = await c.env.DB.prepare(
+      const { results } = await db.prepare(
         `SELECT id, title FROM books WHERE description IS NOT NULL AND series_id IS NOT NULL ORDER BY id LIMIT ? OFFSET ?`
       ).bind(SM_CHUNK, (k - 1) * SM_CHUNK).all<{ id: number; title: string }>();
       urls = results.map((r) => `/book/${r.id}-${bslug(r.title)}`);
@@ -2126,26 +2156,33 @@ app.get("/sitemaps/:file", async (c) => {
     urls.push(...CURATED_LISTS.map((l) => `/lists/${l.slug}`));
     urls.push("/studies", "/studies/longest-series", "/studies/series-length-by-genre", "/studies/most-prolific-authors", "/studies/longest-gaps");
     for (const l of "ABCDEFGHIJKLMNOPQRSTUVWXYZ") urls.push(`/authors?letter=${l}`, `/series?letter=${l}`);
-    const { results: genres } = await c.env.DB.prepare(
+    const { results: genres } = await db.prepare(
       `SELECT genre, COUNT(*) AS n FROM series WHERE genre IS NOT NULL AND book_count > 0 GROUP BY genre HAVING n >= 3`
     ).all<{ genre: string }>();
     urls.push(...genres.map((g) => `/genres/${gslug(g.genre)}`));
-    const { results: similarEligible } = await c.env.DB.prepare(
+    const { results: similarEligible } = await db.prepare(
       `SELECT s.slug FROM series s WHERE s.genre IS NOT NULL AND s.author_id IS NOT NULL AND s.book_count BETWEEN 3 AND 60 AND (SELECT COUNT(*) FROM series s2 WHERE s2.genre=s.genre AND s2.id<>s.id AND s2.book_count BETWEEN 3 AND 60) >= 6 ORDER BY s.book_count DESC LIMIT 2000`
     ).all<{ slug: string }>();
     urls.push(...similarEligible.map((r) => `/similar/${r.slug}`));
     urls.push("/compare");
-    const { results: cmpGenres } = await c.env.DB.prepare(
+    const { results: cmpGenres } = await db.prepare(
       `SELECT s.genre, COUNT(*) AS n FROM series s WHERE ${CMP_ELIGIBLE} GROUP BY s.genre HAVING n >= ${CMP_TOP} ORDER BY n DESC LIMIT 12`
     ).all<{ genre: string }>();
     for (const g of cmpGenres) {
-      const top = await cmpGenreTop(c.env.DB, g.genre);
+      const top = await cmpGenreTop(db, g.genre);
       for (let i = 0; i < top.length; i++) for (let j = i + 1; j < top.length; j++) {
         const [x, y] = [top[i], top[j]].sort((p, q) => p.slug.localeCompare(q.slug));
         urls.push(`/compare/${x.slug}-vs-${y.slug}`);
       }
     }
   }
+  return urls;
+}
+
+app.get("/sitemaps/:file", async (c) => {
+  const m = /^([0-9]+)\.xml$/.exec(c.req.param("file"));
+  if (!m) return notFound(c);
+  const urls = await sitemapShardPaths(c.env.DB, parseInt(m[1]));
   const body = urls.map((u) => `<url><loc>${c.env.SITE_URL}${u}</loc></url>`).join("");
   return c.body(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${body}</urlset>`, 200, { "content-type": "application/xml" });
 });
@@ -2211,6 +2248,27 @@ app.onError((err, c) => {
 
 const DIGEST_QUERY = `SELECT b.title, b.year, s.slug AS series_slug, s.name AS series_name, a.name AS author_name FROM books b JOIN series s ON s.id=b.series_id LEFT JOIN authors a ON a.id=b.author_id WHERE b.year>=? AND b.year<=? AND s.author_id IS NOT NULL AND s.book_count BETWEEN 2 AND 80 AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' AND s.genre NOT LIKE '%comic strip%' AND s.genre NOT LIKE '%webcomic%' AND s.first_year IS NOT NULL AND s.first_year < b.year ORDER BY b.year, s.book_count DESC, b.title LIMIT 300`;
 
+// Weekly IndexNow push: submit every sitemap URL so Bing/Yandex pick up new and
+// updated pages without waiting for a recrawl. The key is public by protocol design
+// (it is served at /<key>.txt for verification).
+const INDEXNOW_KEY = "2e7b4ccf708e4207beb4cfd1e0c7ddf2";
+
+async function runIndexNow(env: Env): Promise<void> {
+  const host = new URL(env.SITE_URL).hostname;
+  const parts = await sitemapPartCount(env.DB);
+  const urls: string[] = [];
+  for (let n = 1; n <= parts; n++) {
+    urls.push(...(await sitemapShardPaths(env.DB, n)).map((p) => env.SITE_URL + p));
+  }
+  for (let i = 0; i < urls.length; i += 8000) {
+    await fetch("https://api.indexnow.org/indexnow", {
+      method: "POST",
+      headers: { "content-type": "application/json; charset=utf-8" },
+      body: JSON.stringify({ host, key: INDEXNOW_KEY, urlList: urls.slice(i, i + 8000) }),
+    });
+  }
+}
+
 async function runDigest(env: Env): Promise<void> {
   if (!env.RESEND_API_KEY) return;
   const year = new Date().getFullYear();
@@ -2251,6 +2309,6 @@ async function runDigest(env: Env): Promise<void> {
 export default {
   fetch: app.fetch,
   scheduled(_event: ScheduledEvent, env: Env, ctx: ExecutionContext): void {
-    ctx.waitUntil(runDigest(env));
+    ctx.waitUntil(Promise.all([runDigest(env), runIndexNow(env)]));
   },
 };
