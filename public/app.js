@@ -115,8 +115,10 @@
   var TIP_KEY = "shelfmark_tip_track_v1";
   var firstList = document.querySelector("ol[data-series]");
   if (firstList && firstList.querySelectorAll("input[data-book]").length > 1 && !Object.keys(data).length && !localStorage.getItem(TIP_KEY)) {
+    // Fixed-position toast: inserting into the flow above the book list shifts
+    // everything below it (CLS), so the onboarding tip floats over the page instead.
     var tip = document.createElement("div");
-    tip.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 mb-3 print:hidden";
+    tip.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 print:hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:max-w-sm z-40 shadow-lg";
     tip.setAttribute("role", "note");
     var tipText = document.createElement("p");
     tipText.className = "min-w-0 flex-1";
@@ -132,7 +134,7 @@
     });
     tip.appendChild(tipText);
     tip.appendChild(tipClose);
-    firstList.insertAdjacentElement("beforebegin", tip);
+    document.body.appendChild(tip);
   }
 
   // ---- one-time "see it on My Shelf" hint after the very first tick ----
@@ -144,9 +146,10 @@
     var hintHtml = 'First book tracked \u2713 See all your progress on <a href="/shelf" class="text-amber-accent underline font-medium">My Shelf</a>.';
     var tipEl = document.querySelector(".coach-tip");
     if (tipEl) {
-      // Swap the message in place so the list below doesn't jump mid-click.
+      // Swap the message in place (toast stays put; auto-dismiss after it's read).
       tipEl.setAttribute("role", "status");
       tipEl.innerHTML = '<p class="min-w-0 flex-1">' + hintHtml + "</p>";
+      setTimeout(function () { tipEl.remove(); }, 12000);
       return;
     }
     var hint = document.createElement("p");

@@ -1740,3 +1740,10 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 矩阵自查（本线 × {AI/发信/管理端点、CSP、限流键、beacon 防伪}）：AI 端点无 n/a；管理端点无 n/a；CSP 完整（default-src 'self' 级）；限流为纯 IP 键（本线无登录态，账号键 n/a）。
 - 补齐两处漏项：① 发信全局日熔断——sendEmail 内 KV 计数 mail:<day>，>300/日 fail-closed（分布式 IP 无法烧 Resend 配额；订阅确认+周报共用一闸）；② /unsubscribe POST 补 30/min 限流（原无）。
 - beacon 防伪按报告建议做最小防护（不加签名）：isQATraffic 扩展为排除空 UA 与明显非浏览器客户端（bot/spider/crawl/curl/wget/python/httpx/libwww/scrapy），配合 R6 的 QA 标记；导出侧约定异常日标记（见 analytics-export.md）。
+
+## 审改分离 R8（性能深挖）
+- 边缘缓存 P1：Worker 级 caches.default 中间件（照 NameChart 模式约 20 行）——key 含完整 query + CACHE_VER（随资产哈希每次部署自动轮换；数据导入后手动 bump 后缀）；跳过 /api/*、/random、/confirm、/unsubscribe、/search、/shelf；仅缓存 200 且 Cache-Control 含 public 的响应，s-maxage=3600。本线无登录态/个性化 HTML，页面天然可缓存。
+- 系列页 CLS 0.177 P1：devtools 节流 Lighthouse 复现 0.173 并读取 shift 根因——**webfont swap（Inter 0.140 + Fraunces 0.033）**，非封面图（封面均已有 width/height 占位）。修复：① 度量校准的本地回退字体 @font-face（Fraunces-fallback/Inter-fallback，size-adjust/ascent/descent-override 按 canvas 实测宽度校准，h1 换行数换字前后一致）；② 首访 coach-tip 由流内插入改为 fixed 底部 toast（插入零位移，顺带消除另一处潜在 shift）。复测 CLS 0.0083 / LCP 1.7s / Perf 99。
+- GET /unsubscribe 补 30/min 限流（上轮只覆盖 POST）。
+- 三层限流 P2 自查：本线限流均为分钟级宽 IP 兜底（无日级 IP 配额，CGNAT 无锁死面）+ 发信全局日熔断已有；无登录态故客户端维度配额 n/a。
+- 字体 P2：去掉 Fraunces italic 80KB（全站仅 1 处 hero <em>，改合成斜体），字体总量 193KB→113KB。
