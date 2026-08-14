@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { layout, esc } from "./html";
+import { ASSET_V } from "./asset-versions";
 
 type Env = {
   DB: D1Database;
@@ -16,6 +17,31 @@ type TrackList = { slug: string; name: string; author_name?: string | null };
 
 const app = new Hono<{ Bindings: Env }>();
 
+// Edge cache: Workers don't cache fetch-handler responses automatically (s-maxage
+// headers alone do nothing), so public GET pages are cached in caches.default.
+// Key includes the full query string plus CACHE_VER, which rotates with the asset
+// hashes on every deploy; bump the suffix by hand after data-only imports.
+// Skipped: APIs, redirects, and anything stateful or per-visitor.
+const CACHE_VER = `${ASSET_V.app}${ASSET_V.css}-1`;
+const CACHE_SKIP = new Set(["/random", "/confirm", "/unsubscribe", "/search", "/shelf"]);
+
+app.use("*", async (c, next) => {
+  const url = new URL(c.req.url);
+  if (c.req.method !== "GET" || url.pathname.startsWith("/api/") || CACHE_SKIP.has(url.pathname)) return next();
+  const key = new Request(`${url.origin}${url.pathname}${url.search ? url.search + "&" : "?"}__v=${CACHE_VER}`);
+  const cached = await caches.default.match(key);
+  if (cached) {
+    const res = new Response(cached.body, cached);
+    res.headers.set("X-Edge-Cache", "HIT");
+    return res;
+  }
+  await next();
+  if (c.res.status === 200 && (c.res.headers.get("Cache-Control") ?? "").includes("public")) {
+    c.res.headers.set("X-Edge-Cache", "MISS");
+    c.executionCtx.waitUntil(caches.default.put(key, c.res.clone()));
+  }
+});
+
 app.use("*", async (c, next) => {
   await next();
   const h = c.res.headers;
@@ -27,7 +53,7 @@ app.use("*", async (c, next) => {
   if ((h.get("content-type") ?? "").includes("text/html")) {
     const p = new URL(c.req.url).pathname;
     if (c.req.method === "GET" && c.res.status === 200 && !h.has("Cache-Control") && p !== "/confirm" && p !== "/unsubscribe" && p !== "/shelf") {
-      h.set("Cache-Control", "public, max-age=300, stale-while-revalidate=3600");
+      h.set("Cache-Control", "public, max-age=300, s-maxage=3600, stale-while-revalidate=3600");
     }
     h.set(
       "Content-Security-Policy",
@@ -2013,6 +2039,7 @@ app.post("/unsubscribe", async (c) => {
 });
 
 app.get("/unsubscribe", async (c) => {
+  if (await rateLimited(c, "unsub", 30)) return c.body("Too many requests", 429);
   const ok = await unsubscribe(c, (c.req.query("t") ?? "").slice(0, 64));
   return c.html(
     layout({
