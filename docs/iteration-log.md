@@ -1730,3 +1730,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - Hub 内链网：/series?letter=X 与 /authors?letter=X（第 1 页）新增该字母全量紧凑链接索引（多栏 ul），任何系列/作者页从首页 3 跳可达（home → A–Z hub → 详情页）；字母 hub 页本就在 sitemap。
 - 待老板项：注册 Google Search Console 与 Bing Webmaster Tools 并提交 https://shelfmark.zalize.com/sitemap.xml（验证方式建议 DNS TXT，无需改站点）。
 - 第 6 轮准备：docs/analytics-export.md 落库 30 天聚合漏斗数据（无 PII；如实声明无访客级漏斗——无 cookie/ID 属产品隐私设计，QA 流量占绝对多数）。
+
+## 审改分离 R6（留存漏斗审计 P2）
+- QA 流量标记统一口径：采集端排除——服务端 isQATraffic()（UA 含 HeadlessChrome 或 DevinQA）作用于 /api/hit 与 searches 记录；客户端 localStorage shelfmark_qa=1 直接不发 beacon。今后基线数据不再被验收/QA 轮污染。
+- 回访可测（验收官已批的最小诚实埋点，无标识符）：app.js 以 localStorage 首见日期推导 new/returning 布尔，每日一次随 hit beacon 上报，服务端聚合进既有 hits 表伪路径 ev:visit:new / ev:visit:returning（勿增实体：无新表无新端点）。
+- 零结果搜索词选题输入：docs/search-gaps.md 全量导出并分类 30 个词——26 个 QA 探针、5 个正确零结果（已删学术目录词）、三体（英文目录已知限制）、"mistborn"（R149 已修）；结论：暂无可补选题，管线已建立，待 GSC/Bing 开通与真实流量。

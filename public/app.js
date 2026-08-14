@@ -20,8 +20,9 @@
     if (t && t.tagName === "IMG" && t.hasAttribute("width")) t.remove();
   }, true);
 
-  // ---- analytics (first-party, cookie-less) ----
+  // ---- analytics (first-party, cookie-less; QA sessions opt out via shelfmark_qa=1) ----
   try {
+    if (localStorage.getItem("shelfmark_qa") === "1") throw 0;
     var p = location.pathname;
     if (p === "/search" && location.search) p += location.search.slice(0, 120);
     var refHost = "";
@@ -31,7 +32,22 @@
         if (rh && rh !== location.hostname) refHost = rh;
       }
     } catch (e2) {}
-    var payload = refHost ? p + "\n" + refHost : p;
+    // New-vs-returning is a day-aggregate boolean derived from a first-seen date in
+    // localStorage; no identifier ever leaves the browser.
+    var visit = "";
+    try {
+      var today = new Date().toISOString().slice(0, 10);
+      var first = localStorage.getItem("shelfmark_first_v1");
+      if (!first) {
+        localStorage.setItem("shelfmark_first_v1", today);
+        localStorage.setItem("shelfmark_evday_v1", today);
+        visit = "new";
+      } else if (localStorage.getItem("shelfmark_evday_v1") !== today) {
+        localStorage.setItem("shelfmark_evday_v1", today);
+        visit = first < today ? "returning" : "new";
+      }
+    } catch (e3) {}
+    var payload = p + "\n" + refHost + (visit ? "\n" + visit : "");
     if (navigator.sendBeacon) navigator.sendBeacon("/api/hit", payload);
     else fetch("/api/hit", { method: "POST", body: payload, keepalive: true });
   } catch (e) {}

@@ -36,6 +36,13 @@ app.use("*", async (c, next) => {
   }
 });
 
+// Cross-line QA-traffic convention: headless browsers and UAs carrying the
+// "DevinQA" marker are excluded from first-party analytics at collection time.
+function isQATraffic(c: { req: { header: (n: string) => string | undefined } }): boolean {
+  const ua = c.req.header("user-agent") ?? "";
+  return ua.includes("HeadlessChrome") || ua.includes("DevinQA");
+}
+
 async function rateLimited(c: { env: Env; req: { header: (n: string) => string | undefined } }, bucket: string, limit: number): Promise<boolean> {
   const ip = c.req.header("cf-connecting-ip") ?? "unknown";
   const key = `rl:${bucket}:${ip}:${Math.floor(Date.now() / 60000)}`;
@@ -1527,9 +1534,11 @@ app.get("/search", async (c) => {
     }
     const day = new Date().toISOString().slice(0, 10);
     const nResults = series.length + authors.length + bookHits.length;
-    await c.env.DB.prepare(
-      `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
-    ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
+    if (!isQATraffic(c)) {
+      await c.env.DB.prepare(
+        `INSERT INTO searches (day, term, results, count) VALUES (?, ?, ?, 1) ON CONFLICT(day, term) DO UPDATE SET count = count + 1, results = excluded.results`
+      ).bind(day, q.toLowerCase().slice(0, 100), nResults).run();
+    }
     body = `<h1 class="font-display font-bold text-3xl text-ink-900">Results for “${esc(qm || q)}”</h1>
 ${closeMatches && (series.length || authors.length || bookHits.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
@@ -2028,13 +2037,19 @@ app.post("/api/migrate-ids", async (c) => {
 
 app.post("/api/hit", async (c) => {
   if (await rateLimited(c, "hit", 60)) return c.body(null, 429);
+  if (isQATraffic(c)) return c.body(null, 204);
   const raw = (await c.req.text()).slice(0, 500);
-  const [path, refHost = ""] = raw.split("\n");
+  const [path, refHost = "", visit = ""] = raw.split("\n");
   if (!path.startsWith("/")) return c.body(null, 204);
   const day = new Date().toISOString().slice(0, 10);
   await c.env.DB.prepare(
     `INSERT INTO hits (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1`
   ).bind(day, path.slice(0, 200)).run();
+  if (visit === "new" || visit === "returning") {
+    await c.env.DB.prepare(
+      `INSERT INTO hits (day, path, count) VALUES (?, ?, 1) ON CONFLICT(day, path) DO UPDATE SET count = count + 1`
+    ).bind(day, `ev:visit:${visit}`).run();
+  }
   const host = refHost.trim().toLowerCase().slice(0, 100);
   if (/^[a-z0-9.-]+\.[a-z]{2,}$/.test(host)) {
     await c.env.DB.prepare(
