@@ -134,7 +134,9 @@
     });
     tip.appendChild(tipText);
     tip.appendChild(tipClose);
-    document.body.appendChild(tip);
+    // Append inside <main> so all content stays within a landmark (axe "region");
+    // fixed positioning keeps it viewport-anchored regardless of parent.
+    (document.querySelector("main") || document.body).appendChild(tip);
   }
 
   // ---- one-time "see it on My Shelf" hint after the very first tick ----
