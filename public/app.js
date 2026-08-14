@@ -192,6 +192,7 @@
 
   // ---- "Up next" inline nudge: after a tick, highlight the next unread book ----
   function updateUpNext(list, animate) {
+    if (list.closest("details")) return; // extras list isn't a reading order
     var items = list.querySelectorAll("input[data-book]");
     if (items.length < 2) return;
     list.querySelectorAll(".up-next-badge").forEach(function (b) { b.remove(); });
