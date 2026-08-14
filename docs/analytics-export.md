@@ -54,3 +54,10 @@ would add real impression/click data.
   audit needs cohort retention, the compliant option is GSC/Bing click data plus
   privacy-preserving aggregate counters (e.g. a `first_tick`/`return_visit` beacon
   counting events, still without IDs) — flag for discussion before implementing.
+
+## Anomaly-day convention (added R7)
+
+Beacon counts are not forgery-proof (any client can POST /api/hit). Collection-time
+filters exclude headless/QA/bot/CLI user agents; residual anomalies are handled at
+export time: any day whose hits exceed 5× the trailing-7-day median is flagged
+`anomalous` in future exports and excluded from trend conclusions.
