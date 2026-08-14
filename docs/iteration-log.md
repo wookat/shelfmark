@@ -1719,3 +1719,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 
 ## 审改分离 R2 间隙自查（性能顺序档复测）
 - 顺序档 Lighthouse 移动 3 连跑：Perf 97 / LCP 2.43s / CLS 0.001 / TBT 0ms（±0.02s）——与 round3 基线一致，验收官并行档 88/3.5s 确认为测试机资源竞争噪声，无真实回归。
+
+## 审改分离 R3（app.js 缓存失效 P2 + coach-tip 入场动效）
+- 静态资源版本化：`scripts/asset-versions.mjs` 在 `npm run css`（deploy 前置）时生成 `src/asset-versions.ts`（app.js/styles.css 内容 md5 前 8 位），HTML 统一引用 `/app.js?v=<hash>`、`/styles.css?v=<hash>`——部署即换 URL，老访客 HTML 过期（max-age=300）后必拉新资源，无需改 _headers 或购买 purge 能力。
+- 更优方案①采纳：coach-tip 统一入场动效（0.9s fade-in + amber 边框脉冲，prefers-reduced-motion 降级为静态），长列表中插入不再易被略过。
+- 更优方案②未采纳：/shelf 已有常驻「Your shelf lives on this device」callout 直达导出区，再加一条 ≥10 本的可关闭提醒属重复实体；备份 coach-tip 保持系列页单次触发。
