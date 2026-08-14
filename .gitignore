@@ -22,3 +22,5 @@ data/raw_series_desc.json
 /test-plan*.md
 /test-report*.md
 /pr*-comment*.md
+data/reconcile.sql
+data/reconcile_report.tsv

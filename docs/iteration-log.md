@@ -1747,3 +1747,13 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - GET /unsubscribe 补 30/min 限流（上轮只覆盖 POST）。
 - 三层限流 P2 自查：本线限流均为分钟级宽 IP 兜底（无日级 IP 配额，CGNAT 无锁死面）+ 发信全局日熔断已有；无登录态故客户端维度配额 n/a。
 - 字体 P2：去掉 Fraunces italic 80KB（全站仅 1 处 hero <em>，改合成斜体），字体总量 193KB→113KB。
+
+## 审改分离 R9（数据准确性 P1 + 描述泄漏 P2）
+- 根因（生产 D1 + Wikidata SPARQL 一手对照证实）：① 旧摄取 SPARQL 的 P1545 序号未限定到「该系列」的 P179 语句——同属父系列+子系列的书（如 Mort 在 Discworld #4 / Death #1）序号互相泄漏；② build_seed.py 对无序号书按年份合成 1..N 假序号，与真序号混排；③ 每书只保留首见系列，Colour of Magic 被分到子系列后成孤儿；④ 全量分页抓取无 ORDER BY，WDQS LIMIT/OFFSET 不稳定导致整个 Discworld（Q3257270）掉页。
+- 摄取管线修复（scripts/fetch_wikidata.py）：ordinal 改为语句级限定（?book p:P179 ?st . ?st ps:P179 ?series + pq:P1545）；新增 P31 类型抓取；新增按已知系列 QID 的 VALUES 批量确定性抓取模式（2507 系列 26 批，36,185 行）。
+- 对账（scripts/reconcile_wikidata.py，产出 data/reconcile.sql 8,722 条已执行）：8,195 个泄漏/合成假序号清 NULL、168 个错序号纠正、2 个缺年回填、357 个系列 book_count/first_year/last_year 按「有编号集」重算；4,897 个上游有序号但目录缺失的成员进 reconcile_report.tsv 留待后续轮。
+- 完整性断言（scripts/audit_series_integrity.py，棘轮门禁 docs/data-integrity-baseline.json）：首卷存在/编号连续/序号重复/年份齐备/first_year 一致五项检查，超基线即 exit 1；当前基线 no_first 248 / gaps 157 / dups 76 / years 266 / first_year 0（上游数据债，随轮次只降不升）。
+- 实体类型分离（src/index.ts，勿增实体——不加 kind 列，以「该系列语句是否有序号」为准）：splitSeriesBooks 把无序号成员（伴读/短篇/图册）折叠进「Companions, novellas & shorts」details 区，不再混入主阅读顺序；orderSeriesBooks/startBook 三处（系列页/compare/两个 API）统一复用；position<1 显示 Prequel 徽章且 Start with 跳过前传取第 1 卷。
+- 样板修复（data/r9_manual_fixes.sql）：Discworld 挂回 The Colour of Magic (1983, #1) + 补插无英文标签被旧摄取丢弃的 Unseen Academicals (2009, #37)，41 本 1983–2015 + 16 伴读；Wheel of Time Start with The Eye of the World (1990)，New Spring 标 Prequel；Rivers of London 序号 1–10 连续（5.5 为 Wikidata 原始编号）+ 回填 2016/2017/2020/2022 四个公开首版年 + Stone & Sky=#10；No Plan B 2022。
+- 描述泄漏 P2：isStubDescription 扩展（´s/'s 所有格 + atlas/companion/guide/cookbook 等类型词），系列列表页对所有 stub 一律抑制（原仅同作者才抑制）；两条 "Lee Child´s book" 脏描述已置 NULL。
+- 生产验证（worker 9ca8009f，数据导入后手动 bump CACHE_VER 后缀刷边缘缓存）：三个样板页 Start with/年份跨度/册数/伴读折叠区全部正确，compare 与系列页 Start 一致，/api/series-books 主序+伴读排序正确，搜索可命中 Colour of Magic。
