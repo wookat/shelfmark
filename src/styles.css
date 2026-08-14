@@ -65,6 +65,19 @@ body {
   }
 }
 
+/* Coach tips fade in with a brief border pulse so they aren't missed mid-list. */
+@media (prefers-reduced-motion: no-preference) {
+  .coach-tip {
+    animation: coach-tip-in 0.9s ease-out 1;
+  }
+  @keyframes coach-tip-in {
+    0% { opacity: 0; border-color: var(--color-amber-accent); }
+    35% { opacity: 1; }
+    60% { border-color: var(--color-amber-accent); }
+    100% { opacity: 1; }
+  }
+}
+
 /* Interaction tokens: card lift, cover tilt, checkbox pop, scroll reveal — all motion
    is gated behind prefers-reduced-motion: no-preference. */
 .card-lift {

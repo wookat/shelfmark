@@ -7,7 +7,8 @@
     "doc": "docs"
   },
   "scripts": {
-    "css": "tailwindcss -i src/styles.css -o public/styles.css --minify",
+    "css": "tailwindcss -i src/styles.css -o public/styles.css --minify && npm run versions",
+    "versions": "node scripts/asset-versions.mjs",
     "deploy": "npm run css && wrangler deploy",
     "typecheck": "tsc --noEmit"
   },

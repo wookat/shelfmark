@@ -1,3 +1,5 @@
+import { ASSET_V } from "./asset-versions";
+
 export const esc = (s: unknown): string =>
   String(s ?? "").replace(/[&<>"']/g, (c) =>
     ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c] as string)
@@ -55,7 +57,7 @@ export function layout(o: PageOpts): string {
 <link rel="alternate" type="application/rss+xml" title="Shelfmark — new series books" href="${esc(o.siteUrl + (o.rss ?? "/new.rss"))}">
 <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/styles.css">
+<link rel="stylesheet" href="/styles.css?v=${ASSET_V.css}">
 ${ld}
 </head>
 <body class="bg-ink-50 text-ink-800 font-sans antialiased min-h-screen flex flex-col">
@@ -124,7 +126,7 @@ ${o.body}
     </form>
   </div>
 </footer>
-<script src="/app.js" defer></script>
+<script src="/app.js?v=${ASSET_V.app}" defer></script>
 </body>
 </html>`;
 }
