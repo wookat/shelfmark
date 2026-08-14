@@ -1735,3 +1735,8 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - QA 流量标记统一口径：采集端排除——服务端 isQATraffic()（UA 含 HeadlessChrome 或 DevinQA）作用于 /api/hit 与 searches 记录；客户端 localStorage shelfmark_qa=1 直接不发 beacon。今后基线数据不再被验收/QA 轮污染。
 - 回访可测（验收官已批的最小诚实埋点，无标识符）：app.js 以 localStorage 首见日期推导 new/returning 布尔，每日一次随 hit beacon 上报，服务端聚合进既有 hits 表伪路径 ev:visit:new / ev:visit:returning（勿增实体：无新表无新端点）。
 - 零结果搜索词选题输入：docs/search-gaps.md 全量导出并分类 30 个词——26 个 QA 探针、5 个正确零结果（已删学术目录词）、三体（英文目录已知限制）、"mistborn"（R149 已修）；结论：暂无可补选题，管线已建立，待 GSC/Bing 开通与真实流量。
+
+## 审改分离 R7（安全复扫横向矩阵自查）
+- 矩阵自查（本线 × {AI/发信/管理端点、CSP、限流键、beacon 防伪}）：AI 端点无 n/a；管理端点无 n/a；CSP 完整（default-src 'self' 级）；限流为纯 IP 键（本线无登录态，账号键 n/a）。
+- 补齐两处漏项：① 发信全局日熔断——sendEmail 内 KV 计数 mail:<day>，>300/日 fail-closed（分布式 IP 无法烧 Resend 配额；订阅确认+周报共用一闸）；② /unsubscribe POST 补 30/min 限流（原无）。
+- beacon 防伪按报告建议做最小防护（不加签名）：isQATraffic 扩展为排除空 UA 与明显非浏览器客户端（bot/spider/crawl/curl/wget/python/httpx/libwww/scrapy），配合 R6 的 QA 标记；导出侧约定异常日标记（见 analytics-export.md）。

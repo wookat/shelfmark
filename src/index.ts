@@ -36,11 +36,13 @@ app.use("*", async (c, next) => {
   }
 });
 
-// Cross-line QA-traffic convention: headless browsers and UAs carrying the
-// "DevinQA" marker are excluded from first-party analytics at collection time.
+// Cross-line QA-traffic convention: headless browsers, UAs carrying the "DevinQA"
+// marker, and obvious non-browser clients (bots, CLI tools, empty UA) are excluded
+// from first-party analytics at collection time. Counts are not forgery-proof by
+// design — this filters the noise that actually occurs.
 function isQATraffic(c: { req: { header: (n: string) => string | undefined } }): boolean {
   const ua = c.req.header("user-agent") ?? "";
-  return ua.includes("HeadlessChrome") || ua.includes("DevinQA");
+  return !ua || /HeadlessChrome|DevinQA|bot|spider|crawl|curl|wget|python|httpx|libwww|scrapy/i.test(ua);
 }
 
 async function rateLimited(c: { env: Env; req: { header: (n: string) => string | undefined } }, bucket: string, limit: number): Promise<boolean> {
@@ -1944,6 +1946,12 @@ app.get("/api/authors/:file", async (c) => {
 
 async function sendEmail(env: Env, to: string, subject: string, html: string, text: string, unsubToken?: string): Promise<boolean> {
   if (!env.RESEND_API_KEY) return false;
+  // Global daily send breaker: caps total outbound mail (confirmations + digest)
+  // so distributed abuse can't burn the Resend quota. Fail-closed.
+  const mailKey = `mail:${new Date().toISOString().slice(0, 10)}`;
+  const sent = parseInt((await env.CACHE.get(mailKey)) ?? "0", 10) + 1;
+  if (sent > 300) return false;
+  await env.CACHE.put(mailKey, String(sent), { expirationTtl: 172800 });
   const headers: Record<string, string> = {};
   if (unsubToken) {
     headers["List-Unsubscribe"] = `<${env.SITE_URL}/unsubscribe?t=${unsubToken}>`;
@@ -1999,6 +2007,7 @@ async function unsubscribe(c: { env: Env }, token: string): Promise<boolean> {
 }
 
 app.post("/unsubscribe", async (c) => {
+  if (await rateLimited(c, "unsub", 30)) return c.body(null, 429);
   await unsubscribe(c, (c.req.query("t") ?? "").slice(0, 64));
   return c.body(null, 200);
 });
