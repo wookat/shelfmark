@@ -124,43 +124,10 @@
     }
   }
 
-  // ---- first-visit coach mark on series pages (one-time, dismissible) ----
+  // The onboarding message ("tick books \u2014 saved privately in this browser") is
+  // server-rendered inside the "Where to start" card: always visible, no overlay,
+  // no layout shift. TIP_KEY is kept only so older dismiss state stays meaningful.
   var TIP_KEY = "shelfmark_tip_track_v1";
-  var firstList = document.querySelector("ol[data-series]");
-  if (firstList && firstList.querySelectorAll("input[data-book]").length > 1 && !Object.keys(data).length && !localStorage.getItem(TIP_KEY)) {
-    // Fixed-position toast: inserting into the flow above the book list shifts
-    // everything below it (CLS), so the onboarding tip floats over the page instead.
-    var tip = document.createElement("div");
-    tip.className = "coach-tip rounded-xl border border-amber-accent/40 bg-white px-4 py-3 text-sm text-ink-700 flex items-start gap-3 print:hidden fixed bottom-4 left-4 right-4 sm:left-auto sm:max-w-sm z-40 shadow-lg";
-    tip.setAttribute("role", "note");
-    var tipText = document.createElement("p");
-    tipText.className = "min-w-0 flex-1";
-    tipText.innerHTML = '<span class="font-medium text-ink-900">New here?</span> Tick the books you\u2019ve read \u2014 your progress is saved privately in this browser, no account needed.';
-    var tipClose = document.createElement("button");
-    tipClose.type = "button";
-    tipClose.className = "shrink-0 text-ink-700/75 hover:text-ink-900 cursor-pointer font-medium";
-    tipClose.textContent = "Got it";
-    tipClose.setAttribute("aria-label", "Dismiss tip");
-    tipClose.addEventListener("click", function () {
-      try { localStorage.setItem(TIP_KEY, "1"); } catch (e) {}
-      tip.remove();
-    });
-    tip.appendChild(tipText);
-    tip.appendChild(tipClose);
-    // Append inside <main> so all content stays within a landmark (axe "region");
-    // fixed positioning keeps it viewport-anchored regardless of parent.
-    (document.querySelector("main") || document.body).appendChild(tip);
-    // The toast floats over list rows on small screens: once the reader scrolls
-    // into the list they're already doing the thing it teaches, so let it go.
-    var tipScrollFrom = window.scrollY;
-    var tipOnScroll = function () {
-      if (Math.abs(window.scrollY - tipScrollFrom) > 400) {
-        window.removeEventListener("scroll", tipOnScroll);
-        if (tip.isConnected) tip.remove();
-      }
-    };
-    window.addEventListener("scroll", tipOnScroll, { passive: true });
-  }
 
   // ---- one-time "see it on My Shelf" hint after the very first tick ----
   var HINT_KEY = "shelfmark_hint_shelf_v1";
