@@ -280,6 +280,26 @@ footer ul a {
   white-space: nowrap;
 }
 
+/* Cover placeholder: initial letter on a hue tinted from the title (set via
+   --ph-h), so missing covers read as intentional artwork rather than broken
+   images. Sizing/rounding comes from the utility classes on the element. */
+.cover-ph {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  background: hsl(var(--ph-h, 35) 45% 88%) !important;
+  color: hsl(var(--ph-h, 35) 40% 32%);
+  border: 1px solid hsl(var(--ph-h, 35) 30% 76%) !important;
+}
+@media (prefers-color-scheme: dark) {
+  .cover-ph {
+    background: hsl(var(--ph-h, 35) 22% 24%) !important;
+    color: hsl(var(--ph-h, 35) 35% 76%);
+    border-color: hsl(var(--ph-h, 35) 18% 36%) !important;
+  }
+}
+
 .beta-badge {
   padding: 0.1rem 0.5rem;
   border-radius: 9999px;

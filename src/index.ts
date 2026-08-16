@@ -27,7 +27,7 @@ const CACHE_SKIP = new Set(["/random", "/confirm", "/unsubscribe", "/search", "/
 
 app.use("*", async (c, next) => {
   const url = new URL(c.req.url);
-  if (c.req.method !== "GET" || url.pathname.startsWith("/api/") || CACHE_SKIP.has(url.pathname)) return next();
+  if (c.req.method !== "GET" || url.pathname.startsWith("/api/") || url.pathname.startsWith("/covers/") || CACHE_SKIP.has(url.pathname)) return next();
   const key = new Request(`${url.origin}${url.pathname}${url.search ? url.search + "&" : "?"}__v=${CACHE_VER}`);
   const cached = await caches.default.match(key);
   if (cached) {
@@ -79,6 +79,34 @@ async function rateLimited(c: { env: Env; req: { header: (n: string) => string |
   return n > limit;
 }
 
+// Same-origin cover proxy: hotlinked covers.openlibrary.org regularly stalls or
+// times out, leaving rows with blank grey boxes. Covers are fetched once and
+// pinned in the edge cache (keyed on the upstream URL, so deploys don't evict).
+app.get("/covers/*", async (c) => {
+  const rest = new URL(c.req.url).pathname.slice("/covers".length);
+  if (!/^\/b\/(id|isbn|olid)\/[A-Za-z0-9]+-[SML]\.jpg$/.test(rest)) return c.notFound();
+  const key = new Request(`https://covers.openlibrary.org${rest}`);
+  const cached = await caches.default.match(key);
+  if (cached) return cached;
+  let up: Response;
+  try {
+    up = await fetch(key, { signal: AbortSignal.timeout(5000) });
+  } catch {
+    return c.body(null, 503, { "Cache-Control": "no-store" });
+  }
+  if (!up.ok || !(up.headers.get("content-type") ?? "").startsWith("image/")) {
+    return c.body(null, 404, { "Cache-Control": "public, max-age=3600" });
+  }
+  const res = new Response(up.body, {
+    headers: {
+      "Content-Type": up.headers.get("content-type")!,
+      "Cache-Control": "public, max-age=31536000, immutable",
+    },
+  });
+  c.executionCtx.waitUntil(caches.default.put(key, res.clone()));
+  return res;
+});
+
 const PAGE_SIZE = 60;
 
 const TRACKER_NOSCRIPT = `<noscript><p class="mt-4 rounded-xl border border-ink-200 bg-white px-4 py-3 text-sm text-ink-700 max-w-2xl">Ticking books to track reading progress needs JavaScript — the reading order below works fine without it.</p></noscript>`;
@@ -124,6 +152,23 @@ function startBook<T extends { position: number | null }>(ordered: T[]): T | und
   return ordered.find((b) => b.position == null || b.position >= 1) ?? ordered[0];
 }
 
+// Book covers render through one helper: same-origin proxied <img> when a cover
+// is on record, otherwise an initial-letter placeholder tinted by a hue derived
+// from the title (a flat grey box reads as a broken image). Failed loads swap to
+// the same placeholder client-side via the data-ph attributes.
+const coverSrc = (u: string) => u.replace("https://covers.openlibrary.org/", "/covers/");
+function phHue(t: string): number {
+  let h = 7;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) % 360;
+  return h;
+}
+function coverImg(title: string, url: string | null | undefined, cls: string, w: number, h: number, phCls = ""): string {
+  const initial = esc((title[0] ?? "?").toUpperCase());
+  const hue = phHue(title);
+  if (!url) return `<span aria-hidden="true" class="cover-ph font-display ${cls} ${phCls}" style="--ph-h:${hue}">${initial}</span>`;
+  return `<img src="${esc(coverSrc(url))}" alt="" loading="lazy" width="${w}" height="${h}" data-ph="${initial}" data-ph-h="${hue}" data-ph-cls="${phCls}" class="${cls}">`;
+}
+
 function yearsSpan(s: Series) {
   if (s.first_year && s.last_year && s.first_year !== s.last_year) return `${fmtYear(s.first_year)}–${fmtYear(s.last_year)}`;
   return s.first_year ? fmtYear(s.first_year) : "";
@@ -131,7 +176,7 @@ function yearsSpan(s: Series) {
 
 function seriesCard(s: Series): string {
   return `<a href="/series/${s.slug}" class="card-lift flex gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent">
-    ${s.cover_url ? `<img src="${esc(s.cover_url)}" alt="" width="40" height="56" loading="lazy" class="w-10 h-14 rounded object-cover border border-ink-200 bg-ink-100 shrink-0">` : `<span aria-hidden="true" class="w-10 h-14 rounded bg-ink-100 border border-ink-200 shrink-0 flex items-center justify-center font-display font-semibold text-ink-700/60">${esc((s.name[0] ?? "?").toUpperCase())}</span>`}
+    ${coverImg(s.name, s.cover_url, "w-10 h-14 rounded object-cover border border-ink-200 bg-ink-100 shrink-0", 40, 56)}
     <div class="min-w-0 flex-1">
     <p class="font-display font-semibold text-ink-900">${esc(s.name)}</p>
     <p class="text-sm text-ink-700/80 mt-1">${s.author_name ? esc(s.author_name) + " · " : ""}${bookNoun(s.book_count)}${yearsSpan(s) ? " · " + yearsSpan(s) : ""}</p>
@@ -182,7 +227,7 @@ app.get("/", async (c) => {
   </form>
   <p class="mt-3 text-sm text-ink-700/80">or <a href="/random" class="text-amber-accent font-medium underline underline-offset-2">surprise me with a series</a></p>
   ${heroCovers.length >= 5 ? `<div class="hero-covers mt-10 flex justify-center items-end gap-3 sm:gap-5">
-    ${heroCovers.map((s, i) => `<a href="/series/${s.slug}" title="${esc(s.name)} reading order" style="transform:rotate(${[-6, 4, -3, 5, -5, 3, -4, 6][i % 8]}deg)" class="shrink-0${i > 3 ? " hidden md:block" : i > 2 ? " hidden sm:block" : ""}"><img src="${esc(s.cover_url!)}" alt="${esc(s.name)}" width="88" height="132" loading="lazy" class="w-16 sm:w-[88px] aspect-[2/3] object-cover rounded-md shadow-md border border-ink-200 bg-ink-100"></a>`).join("")}
+    ${heroCovers.map((s, i) => `<a href="/series/${s.slug}" title="${esc(s.name)} reading order" style="transform:rotate(${[-6, 4, -3, 5, -5, 3, -4, 6][i % 8]}deg)" class="shrink-0${i > 3 ? " hidden md:block" : i > 2 ? " hidden sm:block" : ""}"><img src="${esc(coverSrc(s.cover_url!))}" alt="${esc(s.name)}" width="88" height="132" loading="lazy" data-ph="${esc((s.name[0] ?? "?").toUpperCase())}" data-ph-h="${phHue(s.name)}" data-ph-cls="text-2xl" class="w-16 sm:w-[88px] aspect-[2/3] object-cover rounded-md shadow-md border border-ink-200 bg-ink-100"></a>`).join("")}
   </div>` : ""}
 </section>
 <section class="mt-2" aria-labelledby="how-heading" data-reveal>
@@ -200,7 +245,7 @@ app.get("/", async (c) => {
 </section>
 ${fresh.length ? `<section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">New &amp; upcoming</h2><a href="/new" class="text-sm text-amber-accent font-medium">All new releases →</a></div>
-  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li class="min-w-0"><a href="/series/${b.series_slug}" class="card-lift flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent min-w-0">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
+  <ul class="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">${fresh.map((b) => `<li class="min-w-0"><a href="/series/${b.series_slug}" class="card-lift flex items-center gap-3 rounded-2xl bg-white border border-ink-200 p-4 hover:border-amber-accent min-w-0">${coverImg(b.title, b.cover_url, "w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100", 38, 57)}<span class="min-w-0"><span class="block font-medium text-ink-900 text-sm truncate">${esc(b.title)}${b.year ? ` (${b.year})` : ""}</span><span class="block text-xs text-ink-700/75 mt-0.5 truncate">${esc(b.series_name)}${b.author_name ? ` · ${esc(b.author_name)}` : ""}</span></span></a></li>`).join("")}</ul>
 </section>` : ""}
 <section class="mt-12">
   <div class="flex items-baseline justify-between"><h2 class="font-display font-semibold text-2xl text-ink-900">Browse by genre</h2><a href="/genres" class="text-sm text-amber-accent font-medium">All genres →</a></div>
@@ -1153,13 +1198,14 @@ ${sameName.length ? `<p class="mt-2 text-sm text-ink-700/80">Looking for a diffe
   <span class="font-medium text-amber-accent print:hidden" data-progress-label="${series.slug}"></span>
 </div>
 <div class="mt-2 h-2 rounded-full bg-ink-100 max-w-md overflow-hidden"><div class="h-full bg-amber-accent rounded-full transition-all" style="width:0%" data-progress-bar="${series.slug}"></div></div>
-${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-accent bg-white border border-ink-200 px-5 py-4 max-w-2xl" aria-label="Where to start">
-  ${first.cover_url ? `<img src="${esc(first.cover_url)}" alt="" width="56" height="84" loading="lazy" class="w-14 h-[84px] rounded object-cover border border-ink-200 bg-ink-100 shrink-0 self-center">` : ""}
-  <div class="min-w-0">
+${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-accent bg-white border border-ink-200 px-5 py-4 max-w-4xl" aria-label="Where to start">
+  ${coverImg(first.title, first.cover_url, "w-14 h-[84px] rounded object-cover border border-ink-200 bg-ink-100 shrink-0 self-center", 56, 84)}
+  <div class="min-w-0 flex-1">
   <p class="text-xs font-semibold uppercase tracking-wide text-amber-accent">Where to start</p>
   <p class="mt-1 font-display font-semibold text-lg text-ink-900">Start with “${esc(first.title)}”${first.year ? ` (${first.year})` : ""}</p>
   <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in ${orderNoun} — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
   </div>
+  ${(() => { const strip = orderedBooks.filter((b) => b !== first).slice(0, 4); return strip.length >= 2 ? `<div class="hidden lg:flex items-end gap-2 shrink-0 self-center" aria-hidden="true">${strip.map((b, i) => `<span style="transform:rotate(${[-4, 3, -2, 4][i % 4]}deg)">${coverImg(b.title, b.cover_url, "w-12 h-[72px] rounded object-cover border border-ink-200 bg-ink-100 shadow-sm", 48, 72)}</span>`).join("")}</div>` : ""; })()}
 </aside>` : ""}
 ${TRACKER_NOSCRIPT}
 ${bookList(mainBooks, series, first?.id)}
@@ -1261,7 +1307,7 @@ ${crumbs([
     [book.title, ""],
   ])}
 <div class="flex flex-col sm:flex-row gap-6">
-  ${book.cover_url ? `<img src="${esc(book.cover_url.replace("-M.jpg", "-L.jpg"))}" alt="Cover of ${esc(book.title)}" width="160" height="240" class="w-40 rounded-lg shadow object-cover bg-ink-100 border border-ink-200 shrink-0 self-start">` : ""}
+  ${book.cover_url ? `<img src="${esc(coverSrc(book.cover_url.replace("-M.jpg", "-L.jpg")))}" alt="Cover of ${esc(book.title)}" width="160" height="240" data-ph="${esc((book.title[0] ?? "?").toUpperCase())}" data-ph-h="${phHue(book.title)}" data-ph-cls="text-4xl" class="w-40 rounded-lg shadow object-cover bg-ink-100 border border-ink-200 shrink-0 self-start">` : ""}
   <div class="min-w-0">
     <h1 class="font-display font-bold text-3xl sm:text-4xl text-ink-900 break-words">${esc(book.title)}</h1>
     <p class="mt-2 text-ink-700">${book.author_name ? `by <a href="/authors/${book.author_slug}" class="text-amber-accent underline underline-offset-2">${esc(book.author_name)}</a>` : ""}${book.year ? `${book.author_name ? " · " : ""}${book.year}` : ""}</p>
@@ -1279,7 +1325,7 @@ ${sibs.length > 1 && book.series_name ? `<section class="mt-12">
   <h2 class="font-display font-semibold text-2xl text-ink-900">All ${sibs.length} ${sibs.length === 1 ? "book" : "books"} in ${esc(book.series_name)}</h2>
   <div class="mt-4 flex gap-4 overflow-x-auto pb-2">
     ${sibs.map((b, i) => `<a href="/book/${b.id}-${bslug(b.title)}" class="shrink-0 w-24 group ${b.id === id ? "opacity-100" : ""}" ${b.id === id ? 'aria-current="page"' : ""}>
-      ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="96" height="144" class="w-24 h-36 object-cover rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} group-hover:border-amber-accent">` : `<span aria-hidden="true" class="w-24 h-36 rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} flex items-center justify-center font-display font-semibold text-2xl text-ink-700/75 group-hover:border-amber-accent">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
+      ${coverImg(b.title, b.cover_url, `w-24 h-36 object-cover rounded-lg shadow-sm bg-ink-100 border ${b.id === id ? "border-amber-accent" : "border-ink-200"} group-hover:border-amber-accent`, 96, 144, "text-2xl")}
       <span class="block mt-1.5 text-xs text-ink-700 leading-snug"><span class="tabular-nums text-ink-700/75">${i + 1}.</span> ${esc(b.title.length > 42 ? b.title.slice(0, 40) + "…" : b.title)}</span>
     </a>`).join("")}
   </div>
@@ -1341,7 +1387,7 @@ function bookList(books: Book[], s: TrackList, startId?: number, numbered = true
 ${books.map((b, i) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3">
   <label class="flex items-center gap-3 cursor-pointer flex-1 min-w-0">
     <input type="checkbox" class="size-5 accent-amber-accent shrink-0" data-book="${b.id}" data-title="${esc(b.title)}">
-    ${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}
+    ${coverImg(b.title, b.cover_url, "w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100", 38, 57)}
     <span class="text-sm sm:text-base min-w-0">${numbered ? `<span class="text-ink-700/75 tabular-nums mr-2">${dupPositions ? i + 1 : b.position ?? i + 1}.</span>` : ""}<a href="/book/${b.id}-${bslug(b.title)}" class="font-medium text-ink-900 hover:text-amber-accent">${esc(b.title)}</a>${b.year ? `<span class="text-ink-700/75 ml-2">(${b.year})</span>` : ""}${b.year && b.year >= new Date().getFullYear() ? `<span class="year-chip">${b.year > new Date().getFullYear() ? "Upcoming" : "New"}</span>` : ""}${b.position != null && b.position < 1 ? `<span class="year-chip">Prequel</span>` : ""}${(startId != null ? b.id === startId : numbered && i === 0) && books.length > 1 ? `<span class="start-chip">Start here</span>` : ""}${b.description && !isStubDescription(b.description) ? `<span class="block text-xs text-ink-700/75 mt-0.5">${esc(b.description)}</span>` : ""}</span>
   </label>
   <a href="https://bookshop.org/search?keywords=${encodeURIComponent(b.title + (s.author_name ? " " + s.author_name : ""))}" rel="nofollow noopener" target="_blank" class="shrink-0 text-xs text-ink-700/75 hover:text-amber-accent underline print:hidden" aria-label="Find a copy of ${esc(b.title)} on Bookshop.org">Find a copy</a>
@@ -1594,7 +1640,7 @@ app.get("/search", async (c) => {
 ${closeMatches && (series.length || authors.length || bookHits.length) ? `<p class="mt-2 text-ink-700">No exact match — showing close matches instead.</p>` : ""}
 ${authors.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Authors</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${authors.map(authorCard).join("")}</div>` : ""}
 ${series.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Series</h2><div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mt-4">${series.map(seriesCard).join("")}</div>` : ""}
-${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="32" height="48" class="w-8 h-12 object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-8 h-12 rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/book/${b.id}-${bslug(b.title)}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— <a href="/series/${b.series_slug}" class="hover:text-amber-accent underline underline-offset-2">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul>` : ""}
+${bookHits.length ? `<h2 class="font-display font-semibold text-2xl text-ink-900 mt-8">Books</h2><ul class="mt-4 space-y-2">${bookHits.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-2.5 text-sm">${coverImg(b.title, b.cover_url, "w-8 h-12 object-cover rounded shadow-sm shrink-0 bg-ink-100", 32, 48, "text-xs")}<span class="min-w-0"><a class="font-medium text-ink-900 hover:text-amber-accent" href="/book/${b.id}-${bslug(b.title)}">${esc(b.title)}</a>${b.year ? ` <span class="text-ink-700/75">(${b.year})</span>` : ""} <span class="text-ink-700/75">— <a href="/series/${b.series_slug}" class="hover:text-amber-accent underline underline-offset-2">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul>` : ""}
 ${!series.length && !authors.length && !bookHits.length ? await (async () => {
       const { results: popular } = await c.env.DB.prepare(
         `SELECT s.*, a.name AS author_name FROM series s LEFT JOIN authors a ON a.id=s.author_id WHERE s.book_count BETWEEN 3 AND 60 AND s.author_id IS NOT NULL AND s.genre IS NOT NULL AND s.genre NOT LIKE '%dictionary%' AND s.genre NOT LIKE '%encyclopedia%' AND s.genre NOT LIKE '%reference%' ORDER BY s.book_count DESC LIMIT 6`
@@ -1715,7 +1761,7 @@ ${genres.length > 1 ? `<nav aria-label="Filter by genre" class="mt-4 flex flex-w
   <a href="/new" class="rounded-full px-3 py-1.5 border ${!activeGenre ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">All</a>
   ${genres.map((g) => `<a href="/new?genre=${encodeURIComponent(g)}" class="rounded-full px-3 py-1.5 border capitalize ${activeGenre === g ? "bg-ink-900 text-ink-50 border-ink-900" : "bg-white border-ink-200 hover:border-amber-accent"}">${esc(genreLabel(g))} <span class="${activeGenre === g ? "text-ink-50/75" : "text-ink-700/75"}">${genreCounts.get(g)}</span></a>`).join("")}
 </nav>` : ""}
-${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${b.cover_url ? `<img src="${esc(b.cover_url)}" alt="" loading="lazy" width="38" height="57" class="w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100">` : `<span aria-hidden="true" class="w-[38px] h-[57px] rounded shadow-sm shrink-0 bg-ink-100 border border-ink-200 flex items-center justify-center font-display font-semibold text-ink-700/75">${esc((b.title[0] ?? "?").toUpperCase())}</span>`}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
+${[...byYear.entries()].map(([y, list]) => `<section class="mt-10"><h2 class="font-display font-semibold text-2xl text-ink-900">${y}</h2><ul class="mt-4 space-y-2">${list.map((b) => `<li class="flex items-center gap-3 rounded-xl bg-white border border-ink-200 px-4 py-3 text-sm">${coverImg(b.title, b.cover_url, "w-[38px] h-[57px] object-cover rounded shadow-sm shrink-0 bg-ink-100", 38, 57)}<span class="min-w-0"><span class="font-medium text-ink-900">${esc(b.title)}</span> <span class="text-ink-700/75">— <a class="text-amber-accent hover:underline" href="/series/${b.series_slug}">${esc(b.series_name)}</a>${b.author_name ? ` by ${esc(b.author_name)}` : ""}</span></span></li>`).join("")}</ul></section>`).join("")}
 ${!upcoming.length ? `<p class="mt-6 text-ink-700">No upcoming releases recorded yet — check back soon.</p>` : ""}
 <section class="mt-12 rounded-2xl bg-white border border-ink-200 p-6 max-w-xl print:hidden" data-reveal>
   <h2 class="font-display font-semibold text-xl text-ink-900">Get new releases by email</h2>

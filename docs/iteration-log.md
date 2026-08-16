@@ -1757,3 +1757,11 @@ Each round: 5 drivers (QA testing / UX walkthrough / visual+a11y / competitor re
 - 样板修复（data/r9_manual_fixes.sql）：Discworld 挂回 The Colour of Magic (1983, #1) + 补插无英文标签被旧摄取丢弃的 Unseen Academicals (2009, #37)，41 本 1983–2015 + 16 伴读；Wheel of Time Start with The Eye of the World (1990)，New Spring 标 Prequel；Rivers of London 序号 1–10 连续（5.5 为 Wikidata 原始编号）+ 回填 2016/2017/2020/2022 四个公开首版年 + Stone & Sky=#10；No Plan B 2022。
 - 描述泄漏 P2：isStubDescription 扩展（´s/'s 所有格 + atlas/companion/guide/cookbook 等类型词），系列列表页对所有 stub 一律抑制（原仅同作者才抑制）；两条 "Lee Child´s book" 脏描述已置 NULL。
 - 生产验证（worker 9ca8009f，数据导入后手动 bump CACHE_VER 后缀刷边缘缓存）：三个样板页 Start with/年份跨度/册数/伴读折叠区全部正确，compare 与系列页 Start 一致，/api/series-books 主序+伴读排序正确，搜索可命中 Colour of Magic。
+
+## UI 双维竞品对照 R1（封面可靠性 P1 + 版面/浮层 P2）
+- P1 根因（一手证实，非猜测）：书目封面直连 covers.openlibrary.org，该服务经常整站超时/停摆（本轮实测本机与 Cloudflare 边缘 fetch 均 10s+ 无响应）——img 永远 pending，页面呈现成排「坏图」灰块；且 9 处封面渲染各自内联占位逻辑，样式不一（部分连首字母都没有）。
+- 修复①同源封面代理 /covers/*（勿增实体，复用既有 caches.default）：路径白名单校验，5s 超时，成功响应以上游 URL 为 key 长期钉入边缘缓存（部署不驱逐），上游 4xx/超时快速返回 404/503 让前端兜底立即接管；边缘缓存中间件跳过 /covers/。
+- 修复②统一 coverImg helper：9 处调用点收敛为一个函数——有封面走同源代理 img（携带 data-ph/data-ph-h 兜底信息），无封面渲染「书名首字母 + 按书名哈希色相 hsl 底色」的 .cover-ph 占位（明暗双主题各一档饱和度）；app.js 全局 error 捕获 + 已失败图扫描，把加载失败的 img 就地换成同款占位——OL 停摆时页面自动退化为彩色首字母墙而非坏图墙，恢复后自动回填并被边缘缓存钉住。
+- P2①「Where to start」卡 1440px 右侧空 40%：卡片放宽至 max-w-4xl，右侧（lg+）加接下来 2–4 本的封面小拼贴（复用 coverImg，aria-hidden）。
+- P2② 375px coach-tip toast 遮挡第 6 行书目：滚动超 400px 即自动移除（读者已在做 toast 教的事），Got it/12s 逻辑保留。
+- 生产验证（worker 5580c136）：/covers 路径校验（穿越/非法扩展 404）、系列页 54 处 data-ph、拼贴 SSR 就位；OL 当前停摆期间全站呈现占位墙，属预期退化行为。
