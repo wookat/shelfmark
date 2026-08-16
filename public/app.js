@@ -14,11 +14,24 @@
   srLive.setAttribute("role", "status");
   document.body.appendChild(srLive);
 
-  // ---- hide covers that fail to load ----
+  // ---- covers that fail to load swap to the tinted initial-letter placeholder ----
+  function coverFallback(img) {
+    if (!img.dataset.ph) { img.remove(); return; }
+    var ph = document.createElement("span");
+    ph.setAttribute("aria-hidden", "true");
+    ph.className = "cover-ph font-display " + img.className + (img.dataset.phCls ? " " + img.dataset.phCls : "");
+    ph.style.setProperty("--ph-h", img.dataset.phH || "35");
+    ph.textContent = img.dataset.ph;
+    img.replaceWith(ph);
+  }
   document.addEventListener("error", function (e) {
     var t = e.target;
-    if (t && t.tagName === "IMG" && t.hasAttribute("width")) t.remove();
+    if (t && t.tagName === "IMG" && t.hasAttribute("width")) coverFallback(t);
   }, true);
+  // Images that already failed before this script ran.
+  document.querySelectorAll("img[data-ph]").forEach(function (img) {
+    if (img.complete && img.naturalWidth === 0) coverFallback(img);
+  });
 
   // ---- analytics (first-party, cookie-less; QA sessions opt out via shelfmark_qa=1) ----
   try {
@@ -137,6 +150,16 @@
     // Append inside <main> so all content stays within a landmark (axe "region");
     // fixed positioning keeps it viewport-anchored regardless of parent.
     (document.querySelector("main") || document.body).appendChild(tip);
+    // The toast floats over list rows on small screens: once the reader scrolls
+    // into the list they're already doing the thing it teaches, so let it go.
+    var tipScrollFrom = window.scrollY;
+    var tipOnScroll = function () {
+      if (Math.abs(window.scrollY - tipScrollFrom) > 400) {
+        window.removeEventListener("scroll", tipOnScroll);
+        if (tip.isConnected) tip.remove();
+      }
+    };
+    window.addEventListener("scroll", tipOnScroll, { passive: true });
   }
 
   // ---- one-time "see it on My Shelf" hint after the very first tick ----
