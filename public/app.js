@@ -136,18 +136,16 @@
     try { localStorage.setItem(HINT_KEY, "1"); } catch (e) {}
     try { localStorage.setItem(TIP_KEY, "1"); } catch (e) {}
     var hintHtml = 'First book tracked \u2713 See all your progress on <a href="/shelf" class="text-amber-accent underline font-medium">My Shelf</a>.';
-    var tipEl = document.querySelector(".coach-tip");
-    if (tipEl) {
-      // Swap the message in place (toast stays put; auto-dismiss after it's read).
-      tipEl.setAttribute("role", "status");
-      tipEl.innerHTML = '<p class="min-w-0 flex-1">' + hintHtml + "</p>";
-      setTimeout(function () { tipEl.remove(); }, 12000);
-      return;
-    }
-    var hint = document.createElement("p");
-    hint.className = "coach-tip rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm text-ink-700 mt-3 print:hidden";
-    hint.setAttribute("role", "status");
-    hint.innerHTML = hintHtml;
+    // Rendered right under the ticked row so it lands in the viewport even on long series.
+    // role="status" lives on an inner p: li itself must stay role-less to keep the ol valid.
+    var isLi = nearEl.tagName === "LI";
+    var hint = document.createElement(isLi ? "li" : "div");
+    hint.className = (isLi ? "list-none " : "") + "print:hidden";
+    var hintBody = document.createElement("p");
+    hintBody.className = "coach-tip rounded-xl border border-ink-200 bg-white px-4 py-2.5 text-sm text-ink-700" + (isLi ? "" : " mt-3");
+    hintBody.setAttribute("role", "status");
+    hintBody.innerHTML = hintHtml;
+    hint.appendChild(hintBody);
     nearEl.insertAdjacentElement("afterend", hint);
     setTimeout(function () { hint.remove(); }, 12000);
   }
@@ -225,7 +223,7 @@
         data = d;
         updateSeriesUI(slug);
         updateUpNext(list, box.checked);
-        if (box.checked && wasEmpty) maybeShelfHint(list);
+        if (box.checked && wasEmpty) maybeShelfHint(box.closest("li") || list);
         if (box.checked && !wasEmpty) maybeBackupHint(box.closest("li") || list, Object.keys(d).length);
       });
     });
