@@ -1203,7 +1203,7 @@ ${first ? `<aside class="mt-6 flex gap-4 rounded-2xl border-l-4 border-amber-acc
   <div class="min-w-0 flex-1">
   <p class="text-xs font-semibold uppercase tracking-wide text-amber-accent">Where to start</p>
   <p class="mt-1 font-display font-semibold text-lg text-ink-900">Start with “${esc(first.title)}”${first.year ? ` (${first.year})` : ""}</p>
-  <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in ${orderNoun} — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it.</p>
+  <p class="mt-1 text-sm text-ink-700">Read ${esc(series.name)} in ${orderNoun} — the list below tracks ${bookNoun(series.book_count)}${yearsSpan(series) ? ` published ${yearsSpan(series)}` : ""}. Tick each book as you finish it — progress is saved privately in this browser, no account needed.</p>
   </div>
   ${(() => { const strip = orderedBooks.filter((b) => b !== first).slice(0, 4); return strip.length >= 2 ? `<div class="hidden lg:flex items-end gap-2 shrink-0 self-center" aria-hidden="true">${strip.map((b, i) => `<span style="transform:rotate(${[-4, 3, -2, 4][i % 4]}deg)">${coverImg(b.title, b.cover_url, "w-12 h-[72px] rounded object-cover border border-ink-200 bg-ink-100 shadow-sm", 48, 72)}</span>`).join("")}</div>` : ""; })()}
 </aside>` : ""}
