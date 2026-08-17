@@ -88,14 +88,21 @@ app.get("/covers/*", async (c) => {
   const key = new Request(`https://covers.openlibrary.org${rest}`);
   const cached = await caches.default.match(key);
   if (cached) return cached;
+  // og:image requests must always resolve to an image — social crawlers don't
+  // retry — so ?og=1 falls back to the brand card instead of an error status.
+  const brandCard = async () => {
+    const asset = await c.env.ASSETS.fetch(new Request(new URL("/og.png", c.req.url)));
+    return new Response(asset.body, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=3600" } });
+  };
+  const wantsOg = c.req.query("og") !== undefined;
   let up: Response;
   try {
     up = await fetch(key, { signal: AbortSignal.timeout(5000) });
   } catch {
-    return c.body(null, 503, { "Cache-Control": "no-store" });
+    return wantsOg ? brandCard() : c.body(null, 503, { "Cache-Control": "no-store" });
   }
   if (!up.ok || !(up.headers.get("content-type") ?? "").startsWith("image/")) {
-    return c.body(null, 404, { "Cache-Control": "public, max-age=3600" });
+    return wantsOg ? brandCard() : c.body(null, 404, { "Cache-Control": "public, max-age=3600" });
   }
   const res = new Response(up.body, {
     headers: {
