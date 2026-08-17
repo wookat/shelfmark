@@ -26,8 +26,18 @@ const SISTERS = [
   ["MealLoop", "https://mealloop.zalize.com", "Weekly meal planning"],
 ];
 
+const OL_COVERS = "https://covers.openlibrary.org/";
+
 export function layout(o: PageOpts): string {
   const canonical = o.siteUrl + o.path;
+  // Social crawlers hotlinking Open Library go imageless during its outages:
+  // route og images through the same-origin proxy, which serves the brand
+  // card when the upstream cover is unavailable (?og=1).
+  const ogImage = o.image
+    ? o.image.startsWith(OL_COVERS)
+      ? `${o.siteUrl}/covers/${o.image.slice(OL_COVERS.length)}?og=1`
+      : o.image
+    : o.siteUrl + "/og.png";
   const ld = (o.jsonLd ?? [])
     .map((x) => `<script type="application/ld+json">${JSON.stringify(x).replace(/</g, "\\u003c")}</script>`)
     .join("\n");
@@ -45,9 +55,9 @@ export function layout(o: PageOpts): string {
 <meta property="og:url" content="${esc(canonical)}">
 <meta property="og:site_name" content="Shelfmark">
 <meta property="og:type" content="website">
-<meta property="og:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
+<meta property="og:image" content="${esc(ogImage)}">
 <meta name="twitter:card" content="${o.image ? "summary" : "summary_large_image"}">
-<meta name="twitter:image" content="${esc(o.image ?? o.siteUrl + "/og.png")}">
+<meta name="twitter:image" content="${esc(ogImage)}">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.json">
 <meta name="color-scheme" content="light dark">
